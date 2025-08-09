@@ -1,0 +1,127 @@
+Product Requirements Document (PRD)
+------------------------------------
+Product Name: Palytt
+Product Type: Food & Drink Sharing Social Media App
+Version: 1.0
+Author: Taskmaster-AI
+Date: YYYY-MM-DD
+
+---
+
+## 1. Overview
+
+Palytt is a social media platform focused on food, drinks, and dining experiences. Users can share posts, rate restaurants, give commendations, and log their food & drink preferences. The platform uses AI to recommend restaurants, bars, or cafés for individuals or groups based on personal preferences, liked posts, and ratings. Palytt integrates a built-in camera, interactive map, and AI-driven suggestion engine.
+
+---
+
+## 2. Goals & Objectives
+
+- Allow users to share and discover food and drink content from friends and the wider community.
+- Centralize user preferences, commendations, and ratings for better decision-making.
+- Use AI to recommend venues for individuals and groups when dining choices are unclear.
+- Integrate map navigation and camera features for a seamless dining and social experience.
+- Encourage engagement through social interactions such as comments, likes, and commendations.
+
+---
+
+## 3. Target Audience
+
+- Foodies and social diners.
+- Groups of friends who often dine out together.
+- Travelers exploring local food and drink scenes.
+- Communities seeking social recommendations.
+
+---
+
+## 4. Key Features
+
+### 4.1 Social Feed
+- View friends’ posts, including food & drink photos, captions, ratings, and location tags.
+- Like, comment, and give commendations (special badges for standout posts).
+- Save posts to personal collections.
+
+### 4.2 Preferences & Ratings
+- Users can input food & drink preferences (liked cuisines, dietary restrictions, favorite drinks).
+- Rate restaurants, bars, and cafes (1–5 stars, optional written review).
+- AI learns from user activity (likes, ratings, shares) to refine recommendations.
+
+### 4.3 Group Dining Decision
+- Group creation via friend list or shared link.
+- Members select preferences and dietary restrictions.
+- AI aggregates group data to suggest top venues.
+- Tie-breaker system (polling or AI confidence scoring).
+
+### 4.4 AI Recommendations
+- Suggests places based on:
+  - User’s preferences and ratings.
+  - Friends’ commendations and liked posts.
+  - Trending spots in the community.
+- Personalized suggestions for individuals or group outings.
+
+### 4.5 Camera & Media Tools
+- In-app camera with food photography filters.
+- Tag location automatically via GPS.
+- AR features for menu translation or dish recommendations (future enhancement).
+
+### 4.6 Map & Navigation
+- Embedded map to view nearby recommended places.
+- Filter by cuisine, price range, rating, or distance.
+- Live directions to selected venue.
+
+---
+
+## 5. User Flows
+
+**Flow 1 – Individual Discovery**
+1. Open app → AI feed of recommended posts.
+2. Tap a post → View restaurant info & map.
+3. Bookmark, rate, or navigate to location.
+
+**Flow 2 – Group Dining Choice**
+1. Create group → Add friends.
+2. AI collects all members’ preferences.
+3. AI suggests top 3–5 venues.
+4. Group votes or accepts AI’s top pick.
+5. Navigate via in-app map.
+
+---
+
+## 6. Technical Requirements
+
+- **Platform:** iOS, Android (mobile-first), web app (future phase).
+- **Backend:** Node.js or Python (API), PostgreSQL or MongoDB (data storage).
+- **AI Engine:** Machine learning model for preference matching and recommendation scoring.
+- **Map Integration:** Google Maps API or Mapbox.
+- **Camera & Media:** Native camera integration, image filters.
+- **Authentication:** OAuth, email/password, social logins (Google, Apple, Facebook).
+- **Security:** HTTPS, data encryption, GDPR compliance.
+
+---
+
+## 7. Success Metrics
+
+- Daily active users (DAU) & monthly active users (MAU).
+- Number of posts, commendations, and group decisions per week.
+- AI recommendation acceptance rate.
+- Average time spent in app per session.
+- User retention after 30/60/90 days.
+
+---
+
+## 8. Risks & Considerations
+
+- Data privacy concerns regarding location and preferences.
+- Accuracy of AI recommendations and user trust.
+- Restaurant database coverage and freshness of data.
+- User onboarding complexity for group decision feature.
+
+---
+
+## 9. Roadmap (Phase 1 – MVP)
+
+1. Core social feed with posts, likes, comments, and commendations.
+2. Preferences & rating system.
+3. Basic AI recommendations for individuals.
+4. Group decision-making flow.
+5. Integrated map and navigation.
+6. In-app camera with filters.

@@ -1,0 +1,454 @@
+{
+  "master": {
+    "tasks": [
+      {
+        "id": 26,
+        "title": "Implement Infinite Scroll with Seamless Pagination",
+        "description": "Develop an infinite scroll mechanism for the home feed that loads content seamlessly as the user scrolls down.",
+        "details": "Create a SwiftUI implementation of infinite scrolling using LazyVStack with ScrollView. Implement pagination logic that pre-fetches the next batch of content before the user reaches the end of the current content. Use Combine publishers to handle the data stream and manage state. Implement a threshold-based approach where new content is requested when the user scrolls past 70% of the current content. Handle error states and retry logic for failed network requests. Use URLSession for API calls with proper cancellation handling to prevent race conditions.",
+        "testStrategy": "Test scrolling performance with large datasets. Verify pagination works correctly by monitoring network requests. Test error handling by simulating network failures. Measure memory usage during extended scrolling sessions. Verify content loads correctly across different network conditions.",
+        "priority": "high",
+        "dependencies": [],
+        "status": "in-progress",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Design SwiftUI Infinite Scroll Structure",
+            "description": "Create the foundational SwiftUI view using ScrollView and LazyVStack to display the home feed and enable dynamic loading of content as the user scrolls.",
+            "dependencies": [],
+            "details": "Implement the main feed UI using ScrollView and LazyVStack. Ensure that only visible items are rendered for performance. Integrate ForEach to iterate over the data source.\n<info added on 2025-08-09T21:30:48.335Z>\nImplemented the SwiftUI infinite scroll structure with significant performance optimizations. The solution features a dynamic 70% threshold pre-fetching algorithm that replaces the static 3-post threshold, triggering content loads when users reach 70% of current posts with a minimum threshold of 3 posts for small datasets. Performance improvements include Combine cancellation handling with Set<AnyCancellable>(), proper task cancellation to prevent race conditions, and enhanced error recovery. The robust state management prevents multiple concurrent requests, includes proper cleanup in the clearPosts() method, and features enhanced logging. Architecture improvements maintain the LazyVStack + ScrollView structure for optimal performance while preserving optimistic updates for user interactions and personalized feed logic. The implementation uses dynamic threshold calculation, cancels previous loading tasks before starting new ones, maintains separate loading states, and includes comprehensive logging for monitoring.\n</info added on 2025-08-09T21:30:48.335Z>",
+            "status": "done",
+            "testStrategy": "Verify that the feed displays correctly and that scrolling through large datasets does not cause performance issues or excessive memory usage."
+          },
+          {
+            "id": 2,
+            "title": "Implement Pagination and Pre-fetch Logic",
+            "description": "Develop logic to pre-fetch the next batch of content when the user scrolls past a defined threshold (e.g., 70% of current content).",
+            "dependencies": [
+              "26.1"
+            ],
+            "details": "Monitor scroll position and trigger data fetch when the user reaches the threshold. Use helper functions to determine when to load more data and update the data source accordingly.",
+            "status": "in-progress",
+            "testStrategy": "Test that new content is requested and loaded before the user reaches the end of the current batch. Confirm that pagination works seamlessly and no duplicate requests occur."
+          },
+          {
+            "id": 3,
+            "title": "Integrate Combine Publishers for Data and State Management",
+            "description": "Use Combine publishers to manage the data stream, handle asynchronous API calls, and update the UI state reactively.",
+            "dependencies": [
+              "26.2"
+            ],
+            "details": "Set up Combine pipelines to fetch data, update the feed, and manage loading states. Ensure cancellation of previous requests to prevent race conditions.",
+            "status": "pending",
+            "testStrategy": "Simulate rapid scrolling and verify that Combine correctly cancels outdated requests and updates the UI without glitches."
+          },
+          {
+            "id": 4,
+            "title": "Implement Error Handling and Retry Logic",
+            "description": "Add robust error handling for network failures, including user feedback and automatic or manual retry mechanisms.",
+            "dependencies": [
+              "26.3"
+            ],
+            "details": "Detect failed network requests and display appropriate error messages. Provide a retry option and ensure that retries do not duplicate content or requests.",
+            "status": "pending",
+            "testStrategy": "Simulate network failures and verify that errors are handled gracefully, with retry logic functioning as expected and no loss of user progress."
+          },
+          {
+            "id": 5,
+            "title": "Optimize API Calls with URLSession and Cancellation Handling",
+            "description": "Implement efficient API calls using URLSession, ensuring proper cancellation of in-flight requests to avoid race conditions and unnecessary network usage.",
+            "dependencies": [
+              "26.4"
+            ],
+            "details": "Configure URLSession for paginated requests. Integrate cancellation tokens or Combine's cancellation features to stop obsolete requests when new data is needed.",
+            "status": "pending",
+            "testStrategy": "Monitor network activity during extended scrolling sessions, verify that cancelled requests do not complete, and ensure that only relevant data is loaded."
+          }
+        ]
+      },
+      {
+        "id": 27,
+        "title": "Implement Smart Loading with Skeleton Loaders",
+        "description": "Create skeleton loading screens that display while content is being fetched to improve perceived performance.",
+        "details": "Design and implement skeleton loading views using SwiftUI that mimic the structure of actual content. Create reusable skeleton components for posts, profiles, and comments. Implement shimmer animation effect using TimelineView and animatable properties. Ensure skeleton loaders match the layout and proportions of actual content. Implement a timing system that shows skeletons only if loading takes longer than 300ms to prevent flickering for fast loads. Use a fade transition when replacing skeletons with actual content.",
+        "testStrategy": "Test skeleton loader appearance across different device sizes. Verify shimmer animations perform well on older devices. Test transition from skeleton to content under various network conditions. Ensure accessibility features work correctly with skeleton states.",
+        "priority": "medium",
+        "dependencies": [
+          26
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 28,
+        "title": "Implement Progressive Image Loading with Placeholders",
+        "description": "Develop a system for progressive image loading that shows low-resolution placeholders while full images load.",
+        "details": "Integrate with BunnyCDN to leverage their image transformation capabilities. Implement a multi-stage loading approach: 1) Show color placeholder based on dominant image color, 2) Load tiny thumbnail (e.g., 32x32px), 3) Load full resolution image. Use URLSession with proper caching policies. Implement fade transitions between loading stages. Create a custom AsyncImage replacement that handles this progressive loading pattern. Implement memory-efficient image caching using NSCache with size limits. Add support for cancelling image requests when cells are recycled.",
+        "testStrategy": "Test image loading performance across different network conditions. Verify memory usage remains stable during heavy image browsing. Test cache hit rates and eviction policies. Ensure transitions between loading states are smooth. Verify correct behavior when rapidly scrolling through image-heavy content.",
+        "priority": "high",
+        "dependencies": [
+          27
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 29,
+        "title": "Implement Pull-to-Refresh with Enhanced Animations",
+        "description": "Create a custom pull-to-refresh mechanism with food-themed animations to refresh the content feed.",
+        "details": "Extend the standard RefreshControl with custom animations using Core Animation. Create food-themed refresh animations (e.g., spinning plate, cooking pot with steam). Implement proper haptic feedback during the refresh cycle using UINotificationFeedbackGenerator. Ensure smooth animation transitions between states (pulling, threshold reached, refreshing, completed). Implement a debounce mechanism to prevent multiple refresh calls. Integrate with the feed's data fetching logic to reload content. Add visual indicators for successful refresh or error states.",
+        "testStrategy": "Test refresh mechanism under different network conditions. Verify animations run smoothly on various device types. Test haptic feedback timing and appropriateness. Ensure accessibility features work correctly with custom refresh control. Verify refresh state is correctly reset after completion.",
+        "priority": "medium",
+        "dependencies": [
+          26
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 30,
+        "title": "Implement Enhanced Feed Algorithm for Post Ranking",
+        "description": "Develop an algorithm that ranks posts in the feed based on relevance, recency, and user preferences.",
+        "details": "Design a scoring system that considers: post recency, engagement metrics (likes, comments), user affinity (based on past interactions), content type preferences, and location relevance. Implement the algorithm using a weighted scoring approach. Create a background process that pre-calculates scores for efficiency. Implement A/B testing capability to compare different algorithm variations. Use Core ML for on-device personalization of weights based on user behavior. Store user preference data in Core Data with CloudKit sync. Implement analytics tracking to measure algorithm effectiveness.",
+        "testStrategy": "Test algorithm performance with large datasets. Verify ranking makes logical sense for different user profiles. Test personalization by simulating different user behaviors. Measure algorithm execution time to ensure feed loading isn't delayed. Verify A/B testing framework correctly tracks and reports metrics.",
+        "priority": "high",
+        "dependencies": [
+          26
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 31,
+        "title": "Implement Enhanced Like Animations and Comment Animations",
+        "description": "Create visually appealing animations for likes and comments to increase user engagement and provide visual feedback.",
+        "details": "Design and implement custom like animation using Core Animation with particle effects. Create a heart burst effect when double-tapping a post. Implement comment appearance animations using spring animations in SwiftUI. Add subtle scale and fade animations for all interaction elements. Use UIViewPropertyAnimator for complex animation sequences. Implement custom transition animations between comment states. Ensure animations are energy-efficient by using proper CADisplayLink management. Create reusable animation components that can be customized for different contexts.",
+        "testStrategy": "Test animation performance on older devices. Verify animations work correctly in different UI states. Test animation timing and feel for user satisfaction. Ensure animations don't interfere with UI responsiveness. Verify animations respect reduced motion accessibility settings.",
+        "priority": "medium",
+        "dependencies": [
+          26,
+          30
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 32,
+        "title": "Implement Strategic Haptic Feedback for All Interactions",
+        "description": "Add appropriate haptic feedback throughout the app to enhance the tactile experience of user interactions.",
+        "details": "Create a centralized haptic feedback service that provides consistent feedback patterns. Implement different feedback types using UIFeedbackGenerator subclasses: UIImpactFeedbackGenerator for taps and selections, UINotificationFeedbackGenerator for success/error states, UISelectionFeedbackGenerator for navigation changes. Map specific interactions to appropriate feedback types (e.g., light impact for likes, medium for comments, heavy for post creation). Implement a user preference setting to adjust haptic intensity or disable it. Ensure haptic feedback is synchronized with visual animations for maximum effect.",
+        "testStrategy": "Test haptic feedback on different device models. Verify feedback timing matches visual feedback. Test user preference controls for haptics. Ensure haptics don't trigger unnecessarily during scrolling or passive interactions. Verify haptic feedback respects system settings for accessibility.",
+        "priority": "medium",
+        "dependencies": [
+          31
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 33,
+        "title": "Implement Quick Actions with Swipe Gestures",
+        "description": "Add swipe gesture functionality to posts and comments for quick actions like saving, sharing, or reporting.",
+        "details": "Implement custom swipe actions using SwiftUI's swipeActions or create custom gesture recognizers for more control. Create left and right swipe actions with different functionalities: left swipe for positive actions (save, like), right swipe for utility actions (share, report). Add visual indicators and animations during swipe progression. Implement haptic feedback that intensifies as swipe progresses. Create custom swipe thresholds and resistance curves for natural feel. Ensure swipe actions are accessible via alternative methods for accessibility. Implement undo capability for destructive swipe actions.",
+        "testStrategy": "Test swipe gesture recognition accuracy and sensitivity. Verify swipe actions work correctly on different device sizes. Test edge cases like interrupted swipes or rapid multiple swipes. Ensure accessibility alternatives function correctly. Verify haptic feedback matches swipe progression.",
+        "priority": "medium",
+        "dependencies": [
+          32
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 34,
+        "title": "Implement Double-Tap to Like Functionality",
+        "description": "Add the ability to like posts by double-tapping on the content, similar to popular social media platforms.",
+        "details": "Implement a UITapGestureRecognizer or SwiftUI TapGesture with a count of 2 to detect double taps. Create a visual indicator that shows where the user tapped (heart animation). Ensure the double-tap area covers the main content but not UI controls. Implement debouncing to prevent accidental multiple likes. Synchronize the like state with the like button UI. Add appropriate haptic feedback for successful likes. Ensure the animation is centered on the tap location. Implement analytics tracking for engagement via double-tap vs. button press.",
+        "testStrategy": "Test double-tap recognition accuracy and timing. Verify like state synchronizes correctly with server. Test edge cases like rapid multiple double-taps. Ensure animation appears at the correct tap location. Verify analytics correctly tracks different like methods.",
+        "priority": "medium",
+        "dependencies": [
+          31,
+          32
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 35,
+        "title": "Implement Dietary Filters for Content",
+        "description": "Create filtering options that allow users to filter feed content based on dietary preferences like vegan, vegetarian, gluten-free, and keto.",
+        "details": "Design and implement a filter UI using SwiftUI with toggles for different dietary preferences. Create a filter model that stores user preferences in UserDefaults and syncs with CloudKit. Implement server-side filtering via API parameters. Add client-side filtering as a fallback for offline mode. Create visual indicators showing when filters are active. Implement filter combinations logic (AND/OR operations). Add quick filter presets for common combinations. Ensure filter state persists between app sessions. Implement analytics to track filter usage patterns.",
+        "testStrategy": "Test filter accuracy with various content types. Verify filter persistence across app restarts. Test filter combinations for logical correctness. Ensure filter UI is intuitive and accessible. Verify performance with filters applied to large datasets. Test synchronization of filter preferences across devices.",
+        "priority": "high",
+        "dependencies": [
+          30
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 36,
+        "title": "Implement Cuisine Type and Price Range Filtering",
+        "description": "Add filtering capabilities for cuisine types and price ranges to help users discover relevant food content.",
+        "details": "Create a comprehensive cuisine taxonomy with hierarchical categories (e.g., Asian > Japanese > Sushi). Implement a price range filter with customizable ranges using a slider UI. Design an intuitive filter selection interface with search capability for cuisines. Implement filter combination logic that works with dietary filters. Create visual chips/tags to show active filters. Store user filter preferences and suggest frequently used filters. Implement server-side filtering for efficiency. Add analytics tracking for filter usage patterns. Create a \"nearby cuisines\" quick filter based on location.",
+        "testStrategy": "Test cuisine classification accuracy. Verify price range filtering works correctly. Test filter UI usability with user testing. Ensure filter combinations produce expected results. Test performance with multiple active filters. Verify filter preferences sync correctly across devices.",
+        "priority": "medium",
+        "dependencies": [
+          35
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 37,
+        "title": "Implement Distance and Time-based Filtering",
+        "description": "Create filters that allow users to find content based on proximity to their location and recency of posts.",
+        "details": "Implement location-based filtering using CoreLocation with customizable radius options. Create a time-based filter with options like \"Today\", \"This Week\", \"This Month\", etc. Design an intuitive UI for selecting distance and time ranges. Implement geospatial queries on the backend using MongoDB's $geoNear or equivalent. Add a map preview that shows the selected radius. Implement efficient caching of location-based results. Create a \"Near Me Now\" quick filter option. Ensure location permissions are properly requested and handled. Add analytics for location and time filter usage.",
+        "testStrategy": "Test location accuracy and radius calculations. Verify time-based filtering produces correct results. Test edge cases like date boundaries and time zones. Ensure location permission flows work correctly. Test performance of geospatial queries with large datasets. Verify filter combinations with other filter types.",
+        "priority": "medium",
+        "dependencies": [
+          35,
+          36
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 38,
+        "title": "Implement Story-like Features with 24-hour Content",
+        "description": "Create a story feature similar to other social platforms where content disappears after 24 hours.",
+        "details": "Design and implement a story creation flow with camera integration. Create a story viewer with tap navigation, progress indicators, and pause on hold. Implement a 24-hour expiration system with proper database cleanup. Create a story ring UI for profiles with viewed/unviewed states. Implement story reactions with direct messaging integration. Add story highlights for saving favorite stories permanently. Create server-side scheduled tasks for story expiration. Implement analytics for story engagement metrics. Add notifications for new stories from close friends.",
+        "testStrategy": "Test story creation and viewing flow. Verify 24-hour expiration works correctly. Test story reaction and reply functionality. Ensure story highlights save and display correctly. Test performance with many active stories. Verify analytics correctly tracks story metrics. Test edge cases like viewing stories right before expiration.",
+        "priority": "high",
+        "dependencies": [
+          28,
+          31
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 39,
+        "title": "Implement Story Camera and Full-screen Viewer",
+        "description": "Create a dedicated camera interface for story creation and a full-screen viewer for story consumption.",
+        "details": "Implement a custom camera interface using AVFoundation with food-specific filters and effects. Create camera controls for flash, front/back camera, timer, and grid overlay. Implement video recording with duration limit (15-30 seconds). Add food-specific stickers and text overlay tools. Create a full-screen story viewer with smooth transitions between stories. Implement gesture controls: tap to advance, swipe for navigation between users. Add viewer analytics to track engagement and drop-off points. Implement proper memory management for media playback. Create a preloading system for smooth story transitions.",
+        "testStrategy": "Test camera performance and quality on different devices. Verify recording functionality works correctly. Test story viewer navigation and controls. Ensure transitions between stories are smooth. Test memory usage during extended story viewing. Verify analytics correctly tracks viewing patterns. Test accessibility of camera and viewer interfaces.",
+        "priority": "medium",
+        "dependencies": [
+          38
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 40,
+        "title": "Implement Story Reactions and Highlights",
+        "description": "Add the ability for users to react to stories and save highlights of their favorite stories.",
+        "details": "Create a reaction system with quick emoji responses and custom messages. Implement a direct reply system that opens a conversation. Design and implement a highlights creation flow with custom cover and title. Create a highlights management interface for editing and deleting. Implement proper storage for highlights that persists beyond the 24-hour window. Add highlight collections for organizing saved stories by theme. Create a viewer for browsing highlights. Implement analytics for reaction and highlight usage. Ensure highlights respect the original poster's privacy settings.",
+        "testStrategy": "Test reaction sending and receiving functionality. Verify highlights creation and management. Test highlight viewing experience. Ensure reactions notify the story creator correctly. Test privacy controls for reactions and highlights. Verify analytics correctly tracks reaction patterns. Test edge cases like reacting to nearly-expired stories.",
+        "priority": "medium",
+        "dependencies": [
+          38,
+          39
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 41,
+        "title": "Implement Heat Maps Showing Popular Food Spots",
+        "description": "Create heat map visualizations on the map to show areas with high concentrations of popular food posts.",
+        "details": "Integrate with MapKit to create custom overlays for heat map visualization. Implement data aggregation logic to calculate popularity based on post count, likes, and recency. Create a visual heat map using gradient colors to represent popularity density. Implement different heat map modes (overall popularity, trending now, specific cuisines). Add time-based filtering for heat maps (e.g., breakfast spots in the morning). Create efficient caching of heat map data with timed invalidation. Implement zoom-level appropriate aggregation for performance. Add analytics to track heat map usage and engagement.",
+        "testStrategy": "Test heat map rendering performance on different devices. Verify data aggregation accuracy. Test heat map appearance at different zoom levels. Ensure heat map updates correctly with new data. Test filtering and customization options. Verify memory usage remains stable during map interaction. Test edge cases like areas with extremely high or low density.",
+        "priority": "medium",
+        "dependencies": [],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 42,
+        "title": "Implement Smart Cluster Markers for Nearby Posts",
+        "description": "Create an intelligent clustering system for map markers that groups nearby posts for better visualization.",
+        "details": "Implement a clustering algorithm using QuadTree or similar spatial indexing. Create custom cluster markers that show preview of contained posts. Implement smooth animations for cluster splitting and merging during zoom. Add tap interaction for clusters to show contained posts in a grid. Create a cluster detail view that allows browsing posts within a cluster. Implement efficient marker management to maintain performance with large datasets. Add visual differentiation for clusters based on content type or popularity. Create analytics to track cluster interaction patterns.",
+        "testStrategy": "Test clustering performance with large datasets. Verify cluster calculations are accurate. Test cluster animations during map interaction. Ensure cluster tap interaction works correctly. Test memory usage during extensive map usage. Verify cluster appearance at different zoom levels. Test edge cases like single-item clusters and very dense areas.",
+        "priority": "medium",
+        "dependencies": [
+          41
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 43,
+        "title": "Implement Custom Food-focused Map Styling",
+        "description": "Create a custom map style that emphasizes food-related points of interest and improves the food discovery experience.",
+        "details": "Design a custom MapKit style that highlights restaurants, cafes, and food-related venues. Implement custom map styling using MapKit's configuration options. Create food-specific POI icons and highlighting. Implement different map styles for different times of day (breakfast, lunch, dinner). Add custom annotations for sponsored or featured restaurants. Create a style switching interface for users to choose preferred map styles. Implement caching of style assets for offline use. Add analytics to track style preference patterns.",
+        "testStrategy": "Test map styling across different devices and screen sizes. Verify style elements render correctly at different zoom levels. Test style switching functionality. Ensure custom POI icons display correctly. Test performance impact of custom styling. Verify offline functionality with cached style assets. Test accessibility of custom map styles with VoiceOver.",
+        "priority": "low",
+        "dependencies": [
+          41,
+          42
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 44,
+        "title": "Implement 3D Map Support for Enhanced Visual Depth",
+        "description": "Add 3D building and terrain visualization to the map for a more immersive exploration experience.",
+        "details": "Integrate MapKit's 3D capabilities with custom camera controls. Implement 3D building rendering with restaurant highlighting. Create smooth transitions between 2D and 3D viewing modes. Add altitude controls for adjusting the viewing angle. Implement performance optimizations for 3D rendering on older devices. Create custom 3D markers for important food locations. Add flyover animations for featured restaurants. Implement proper memory management for 3D assets. Create analytics to track 3D map usage patterns.",
+        "testStrategy": "Test 3D rendering performance across device types. Verify transitions between 2D and 3D are smooth. Test camera controls for usability. Ensure 3D elements render correctly at different zoom levels. Test memory usage during extended 3D navigation. Verify accessibility of 3D map features. Test edge cases like areas with limited 3D data.",
+        "priority": "low",
+        "dependencies": [
+          43
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 45,
+        "title": "Implement Basic AR Restaurant View Foundation",
+        "description": "Create the foundation for augmented reality features that will allow users to view restaurant information in AR.",
+        "details": "Integrate ARKit for basic AR scene setup and world tracking. Implement location-based AR using CoreLocation integration. Create AR markers for nearby restaurants with basic information display. Design and implement AR UI components that display restaurant data. Add gesture recognition for interacting with AR elements. Implement proper distance calculation and scaling of AR elements. Create a fallback mode for devices without AR capability. Add analytics to track AR feature usage and engagement. Implement proper permission handling for camera access.",
+        "testStrategy": "Test AR initialization and tracking stability. Verify location accuracy for placing AR markers. Test AR UI readability in different lighting conditions. Ensure gesture interaction works reliably. Test performance impact of AR features. Verify fallback mode works correctly on unsupported devices. Test permission flows for camera and location access.",
+        "priority": "medium",
+        "dependencies": [
+          41
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 46,
+        "title": "Implement AI Food Recognition for Auto-tagging",
+        "description": "Develop AI-powered food recognition that automatically identifies dishes and suggests tags for posts.",
+        "details": "Integrate Core ML with a pre-trained food recognition model. Implement on-device inference for privacy and performance. Create a custom model training pipeline for food-specific recognition. Design a UI for displaying and editing AI-suggested tags. Implement confidence thresholds for automatic vs. suggested tags. Add a feedback mechanism to improve model accuracy over time. Create a fallback to cloud-based recognition for uncommon items. Implement batch processing for multiple images. Add analytics to track recognition accuracy and usage patterns.",
+        "testStrategy": "Test recognition accuracy across diverse food types. Verify performance on different device types. Test edge cases like ambiguous dishes or partial views. Ensure UI correctly displays confidence levels. Test feedback mechanism functionality. Verify batch processing works correctly with multiple images. Test privacy aspects of on-device vs. cloud processing.",
+        "priority": "high",
+        "dependencies": [],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 47,
+        "title": "Implement Smart Description Suggestions",
+        "description": "Create an AI-powered system that suggests captions and descriptions based on the food content of posts.",
+        "details": "Develop a language model fine-tuned for food descriptions. Implement context-aware suggestions based on recognized food, location, and user history. Create a UI for displaying and selecting from multiple suggestions. Add personalization that learns user's writing style over time. Implement offline suggestion capabilities for common foods. Create a feedback loop to improve suggestion quality. Add multilingual support for suggestions. Implement analytics to track suggestion acceptance rates. Create a custom keyboard extension for in-line suggestions.",
+        "testStrategy": "Test suggestion quality and relevance. Verify personalization improves over time. Test multilingual suggestion accuracy. Ensure suggestion UI is intuitive and accessible. Test offline functionality with various food types. Verify feedback mechanism correctly improves future suggestions. Test performance impact of suggestion generation.",
+        "priority": "medium",
+        "dependencies": [
+          46
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 48,
+        "title": "Implement Nutrition Detection Capabilities",
+        "description": "Add functionality to detect and display nutritional information for food in posts.",
+        "details": "Integrate with a nutrition database API for detailed information. Implement image-based portion size estimation using computer vision. Create a nutrition facts display with customizable units (metric/imperial). Add dietary tags based on nutritional content (low-carb, high-protein, etc.). Implement user correction for inaccurate nutrition data. Create a nutrition summary view for multi-item posts. Add integration with HealthKit for users who track nutrition. Implement analytics to track nutrition feature usage. Create educational content about nutrition basics.",
+        "testStrategy": "Test nutrition detection accuracy across food types. Verify portion size estimation is reasonably accurate. Test nutrition display with different unit preferences. Ensure dietary tags are correctly applied based on content. Test user correction flow and data improvement. Verify HealthKit integration works correctly. Test edge cases like mixed dishes or unusual foods.",
+        "priority": "medium",
+        "dependencies": [
+          46
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 49,
+        "title": "Implement Enhanced Photo Filters and Editing",
+        "description": "Create food-specific photo filters and editing tools to enhance food photography.",
+        "details": "Design and implement food-specific filters that enhance colors and textures. Create adjustment tools for brightness, contrast, saturation, and warmth. Implement selective editing for highlighting specific areas of food. Add food-specific presets (vibrant, moody, classic, etc.). Create a before/after comparison view. Implement non-destructive editing with edit history. Add filter strength adjustment with live preview. Create custom vignettes and borders. Implement efficient caching of edit data and previews. Add analytics to track filter and editing tool usage.",
+        "testStrategy": "Test filter rendering quality on different devices. Verify editing tools produce expected results. Test performance during filter application and adjustment. Ensure edit history and undo functionality works correctly. Test memory usage during complex editing sessions. Verify filter previews render quickly. Test accessibility of editing interface with VoiceOver.",
+        "priority": "medium",
+        "dependencies": [
+          28
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 50,
+        "title": "Implement Voice Captions with Speech-to-Text",
+        "description": "Add the ability for users to create post captions by speaking rather than typing.",
+        "details": "Integrate with Speech framework for on-device speech recognition. Implement a recording interface with visual feedback. Create a transcript editor for correcting recognition errors. Add punctuation auto-correction and formatting. Implement support for multiple languages based on device settings. Create accessibility considerations for users with speech impairments. Add a live preview of transcription during recording. Implement proper permission handling for microphone access. Create analytics to track voice caption usage and accuracy.",
+        "testStrategy": "Test recognition accuracy across different accents and languages. Verify recording interface provides clear feedback. Test editing functionality for correcting errors. Ensure punctuation and formatting are applied correctly. Test performance on different device types. Verify permission flows for microphone access. Test accessibility of voice caption features.",
+        "priority": "low",
+        "dependencies": [],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 51,
+        "title": "Implement Video Posts (15-30 seconds)",
+        "description": "Add support for short-form video content in posts, including recording, editing, and playback.",
+        "details": "Implement video recording using AVFoundation with duration limits. Create a trimming and editing interface for recorded videos. Add food-specific video filters and effects. Implement thumbnail generation for video previews. Create efficient video compression for upload. Add background upload support for videos. Implement adaptive playback quality based on network conditions. Create autoplay behavior for videos in feed with sound controls. Add analytics to track video creation and viewing patterns. Implement proper cache management for video content.",
+        "testStrategy": "Test video recording quality and performance. Verify editing and trimming functionality. Test upload performance with different file sizes. Ensure playback works smoothly in feed. Test autoplay behavior and performance impact. Verify adaptive quality selection works correctly. Test memory usage during video recording and playback. Verify background upload functionality.",
+        "priority": "high",
+        "dependencies": [
+          28
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 52,
+        "title": "Implement Multi-location Post Support",
+        "description": "Allow users to tag multiple locations in a single post for food crawls or multi-stop experiences.",
+        "details": "Design and implement a multi-location selection interface. Create a data model that supports multiple location references per post. Implement a map view that shows all tagged locations with a route. Add location sequence ordering for crawls or tours. Create a location summary view that shows all tagged places. Implement search and suggestion for adding multiple locations. Add analytics to track multi-location post creation and engagement. Create special UI indicators for multi-location posts in the feed.",
+        "testStrategy": "Test location selection and management interface. Verify data model correctly stores multiple locations. Test map visualization of multiple locations. Ensure location ordering works correctly. Test search and suggestion functionality. Verify special UI indicators appear correctly in feed. Test edge cases like very distant locations or large numbers of locations.",
+        "priority": "medium",
+        "dependencies": [
+          41,
+          42
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 53,
+        "title": "Implement WebSocket Integration with Auto-reconnection",
+        "description": "Create a robust WebSocket connection for real-time updates with automatic reconnection handling.",
+        "details": "Implement a WebSocket client using URLSessionWebSocketTask. Create a connection manager that handles authentication and session maintenance. Implement exponential backoff for reconnection attempts. Add heartbeat mechanism to detect connection issues. Create a message queue for offline operation that resynchronizes on reconnection. Implement proper error handling and user notification for persistent connection issues. Add connection state monitoring and analytics. Create a test mode for simulating connection problems. Implement proper cleanup on app backgrounding and restoration on foregrounding.",
+        "testStrategy": "Test connection establishment and message exchange. Verify reconnection works after network interruptions. Test exponential backoff behavior. Ensure message queuing works correctly during offline periods. Test connection restoration after app backgrounding. Verify heartbeat mechanism correctly detects connection issues. Test performance impact of persistent connection.",
+        "priority": "high",
+        "dependencies": [],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 54,
+        "title": "Implement Real-time Notifications with Haptic Feedback",
+        "description": "Create a real-time notification system that alerts users to new interactions with appropriate haptic feedback.",
+        "details": "Integrate with WebSocket for real-time notification delivery. Implement local notification scheduling for background state. Create custom notification banners with rich content. Add different notification types with appropriate haptic patterns. Implement notification grouping and summarization. Create a notification center with filtering options. Add deep linking from notifications to relevant content. Implement notification preferences and do-not-disturb settings. Create analytics to track notification engagement rates. Add badge count management for unread notifications.",
+        "testStrategy": "Test notification delivery in foreground and background states. Verify haptic feedback works appropriately for each type. Test notification grouping and summarization. Ensure deep linking navigates to correct content. Test notification preference controls. Verify badge counting works correctly. Test performance impact of notification processing.",
+        "priority": "medium",
+        "dependencies": [
+          53,
+          32
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 55,
+        "title": "Implement CDN Integration for Global Delivery",
+        "description": "Integrate with BunnyCDN for efficient global delivery of images and videos with transformation capabilities.",
+        "details": "Implement secure URL generation for BunnyCDN resources. Create an upload manager for direct-to-CDN uploads. Implement image transformation parameters for different use cases (thumbnails, previews, full-size). Add video transcoding support for optimal delivery. Create a caching strategy with appropriate TTLs. Implement background upload with retry logic. Add analytics for CDN performance monitoring. Create a fallback mechanism for CDN failures. Implement proper cache invalidation for updated content.",
+        "testStrategy": "Test upload performance to CDN endpoints. Verify URL generation produces valid accessible URLs. Test image transformation quality and performance. Ensure video transcoding produces expected results. Test caching behavior and invalidation. Verify fallback mechanisms work during CDN issues. Test analytics correctly tracks CDN performance metrics.",
+        "priority": "high",
+        "dependencies": [
+          28,
+          51
+        ],
+        "status": "pending",
+        "subtasks": []
+      }
+    ],
+    "metadata": {
+      "created": "2025-08-09T19:18:04.341Z",
+      "updated": "2025-08-09T22:41:28.983Z",
+      "description": "Tasks for master context"
+    }
+  }
+}
