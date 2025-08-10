@@ -169,6 +169,12 @@ struct ExploreView: View {
             shopDetailView
         }
         .onAppear {
+            // Track screen view
+            // AnalyticsManager.shared.trackScreenView("explore", properties: [
+            //     "content_type": contentType.rawValue,
+            //     "is_authenticated": appState.isAuthenticated
+            // ])
+            
             // Setup logic would go here
         }
         .onDisappear {

@@ -55,6 +55,15 @@
       }
     },
     {
+      "identity" : "posthog-ios",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/PostHog/posthog-ios.git",
+      "state" : {
+        "revision" : "6532c136877c44d7c96a351303122a5a7fc67c1a",
+        "version" : "3.30.0"
+      }
+    },
+    {
       "identity" : "simplekeychain",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/auth0/SimpleKeychain",

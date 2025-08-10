@@ -849,6 +849,24 @@ struct EditProfileMainContent: View {
         }
     }
     
+    private var nameCard: some View {
+        ProfileEditCard(title: "Full Name", icon: "person.text.rectangle.fill") {
+            VStack(alignment: .leading, spacing: 12) {
+                TextField("First name", text: $viewModel.firstName)
+                    .textFieldStyle(CustomTextFieldStyle())
+                    #if os(iOS)
+                    .textInputAutocapitalization(.words)
+                    #endif
+                
+                TextField("Last name", text: $viewModel.lastName)
+                    .textFieldStyle(CustomTextFieldStyle())
+                    #if os(iOS)
+                    .textInputAutocapitalization(.words)
+                    #endif
+            }
+        }
+    }
+    
     private var emailCard: some View {
         ProfileEditCard(title: "Email", icon: "envelope.fill") {
             VStack(alignment: .leading, spacing: 8) {

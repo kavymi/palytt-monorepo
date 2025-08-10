@@ -12,7 +12,7 @@ import SwiftUI
 import Clerk
 import Foundation
 import UserNotifications
-import PostHog
+// import PostHog // Temporarily commented until we can integrate via Xcode properly
 #if !targetEnvironment(simulator)
 #if !targetEnvironment(simulator)
 // import ConvexMobile // temporarily disabled
@@ -179,16 +179,16 @@ struct PalyttApp: App {
             print("✅ AppState: Created user object with clerkId: \(clerkUser.id)")
             
             // Identify user for analytics
-            AnalyticsManager.shared.identify(
-                userId: clerkUser.id,
-                properties: [
-                    "email": clerkUser.primaryEmailAddress?.emailAddress ?? "",
-                    "first_name": clerkUser.firstName ?? "",
-                    "last_name": clerkUser.lastName ?? "",
-                    "username": clerkUser.username ?? ""
-                ]
-            )
-            AnalyticsManager.shared.trackUserLogin(method: "clerk")
+            // AnalyticsManager.shared.identify(
+            //     userId: clerkUser.id,
+            //     properties: [
+            //         "email": clerkUser.primaryEmailAddress?.emailAddress ?? "",
+            //         "first_name": clerkUser.firstName ?? "",
+            //         "last_name": clerkUser.lastName ?? "",
+            //         "username": clerkUser.username ?? ""
+            //     ]
+            // )
+            // AnalyticsManager.shared.trackUserLogin(method: "clerk")
             
             // Sync user data with backend and activate notifications
             Task {
@@ -198,9 +198,9 @@ struct PalyttApp: App {
         } else {
             print("❌ AppState: User is not authenticated")
             // Track logout if we had a user before
-            if appState.currentUser != nil {
-                AnalyticsManager.shared.trackUserLogout()
-            }
+            // if appState.currentUser != nil {
+            //     AnalyticsManager.shared.trackUserLogout()
+            // }
             appState.currentUser = nil
         }
     }
@@ -239,8 +239,15 @@ struct PalyttApp: App {
         await setupNativeNotifications()
         
         // Set up analytics and monitoring
-        AnalyticsManager.shared.configure()
-        AnalyticsManager.shared.trackAppLaunch()
+        // AnalyticsManager.shared.configure()
+        // AnalyticsManager.shared.trackAppLaunch()
+        
+        // Send test event to verify PostHog integration
+        // AnalyticsManager.shared.capture("Test Event", properties: [
+        //     "app_version": Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "unknown",
+        //     "platform": "iOS",
+        //     "environment": "production"
+        // ])
         
         // Initialize error tracking
         // errorTracker.initialize(environment: .production)

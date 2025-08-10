@@ -97,7 +97,7 @@ struct HomeView: View {
                                         await viewModel.toggleLike(for: postId)
                                         
                                         // Track analytics and real-time update
-                                        AnalyticsManager.shared.trackPostInteraction(action: "like", postId: postId.uuidString)
+                                        // AnalyticsManager.shared.trackPostInteraction(action: "like", postId: postId.uuidString)
                                         
                                         // let liveUpdate = LiveUpdate(
                                         //     id: UUID().uuidString,
@@ -113,7 +113,7 @@ struct HomeView: View {
                                         await viewModel.toggleBookmark(for: postId)
                                         
                                         // Track analytics
-                                        AnalyticsManager.shared.trackPostInteraction(action: "bookmark", postId: postId.uuidString)
+                                        // AnalyticsManager.shared.trackPostInteraction(action: "bookmark", postId: postId.uuidString)
                                     }
                                 },
                                 onBookmarkNavigate: {
@@ -171,17 +171,17 @@ struct HomeView: View {
                 // ))
                 
                 // Track user action
-                AnalyticsManager.shared.trackFeatureUsed("home_refresh", context: ["trigger": "pull_to_refresh"])
+                // AnalyticsManager.shared.trackFeatureUsed("home_refresh", context: ["trigger": "pull_to_refresh"])
             }
             .onAppear {
                 // ✅ Smart refresh: fetch posts if empty or if data is stale (5+ minutes old)
                 viewModel.fetchPostsIfNeeded()
                 
                 // Track screen view for analytics
-                AnalyticsManager.shared.trackScreenView("home_feed", properties: [
-                    "is_authenticated": appState.isAuthenticated,
-                    "posts_count": viewModel.posts.count
-                ])
+                // AnalyticsManager.shared.trackScreenView("home_feed", properties: [
+                //     "is_authenticated": appState.isAuthenticated,
+                //     "posts_count": viewModel.posts.count
+                // ])
                 
                 // Start real-time connection (temporarily disabled)
                 // Task {

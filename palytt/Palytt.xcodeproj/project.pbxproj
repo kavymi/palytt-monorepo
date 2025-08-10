@@ -23,7 +23,6 @@
 		2946E1B68DEDF1DD926DB2AF /* Date+Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA131EB47323D1F3905AA113 /* Date+Extensions.swift */; };
 		4878C03C0963E92683D73E44 /* Post.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8C1054E078C1BE8EEA02C82 /* Post.swift */; };
 		4C05B426B4044DBAB2DCD77C /* EditProfileView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 831F0129CB3E4863A7C82072 /* EditProfileView.swift */; };
-		LEGALVIEWS123456789ABCDEF /* LegalViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = LEGALVIEWS123456789ABCD /* LegalViews.swift */; };
 		562EBE4DA2F65EEF3F0CE2EE /* SkeletonLoader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 82C5D046CA6B1FEAEF8D0CB9 /* SkeletonLoader.swift */; };
 		5C7E6F7A9F8BBE6450F77FF8 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B3E6B84F0951D2B6BB0AE577 /* Assets.xcassets */; };
 		619B896539ED7B7A0234DD73 /* LoadingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 09039AB90A269F80C8FE6BC0 /* LoadingView.swift */; };
@@ -50,13 +49,9 @@
 		BE7DB8B22E052B38006BCCDB /* LocationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = BE7DB8B12E052B38006BCCDB /* LocationManager.swift */; };
 		BE7DB8B42E052DBA006BCCDB /* BunnyNetService.swift in Sources */ = {isa = PBXBuildFile; fileRef = BE7DB8B32E052DBA006BCCDB /* BunnyNetService.swift */; };
 		BE7DB8B62E052E38006BCCDB /* LocationPickerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BE7DB8B52E052E38006BCCDB /* LocationPickerView.swift */; };
-
 		BE9345712E08398200FC869F /* NotificationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = BE9345702E08398200FC869F /* NotificationService.swift */; };
-		NATIVEMGR123456789ABCDEF1 /* NativeNotificationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = NATIVEMGR123456789ABCDEF /* NativeNotificationManager.swift */; };
-		GROUPGATHER123456789ABCDE0 /* GroupGathering.swift in Sources */ = {isa = PBXBuildFile; fileRef = GROUPGATHER123456789ABCDE /* GroupGathering.swift */; };
-		GROUPGATHERV12456789ABCDE0 /* GroupGatheringView.swift in Sources */ = {isa = PBXBuildFile; fileRef = GROUPGATHERV12456789ABCDE /* GroupGatheringView.swift */; };
-		GROUPGATHERVM3456789ABCDE0 /* GroupGatheringViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = GROUPGATHERVM3456789ABCDE /* GroupGatheringViewModel.swift */; };
 		BEA897542E064CC0003D5B56 /* Location.swift in Sources */ = {isa = PBXBuildFile; fileRef = BEA897532E064CC0003D5B56 /* Location.swift */; };
+		BED97A672E4928D300E1B16D /* PostHog in Frameworks */ = {isa = PBXBuildFile; productRef = BED97A662E4928D300E1B16D /* PostHog */; };
 		C158FCF50D0B8007D534D006 /* palytt-logo.png in Resources */ = {isa = PBXBuildFile; fileRef = 5C3F7A75D238479CE653FB13 /* palytt-logo.png */; };
 		C68EB754B3A8F56B139B0673 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 4ABEFE489013663AEA2C2F10 /* Assets.xcassets */; };
 		CHATVIEW123456789ABCDEFGH /* ChatView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CHATVIEW123456789ABCDEF /* ChatView.swift */; };
@@ -68,12 +63,17 @@
 		F3EEB39C3CDB3BBD5A5EADDE /* Bundle+Resources.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00B39BCA69C5CEB0A47A2061 /* Bundle+Resources.swift */; };
 		FE3830A1DE3BF5D02AA910F0 /* FriendRequestsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0D31ADE69D1778DDD8E41A93 /* FriendRequestsView.swift */; };
 		FE807D5C9DA14BA99D52CCEE /* ProfileViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C57B9E173994897A15E963C /* ProfileViewModel.swift */; };
+		GROUPGATHER123456789ABCDE0 /* GroupGathering.swift in Sources */ = {isa = PBXBuildFile; fileRef = GROUPGATHER123456789ABCDE /* GroupGathering.swift */; };
+		GROUPGATHERV12456789ABCDE0 /* GroupGatheringView.swift in Sources */ = {isa = PBXBuildFile; fileRef = GROUPGATHERV12456789ABCDE /* GroupGatheringView.swift */; };
+		GROUPGATHERVM3456789ABCDE0 /* GroupGatheringViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = GROUPGATHERVM3456789ABCDE /* GroupGatheringViewModel.swift */; };
+		LEGALVIEWS123456789ABCDEF /* LegalViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = LEGALVIEWS123456789ABCD /* LegalViews.swift */; };
 		MAPFILTERS123456789ABCD /* MapFiltersView.swift in Sources */ = {isa = PBXBuildFile; fileRef = MAPFILTERS123456789ABC /* MapFiltersView.swift */; };
 		MAPVIEWMODEL123456789ABC /* MapViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = MAPVIEWMODEL123456789AB /* MapViewModel.swift */; };
 		MESSAGES123456789ABCDEFGH /* MessagesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = MSGVIEW123456789ABCDEFGH /* MessagesView.swift */; };
 		MODERNVM123456789ABCDEFG /* ModernMessagesViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = MODERNVMREF123456789ABC /* ModernMessagesViewModel.swift */; };
 		MSGCACHE123456789ABCDEFG /* MessageCacheManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = MSGCACHEREF123456789ABC /* MessageCacheManager.swift */; };
 		MSGVIEWMODEL123456789ABCD /* MessagesViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = MSGVIEWMDL123456789ABCD /* MessagesViewModel.swift */; };
+		NATIVEMGR123456789ABCDEF1 /* NativeNotificationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = NATIVEMGR123456789ABCDEF /* NativeNotificationManager.swift */; };
 		NEWMSGVIEW123456789ABCDEF /* NewMessageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = NEWMSGVIEW123456789ABCD /* NewMessageView.swift */; };
 		NEWMSGVIEWMDL123456789ABC /* NewMessageViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = NEWMSGVIEWMDL123456789AB /* NewMessageViewModel.swift */; };
 		NOTIFS123456789ABCDEFGHI /* NotificationsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = NOTIFS123456789ABCDEFGH /* NotificationsView.swift */; };
@@ -110,7 +110,6 @@
 		82C5D046CA6B1FEAEF8D0CB9 /* SkeletonLoader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SkeletonLoader.swift; sourceTree = "<group>"; };
 		831F0129CB3E4863A7C82072 /* EditProfileView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditProfileView.swift; sourceTree = "<group>"; };
 		83B2A1ECE4071A724824E77F /* HomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeView.swift; sourceTree = "<group>"; };
-		LEGALVIEWS123456789ABCD /* LegalViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LegalViews.swift; sourceTree = "<group>"; };
 		85D28AC0BEE95409099997F3 /* CommentsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommentsView.swift; sourceTree = "<group>"; };
 		86B8F108EA6649D1AD990C65 /* BackendService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackendService.swift; sourceTree = "<group>"; };
 		96FB09788C264869A682D47C /* SignInWithAppleHelper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SignInWithAppleHelper.swift; sourceTree = "<group>"; };
@@ -128,10 +127,6 @@
 		BE7DB8B32E052DBA006BCCDB /* BunnyNetService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BunnyNetService.swift; sourceTree = "<group>"; };
 		BE7DB8B52E052E38006BCCDB /* LocationPickerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocationPickerView.swift; sourceTree = "<group>"; };
 		BE9345702E08398200FC869F /* NotificationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationService.swift; sourceTree = "<group>"; };
-		NATIVEMGR123456789ABCDEF /* NativeNotificationManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeNotificationManager.swift; sourceTree = "<group>"; };
-		GROUPGATHER123456789ABCDE /* GroupGathering.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GroupGathering.swift; sourceTree = "<group>"; };
-		GROUPGATHERV12456789ABCDE /* GroupGatheringView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GroupGatheringView.swift; sourceTree = "<group>"; };
-		GROUPGATHERVM3456789ABCDE /* GroupGatheringViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GroupGatheringViewModel.swift; sourceTree = "<group>"; };
 		BEA897532E064CC0003D5B56 /* Location.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Location.swift; sourceTree = "<group>"; };
 		C238499F1008F111C1175FB1 /* Palytt.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Palytt.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		C7B1B855B69C07B70B1FAF97 /* ExploreView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExploreView.swift; sourceTree = "<group>"; };
@@ -146,6 +141,10 @@
 		EMPTYSTATE123456789ABCDEF /* EmptyStateView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmptyStateView.swift; sourceTree = "<group>"; };
 		F1D197632D68F4218E3ED582 /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
 		FCD48A105EA06D59E5F68177 /* SaveOptionsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SaveOptionsView.swift; sourceTree = "<group>"; };
+		GROUPGATHER123456789ABCDE /* GroupGathering.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GroupGathering.swift; sourceTree = "<group>"; };
+		GROUPGATHERV12456789ABCDE /* GroupGatheringView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GroupGatheringView.swift; sourceTree = "<group>"; };
+		GROUPGATHERVM3456789ABCDE /* GroupGatheringViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GroupGatheringViewModel.swift; sourceTree = "<group>"; };
+		LEGALVIEWS123456789ABCD /* LegalViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LegalViews.swift; sourceTree = "<group>"; };
 		LISTSKELETON123456789ABCD /* ListCardSkeleton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ListCardSkeleton.swift; sourceTree = "<group>"; };
 		MAPFILTERS123456789ABC /* MapFiltersView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MapFiltersView.swift; sourceTree = "<group>"; };
 		MAPVIEWMODEL123456789AB /* MapViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MapViewModel.swift; sourceTree = "<group>"; };
@@ -153,6 +152,7 @@
 		MSGCACHEREF123456789ABC /* MessageCacheManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessageCacheManager.swift; sourceTree = "<group>"; };
 		MSGVIEW123456789ABCDEFGH /* MessagesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessagesView.swift; sourceTree = "<group>"; };
 		MSGVIEWMDL123456789ABCD /* MessagesViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessagesViewModel.swift; sourceTree = "<group>"; };
+		NATIVEMGR123456789ABCDEF /* NativeNotificationManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeNotificationManager.swift; sourceTree = "<group>"; };
 		NEWMSGVIEW123456789ABCD /* NewMessageView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NewMessageView.swift; sourceTree = "<group>"; };
 		NEWMSGVIEWMDL123456789AB /* NewMessageViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NewMessageViewModel.swift; sourceTree = "<group>"; };
 		NOTIFS123456789ABCDEFGH /* NotificationsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationsView.swift; sourceTree = "<group>"; };
@@ -171,9 +171,9 @@
 			files = (
 				BE63BBB92E0139D300FDA1D4 /* Clerk in Frameworks */,
 				107AE5B34553630E5C3F9820 /* Alamofire in Frameworks */,
+				BED97A672E4928D300E1B16D /* PostHog in Frameworks */,
 				2344C93F44A555438AC4979B /* Kingfisher in Frameworks */,
 				14DF34D5BA1853D82D38FBFB /* Factory in Frameworks */,
-
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -283,15 +283,6 @@
 				GROUPGATHER123456789ABCDE /* GroupGathering.swift */,
 			);
 			path = Models;
-			sourceTree = "<group>";
-		};
-		GROUPGATHERINGS123456789A /* GroupGatherings */ = {
-			isa = PBXGroup;
-			children = (
-				GROUPGATHERV12456789ABCDE /* GroupGatheringView.swift */,
-				GROUPGATHERVM3456789ABCDE /* GroupGatheringViewModel.swift */,
-			);
-			path = GroupGatherings;
 			sourceTree = "<group>";
 		};
 		7AD0E8F20AE47C3BA4ABAFD6 /* Home */ = {
@@ -464,6 +455,15 @@
 			path = Explore;
 			sourceTree = "<group>";
 		};
+		GROUPGATHERINGS123456789A /* GroupGatherings */ = {
+			isa = PBXGroup;
+			children = (
+				GROUPGATHERV12456789ABCDE /* GroupGatheringView.swift */,
+				GROUPGATHERVM3456789ABCDE /* GroupGatheringViewModel.swift */,
+			);
+			path = GroupGatherings;
+			sourceTree = "<group>";
+		};
 		MAPGROUP123456789ABCDEF /* Map */ = {
 			isa = PBXGroup;
 			children = (
@@ -525,7 +525,7 @@
 				A4B13899956FBB3A0A154ED2 /* Kingfisher */,
 				73552D86A5D3AA63D73398BF /* Factory */,
 				BE63BBB82E0139D300FDA1D4 /* Clerk */,
-
+				BED97A662E4928D300E1B16D /* PostHog */,
 			);
 			productName = Palytt;
 			productReference = C238499F1008F111C1175FB1 /* Palytt.app */;
@@ -555,7 +555,7 @@
 				AA22F97FE7F9DBA6B9081DF9 /* XCRemoteSwiftPackageReference "Factory" */,
 				4A87C0B9B07660E7876944DE /* XCRemoteSwiftPackageReference "Kingfisher" */,
 				BE63BBB72E0139D300FDA1D4 /* XCRemoteSwiftPackageReference "clerk-ios" */,
-
+				BED97A652E4928D300E1B16D /* XCRemoteSwiftPackageReference "posthog-ios" */,
 			);
 			productRefGroup = BD5A1037B72A23A174601F00 /* Products */;
 			projectDirPath = "";
@@ -909,7 +909,14 @@
 				minimumVersion = 0.58.0;
 			};
 		};
-
+		BED97A652E4928D300E1B16D /* XCRemoteSwiftPackageReference "posthog-ios" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/PostHog/posthog-ios.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 3.30.0;
+			};
+		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -928,7 +935,11 @@
 			package = BE63BBB72E0139D300FDA1D4 /* XCRemoteSwiftPackageReference "clerk-ios" */;
 			productName = Clerk;
 		};
-
+		BED97A662E4928D300E1B16D /* PostHog */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = BED97A652E4928D300E1B16D /* XCRemoteSwiftPackageReference "posthog-ios" */;
+			productName = PostHog;
+		};
 		E1B5768037714669647880E1 /* Alamofire */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 924F2BE37562B424E91D0C05 /* XCRemoteSwiftPackageReference "Alamofire" */;
