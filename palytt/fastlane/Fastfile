@@ -1,0 +1,107 @@
+default_platform(:ios)
+
+platform :ios do
+  
+  # Test Lanes
+  desc "Run all unit tests"
+  lane :test_unit do
+    run_tests(
+      scheme: "Palytt",
+      destination: "platform=iOS Simulator,name=iPhone 16 Pro,OS=latest",
+      only_testing: ["PalyttAppTests/FriendsServiceTests"]
+    )
+  end
+  
+  desc "Run UI tests"
+  lane :test_ui do
+    run_tests(
+      scheme: "Palytt",
+      destination: "platform=iOS Simulator,name=iPhone 16 Pro,OS=latest",
+      only_testing: ["PalyttAppTests/FriendsUITests"]
+    )
+  end
+  
+  desc "Run all tests"
+  lane :test_all do
+    # Start backend server
+    sh("cd ../palytt-backend.symlink && pnpm run dev &")
+    sleep(10) # Wait for server to start
+    
+    # Run unit tests
+    test_unit
+    
+    # Run UI tests
+    test_ui
+    
+    # Run Maestro tests
+    sh("maestro test ../.maestro/friends_flow_test.yaml")
+    
+    # Stop backend server
+    sh("pkill -f 'pnpm run dev' || true")
+  end
+  
+  # Build and Deploy Lanes
+  desc "Build for testing"
+  lane :build_for_testing do
+    build_app(
+      scheme: "Palytt",
+      destination: "generic/platform=iOS Simulator",
+      skip_package_ipa: true,
+      skip_archive: true,
+      derived_data_path: "./DerivedData"
+    )
+  end
+  
+  desc "Deploy to TestFlight"
+  lane :deploy_testflight do
+    # Run tests first
+    test_all
+    
+    # Build for release
+    build_app(
+      scheme: "Palytt",
+      export_method: "app-store"
+    )
+    
+    # Upload to TestFlight
+    upload_to_testflight(
+      skip_waiting_for_build_processing: true
+    )
+  end
+  
+  # Continuous Integration Lane
+  desc "CI Build and Test"
+  lane :ci do
+    # Setup
+    setup_ci if ENV['CI']
+    
+    # Install dependencies
+    sh("cd ../palytt-backend.symlink && pnpm install")
+    
+    # Start backend
+    sh("cd ../palytt-backend.symlink && pnpm run dev &")
+    sleep(15)
+    
+    # Build and test
+    build_for_testing
+    test_all
+    
+    # Cleanup
+    sh("pkill -f 'pnpm run dev' || true")
+  end
+  
+  # Helper Lanes
+  desc "Clean derived data"
+  lane :clean do
+    clear_derived_data
+  end
+  
+  desc "Generate test report"
+  lane :test_report do
+    trainer(
+      path: "./DerivedData/Logs/Test",
+      extension: ".html"
+    )
+  end
+  
+end 

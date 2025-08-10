@@ -1,0 +1,35 @@
+appId: com.palytt.app
+---
+- launchApp
+- assertVisible: "Palytt"
+
+# Test Add Friends Flow
+- tapOn: "Profile"
+- assertVisible: "Add Friends"
+- tapOn: "Add Friends"
+
+# Test Search Functionality
+- assertVisible: "Search users..."
+- tapOn: "Search"
+- tapOn: "Search users..."
+- inputText: "test_user"
+- hideKeyboard
+- assertVisible: "Search"
+
+# Test Suggested Users Tab
+- tapOn: "Suggested"
+- assertVisible: "Suggested"
+
+# Test Friend Request Flow
+- tapOn: "Profile"
+- tapOn: "Friend Requests"
+- assertVisible: "Friend Requests"
+
+# Test Friends List
+- tapOn: "Done"
+- tapOn: "Friends"
+- assertVisible: "Friends"
+
+# Test Navigation Back
+- tapOn: "Done"
+- assertVisible: "Profile"

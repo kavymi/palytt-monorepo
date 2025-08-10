@@ -1,0 +1,101 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+📁 Project Structure & Architecture
+	•	MVVM Pattern: Organize your code using the Model-View-ViewModel (MVVM) architecture to separate concerns and enhance testability.
+	•	Directory Layout:
+	•	Sources/Views: UI components.
+	•	Sources/ViewModels: Business logic.
+	•	Sources/Models: Data models.
+	•	Sources/Services: Networking and persistence.
+	•	Sources/Utilities: Helpers and extensions.
+	•	Resources/Assets: Images and colors.
+	•	Resources/Localization: Localized strings.
+	•	Resources/Fonts: Custom fonts.
+	•	Tests/UnitTests: Unit tests.
+	•	Tests/UITests: UI tests. ￼ ￼ ￼
+
+This structure promotes maintainability and scalability.  ￼
+
+🧠 State Management
+	•	Use @State for simple, view-local state.
+	•	Use @Binding to pass state between views.
+	•	Use @ObservedObject for external, mutable reference types.
+	•	Use @StateObject to create and manage the lifecycle of reference types within a view.
+	•	Use @EnvironmentObject for shared data across the view hierarchy.
+
+Proper use of these property wrappers ensures efficient state management and avoids unnecessary view updates.  ￼
+
+🧹 Code Style & Conventions
+	•	Naming: Use camelCase for variables and functions, and PascalCase for types and structs.
+	•	Modifiers: Chain modifiers vertically for better readability.
+	•	Custom Modifiers: Create reusable view modifiers for consistent styling.
+	•	View Extraction: Extract complex view hierarchies into separate views to improve readability and reusability. ￼ ￼ ￼
+
+Adhering to consistent coding standards enhances code clarity and maintainability.
+
+⸻
+
+🎞️ Animation Techniques
+
+🔄 Implicit vs. Explicit Animations
+	•	Implicit: Apply the .animation() modifier to views to animate changes automatically.
+	•	Explicit: Use withAnimation {} blocks to animate specific state changes. ￼ ￼
+
+Understanding the difference helps in applying animations appropriately.  ￼
+
+🧩 Advanced Animations
+	•	Spring Animations: Use .spring() for natural, bouncy effects.
+	•	Custom Transitions: Combine .scale, .opacity, and .slide for complex transitions.
+	•	Matched Geometry Effect: Use .matchedGeometryEffect() for seamless transitions between views. ￼ ￼ ￼
+
+These techniques enable the creation of engaging and dynamic user interfaces.
+
+🛠️ Performance Considerations
+	•	Keep Animations Simple: Avoid overcomplicating animations to maintain performance.
+	•	Test on Real Devices: Simulators may not accurately reflect animation performance.
+	•	Use Appropriate Timing: Ensure animation durations are suitable for the intended effect. ￼ ￼
+
+Following these practices ensures smooth and responsive animations.  ￼
+
+⸻
+
+🚀 Performance Optimization
+
+📊 Profiling with Instruments
+
+Utilize the SwiftUI instrument in Xcode to visualize view updates and identify performance bottlenecks.  ￼
+
+🧠 Efficient View Rendering
+	•	Lazy Stacks: Use LazyVStack and LazyHStack for lists with many items.
+	•	Avoid Complex Hierarchies: Simplify view structures to reduce rendering overhead.
+	•	Use .fixedSize(): Prevent unnecessary layout recalculations for static views. ￼ ￼
+
+These strategies help in maintaining optimal app performance.  ￼
+
+🧼 Memory Management
+	•	Avoid Retain Cycles: Use [weak self] in closures to prevent memory leaks.
+	•	Manage Resources: Dispose of unused resources appropriately to free up memory. ￼
+
+Proper memory management is crucial for app stability and performance.
+
+📚 Additional Resources
+	•	GitHub Repositories:
+
+  https://github.com/guledaaydemir/SwiftUI-Animations
+	•	SwiftUI Animations Examples: A collection of animation examples.
+
+  https://github.com/nelishahapuni/SwiftUI-Best-Practices
+	•	SwiftUI Best Practices: Comprehensive best practices guide. ￼
+
+
+	•	Articles:
+  https://codezup.com/mastering-swiftui-implementing-complex-animations-ios-apps/
+	•	Mastering SwiftUI Animations: In-depth tutorial on complex animations.
+
+  https://www.codingrules.ai/rules/performance-optimization-standards-for-swiftui
+	•	Performance Optimization Standards: Guidelines for optimizing SwiftUI performance. ￼
+
+Feel free to explore these resources to deepen your understanding and enhance your SwiftUI projects.

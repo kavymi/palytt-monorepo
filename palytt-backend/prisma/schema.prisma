@@ -1,0 +1,279 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(uuid())
+  clerkId       String    @unique
+  email         String    @unique
+  username      String?   @unique
+  name          String?
+  bio           String?
+  profileImage  String?
+  website       String?
+  followerCount Int       @default(0)
+  followingCount Int      @default(0)
+  postsCount    Int       @default(0)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Content Relations
+  posts         Post[]
+  comments      Comment[]
+  likes         Like[]
+  bookmarks     Bookmark[]
+
+  // Social Relations
+  friendsSent        Friend[]  @relation("FriendSender")
+  friendsReceived    Friend[]  @relation("FriendReceiver")
+  following          Follow[]  @relation("UserFollows")
+  followers          Follow[]  @relation("UserFollowing")
+
+  // Messaging Relations
+  messages           Message[]
+  chatroomParticipants ChatroomParticipant[]
+
+  // Notification Relations
+  notifications      Notification[]
+
+  @@map("users")
+}
+
+model Post {
+  id            String    @id @default(uuid())
+  userId        String
+  title         String?
+  caption       String
+  mediaUrls     String[]
+  rating        Float?
+  menuItems     String[]
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  // Location data
+  locationName      String?
+  locationAddress   String?
+  locationCity      String?
+  locationState     String?
+  locationCountry   String?
+  locationPostalCode String?
+  locationLatitude  Float?
+  locationLongitude Float?
+
+  // Post stats
+  likesCount    Int       @default(0)
+  commentsCount Int       @default(0)
+  savesCount    Int       @default(0)
+  viewsCount    Int       @default(0)
+  
+  // Visibility
+  isPublic      Boolean   @default(true)
+  isDeleted     Boolean   @default(false)
+
+  // Relations
+  author        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  comments      Comment[]
+  likes         Like[]
+  bookmarks     Bookmark[]
+
+  @@index([userId])
+  @@index([createdAt])
+  @@map("posts")
+}
+
+model Comment {
+  id            String    @id @default(uuid())
+  postId        String
+  authorId      String
+  content       String
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  // Relations
+  post          Post      @relation(fields: [postId], references: [id], onDelete: Cascade)
+  author        User      @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@index([postId])
+  @@index([authorId])
+  @@map("comments")
+}
+
+model Like {
+  id            String    @id @default(uuid())
+  postId        String
+  userId        String
+  createdAt     DateTime  @default(now())
+
+  // Relations
+  post          Post      @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, userId])
+  @@index([postId])
+  @@index([userId])
+  @@map("likes")
+}
+
+model Bookmark {
+  id            String    @id @default(uuid())
+  postId        String
+  userId        String
+  createdAt     DateTime  @default(now())
+
+  // Relations
+  post          Post      @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, userId])
+  @@index([postId])
+  @@index([userId])
+  @@map("bookmarks")
+}
+
+model Friend {
+  id            String       @id @default(uuid())
+  senderId      String
+  receiverId    String
+  status        FriendStatus @default(PENDING)
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  // Relations
+  sender        User         @relation("FriendSender", fields: [senderId], references: [id], onDelete: Cascade)
+  receiver      User         @relation("FriendReceiver", fields: [receiverId], references: [id], onDelete: Cascade)
+
+  @@unique([senderId, receiverId])
+  @@index([senderId])
+  @@index([receiverId])
+  @@map("friends")
+}
+
+model Follow {
+  id            String    @id @default(uuid())
+  followerId    String
+  followingId   String
+  createdAt     DateTime  @default(now())
+
+  // Relations
+  follower      User      @relation("UserFollows", fields: [followerId], references: [id], onDelete: Cascade)
+  following     User      @relation("UserFollowing", fields: [followingId], references: [id], onDelete: Cascade)
+
+  @@unique([followerId, followingId])
+  @@index([followerId])
+  @@index([followingId])
+  @@map("follows")
+}
+
+model Message {
+  id            String       @id @default(uuid())
+  chatroomId    String
+  senderId      String
+  content       String
+  messageType   MessageType  @default(TEXT)
+  mediaUrl      String?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  readAt        DateTime?
+
+  // Relations
+  chatroom      Chatroom     @relation(fields: [chatroomId], references: [id], onDelete: Cascade)
+  sender        User         @relation(fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@index([chatroomId])
+  @@index([senderId])
+  @@map("messages")
+}
+
+model Chatroom {
+  id            String       @id @default(uuid())
+  type          ChatroomType @default(DIRECT)
+  name          String?
+  description   String?
+  imageUrl      String?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  lastMessageAt DateTime?
+
+  // Relations
+  messages      Message[]
+  participants  ChatroomParticipant[]
+
+  @@map("chatrooms")
+}
+
+model ChatroomParticipant {
+  id            String    @id @default(uuid())
+  chatroomId    String
+  userId        String
+  joinedAt      DateTime  @default(now())
+  leftAt        DateTime?
+  isAdmin       Boolean   @default(false)
+  lastReadAt    DateTime?
+
+  // Relations
+  chatroom      Chatroom  @relation(fields: [chatroomId], references: [id], onDelete: Cascade)
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([chatroomId, userId])
+  @@index([chatroomId])
+  @@index([userId])
+  @@map("chatroom_participants")
+}
+
+model Notification {
+  id            String           @id @default(uuid())
+  userId        String
+  type          NotificationType
+  title         String
+  message       String
+  data          Json?            // Additional data for the notification
+  read          Boolean          @default(false)
+  createdAt     DateTime         @default(now())
+
+  // Relations
+  user          User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([read])
+  @@map("notifications")
+}
+
+enum FriendStatus {
+  PENDING
+  ACCEPTED
+  BLOCKED
+}
+
+enum MessageType {
+  TEXT
+  IMAGE
+  VIDEO
+  AUDIO
+  FILE
+}
+
+enum ChatroomType {
+  DIRECT
+  GROUP
+}
+
+enum NotificationType {
+  POST_LIKE
+  COMMENT
+  COMMENT_LIKE
+  FOLLOW
+  FRIEND_REQUEST
+  FRIEND_ACCEPTED
+  FRIEND_POST
+  MESSAGE
+  POST_MENTION
+  GENERAL
+} 

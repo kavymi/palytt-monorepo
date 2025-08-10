@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleDevelopmentRegion</key>
+	<string>$(DEVELOPMENT_LANGUAGE)</string>
+	<key>CFBundleExecutable</key>
+	<string>$(EXECUTABLE_NAME)</string>
+	<key>CFBundleIdentifier</key>
+	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>CFBundleName</key>
+	<string>$(PRODUCT_NAME)</string>
+	<key>CFBundlePackageType</key>
+	<string>$(PRODUCT_BUNDLE_PACKAGE_TYPE)</string>
+	<key>CFBundleShortVersionString</key>
+	<string>$(MARKETING_VERSION)</string>
+	<key>CFBundleVersion</key>
+	<string>$(CURRENT_PROJECT_VERSION)</string>
+	<key>LSRequiresIPhoneOS</key>
+	<true/>
+	<key>UIApplicationSceneManifest</key>
+	<dict>
+		<key>UIApplicationSupportsMultipleScenes</key>
+		<true/>
+		<key>UISceneConfigurations</key>
+		<dict>
+			<key>UIWindowSceneSessionRoleApplication</key>
+			<array>
+				<dict>
+					<key>UISceneConfigurationName</key>
+					<string>Default Configuration</string>
+					<key>UISceneDelegateClassName</key>
+					<string>$(PRODUCT_MODULE_NAME).SceneDelegate</string>
+				</dict>
+			</array>
+		</dict>
+	</dict>
+	<key>UIApplicationSupportsIndirectInputEvents</key>
+	<true/>
+	<key>UILaunchScreen</key>
+	<dict/>
+	<key>UIRequiredDeviceCapabilities</key>
+	<array>
+		<string>armv7</string>
+	</array>
+	<key>UISupportedInterfaceOrientations</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
+		<string>UIInterfaceOrientationLandscapeLeft</string>
+		<string>UIInterfaceOrientationLandscapeRight</string>
+	</array>
+	<key>UISupportedInterfaceOrientations~ipad</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
+		<string>UIInterfaceOrientationPortraitUpsideDown</string>
+		<string>UIInterfaceOrientationLandscapeLeft</string>
+		<string>UIInterfaceOrientationLandscapeRight</string>
+	</array>
+	
+	<!-- COPYRIGHT & INTELLECTUAL PROPERTY -->
+	<key>NSHumanReadableCopyright</key>
+	<string>© 2025 Palytt Inc. All rights reserved.</string>
+	<key>CFBundleDisplayName</key>
+	<string>Palytt</string>
+	<key>CFBundleGetInfoString</key>
+	<string>Palytt v1.0 © 2025 Palytt Inc. All rights reserved. Palytt and the Palytt logo are trademarks of Palytt Inc.</string>
+	
+	<!-- PRIVACY & PERMISSIONS -->
+	<key>NSCameraUsageDescription</key>
+	<string>Palytt needs camera access to let you capture and share amazing food photos with the community.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Palytt needs photo library access to let you select and share food photos from your gallery.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Palytt uses your location to help you discover nearby restaurants and tag your food posts with location information.</string>
+	<key>NSContactsUsageDescription</key>
+	<string>Palytt can access your contacts to help you find and connect with friends who are also using the app.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Palytt needs microphone access to record videos of your food experiences to share with the community.</string>
+	<key>NSFaceIDUsageDescription</key>
+	<string>Palytt uses Face ID to provide secure and convenient authentication for your account.</string>
+	<key>NSTouchIDUsageDescription</key>
+	<string>Palytt uses Touch ID to provide secure and convenient authentication for your account.</string>
+	
+	<!-- APP TRANSPORT SECURITY -->
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsArbitraryLoads</key>
+		<false/>
+		<key>NSExceptionDomains</key>
+		<dict>
+			<key>localhost</key>
+			<dict>
+				<key>NSExceptionAllowsInsecureHTTPLoads</key>
+				<true/>
+				<key>NSExceptionMinimumTLSVersion</key>
+				<string>TLSv1.2</string>
+			</dict>
+		</dict>
+	</dict>
+	
+	<!-- ENCRYPTION COMPLIANCE -->
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
+	
+	<!-- BACKGROUND MODES -->
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>fetch</string>
+		<string>remote-notification</string>
+	</array>
+	
+	<!-- CONTENT PROTECTION -->
+	<key>CFBundleDocumentTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeName</key>
+			<string>Palytt Food Photo</string>
+			<key>CFBundleTypeRole</key>
+			<string>Viewer</string>
+			<key>LSHandlerRank</key>
+			<string>Owner</string>
+		</dict>
+	</array>
+	
+	<!-- APP CATEGORIES -->
+	<key>LSApplicationCategoryType</key>
+	<string>public.app-category.food-and-drink</string>
+	
+</dict>
+</plist>

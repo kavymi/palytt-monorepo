@@ -1,0 +1,19 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+Do's:
+- Update typings and enahnce type safety.
+- Use tRPC connection for frontend and backend.
+
+Backend runs on:
+
+🚀 Server ready at: http://localhost:4000
+⚡ tRPC endpoint: http://localhost:4000/trpc
+🌐 tRPC panel: http://localhost:4000/trpc/panel
+💓 Health check: http://localhost:4000/health
+    
+[06:41:51 UTC] INFO: Server listening at http://127.0.0.1:4000
+[06:41:51 UTC] INFO: Server listening at http://192.168.1.75:4000
+[06:41:51 UTC] INFO: Server listening at http://192.168.64.1:4000
