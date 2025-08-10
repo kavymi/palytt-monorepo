@@ -53,14 +53,17 @@ struct EditProfileView: View {
             )
             #endif
         }
+        .task {
+            // Load user profile data first
+            await viewModel.loadUserProfile()
+        }
         .onAppear {
-            // Initialize editable fields with current values
-            if viewModel.newEmail.isEmpty {
-                viewModel.newEmail = viewModel.currentEmail
-            }
-            if viewModel.phoneNumber.isEmpty || viewModel.phoneNumber == "Not set" {
-                viewModel.phoneNumber = viewModel.currentPhoneNumber == "Not set" ? "" : viewModel.currentPhoneNumber
-            }
+            // Initialize editable fields with current values after data is loaded
+            initializeFormFields()
+        }
+        .onChange(of: viewModel.currentUser) { _, _ in
+            // Update form fields when user data changes
+            initializeFormFields()
         }
     }
     
@@ -475,6 +478,47 @@ struct EditProfileView: View {
         }
     }
     
+    private func initializeFormFields() {
+        guard let user = viewModel.currentUser else { return }
+        
+        // Initialize all form fields with current user data
+        if viewModel.firstName.isEmpty {
+            viewModel.firstName = user.firstName ?? ""
+        }
+        
+        if viewModel.lastName.isEmpty {
+            viewModel.lastName = user.lastName ?? ""
+        }
+        
+        if viewModel.username.isEmpty {
+            viewModel.username = user.username
+        }
+        
+        if viewModel.bio.isEmpty {
+            viewModel.bio = user.bio ?? ""
+        }
+        
+        // Initialize email field
+        if viewModel.newEmail.isEmpty {
+            viewModel.newEmail = viewModel.currentEmail
+        }
+        
+        // Initialize phone number field
+        if viewModel.phoneNumber.isEmpty || viewModel.phoneNumber == "Not set" {
+            viewModel.phoneNumber = viewModel.currentPhoneNumber == "Not set" ? "" : viewModel.currentPhoneNumber
+        }
+        
+        // Initialize dietary preferences
+        if viewModel.selectedDietaryPreferences.isEmpty {
+            viewModel.selectedDietaryPreferences = Set(user.dietaryPreferences)
+        }
+        
+        // Initialize profile image URL if available
+        if viewModel.profileImageURL.isEmpty, let avatarURL = user.avatarURL {
+            viewModel.profileImageURL = avatarURL.absoluteString
+        }
+    }
+    
     // MARK: - Validation Functions
     
     private func validateUsername(_ username: String) async {
@@ -534,6 +578,24 @@ struct EditProfileView: View {
             }
         } catch {
             print("❌ Phone validation error: \(error)")
+        }
+    }
+    
+    private var nameCard: some View {
+        ProfileEditCard(title: "Full Name", icon: "person.text.rectangle.fill") {
+            VStack(alignment: .leading, spacing: 12) {
+                TextField("First name", text: $viewModel.firstName)
+                    .textFieldStyle(CustomTextFieldStyle())
+                    #if os(iOS)
+                    .textInputAutocapitalization(.words)
+                    #endif
+                
+                TextField("Last name", text: $viewModel.lastName)
+                    .textFieldStyle(CustomTextFieldStyle())
+                    #if os(iOS)
+                    .textInputAutocapitalization(.words)
+                    #endif
+            }
         }
     }
 }
@@ -646,6 +708,7 @@ struct EditProfileMainContent: View {
                     VStack(spacing: 24) {
                         profileImageSection
                         basicInfoCard
+                        nameCard
                         bioCard
                         emailCard
                         phoneCard

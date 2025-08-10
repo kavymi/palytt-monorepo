@@ -7,6 +7,7 @@ import { friendsRouter } from './friends.js';
 import { followsRouter } from './follows.js';
 import { messagesRouter } from './messages.js';
 import { notificationsRouter } from './notifications.js';
+import { placesRouter } from './places.js';
 
 /**
  * Main app router
@@ -22,6 +23,7 @@ export const appRouter = router({
   follows: followsRouter,
   messages: messagesRouter,
   notifications: notificationsRouter,
+  places: placesRouter,
   // Add more routers here:
   // auth: authRouter,
   // shops: shopsRouter,

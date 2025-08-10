@@ -38,7 +38,7 @@ struct UniversalSearchView: View {
             switch self {
             case .all: return .purple
             case .posts: return .blue
-            case .places: return .green
+            case .places: return .shopsPlaces
             case .people: return .orange
             }
         }
@@ -297,7 +297,7 @@ struct SearchResultsView: View {
             
             // Places Results
             if (selectedCategory == .all || selectedCategory == .places) && !viewModel.placeResults.isEmpty {
-                SearchSectionView(title: "Places", icon: "location", color: .green) {
+                SearchSectionView(title: "Places", icon: "location", color: .shopsPlaces) {
                     ForEach(viewModel.placeResults, id: \.id) { place in
                         SearchPlaceRowView(place: place)
                     }
@@ -463,7 +463,7 @@ struct SearchPlaceRowView: View {
                         Text(String(repeating: "$", count: priceLevel))
                             .font(.caption)
                             .fontWeight(.medium)
-                            .foregroundColor(.green)
+                            .foregroundColor(.shopsPlaces)
                     }
                 }
             }

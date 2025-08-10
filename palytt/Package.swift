@@ -26,6 +26,8 @@ let package = Package(
         .package(url: "https://github.com/clerk/clerk-ios", from: "0.3.0"),
         // Convex - enabled with conditional architecture support
         .package(url: "https://github.com/get-convex/convex-swift", from: "0.5.5"),
+        // PostHog analytics
+        .package(url: "https://github.com/PostHog/posthog-ios.git", from: "3.0.0"),
     ],
     targets: [
         .target(
@@ -36,6 +38,7 @@ let package = Package(
                 "Factory",
                 .product(name: "Clerk", package: "clerk-ios"),
                 .product(name: "ConvexMobile", package: "convex-swift"),
+                .product(name: "PostHog", package: "posthog-ios"),
             ],
             // Exclude resources since they're handled in the Xcode project directly
             resources: []

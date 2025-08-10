@@ -256,7 +256,7 @@ struct ShopActionButtonsView: View {
                     }
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 12)
-                    .background(Color.green)
+                    .background(Color.shopsPlaces)
                     .foregroundColor(.white)
                     .font(.subheadline)
                     .fontWeight(.medium)

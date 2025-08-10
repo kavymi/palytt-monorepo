@@ -19,19 +19,27 @@ struct UserSearchView: View {
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
-                SearchBarSection(
-                    searchText: $searchText,
-                    onClear: {
-                        searchText = ""
-                        viewModel.clearSearch()
-                    },
-                    onCancel: {
-                        searchText = ""
-                        isSearchFocused = false
-                        viewModel.clearSearch()
-                    },
-                    onSubmit: performSearch
-                )
+                // Search Section with improved spacing
+                VStack(spacing: 0) {
+                    SearchBarSection(
+                        searchText: $searchText,
+                        onClear: {
+                            searchText = ""
+                            viewModel.clearSearch()
+                        },
+                        onCancel: {
+                            searchText = ""
+                            isSearchFocused = false
+                            viewModel.clearSearch()
+                        },
+                        onSubmit: performSearch
+                    )
+                    
+                    // Spacer between search and content
+                    Rectangle()
+                        .fill(Color.background)
+                        .frame(height: 24)
+                }
                 
                 contentView
                 errorView
@@ -158,46 +166,55 @@ struct SearchResultUserRow: View {
             followingCount: 0,
             postsCount: 0
         ))) {
-            HStack(spacing: 12) {
-                // Profile image
+            HStack(spacing: 16) {
+                // Profile image with improved design
                 AsyncImage(url: URL(string: user.avatarUrl ?? "")) { image in
                     image
                         .resizable()
                         .aspectRatio(contentMode: .fill)
                 } placeholder: {
                     Circle()
-                        .fill(Color.gray.opacity(0.3))
+                        .fill(LinearGradient(
+                            colors: [Color.gray.opacity(0.2), Color.gray.opacity(0.4)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ))
                         .overlay(
                             Image(systemName: "person.fill")
                                 .foregroundColor(.gray)
+                                .font(.system(size: 24, weight: .medium))
                         )
                 }
-                .frame(width: 50, height: 50)
+                .frame(width: 56, height: 56)
                 .clipShape(Circle())
+                .overlay(
+                    Circle()
+                        .stroke(Color.divider.opacity(0.3), lineWidth: 1)
+                )
                 
-                VStack(alignment: .leading, spacing: 4) {
+                VStack(alignment: .leading, spacing: 6) {
                     Text(user.displayName ?? user.username ?? "Unknown User")
-                        .font(.subheadline)
-                        .fontWeight(.semibold)
+                        .font(.system(size: 16, weight: .semibold))
                         .foregroundColor(.primaryText)
                         .lineLimit(1)
                     
                     Text("@\(user.username ?? "unknown")")
-                        .font(.caption)
+                        .font(.system(size: 14, weight: .regular))
                         .foregroundColor(.secondaryText)
                         .lineLimit(1)
                     
                     if let bio = user.bio, !bio.isEmpty {
                         Text(bio)
-                            .font(.caption)
+                            .font(.system(size: 13, weight: .regular))
                             .foregroundColor(.tertiaryText)
                             .lineLimit(2)
+                            .fixedSize(horizontal: false, vertical: true)
                     }
                 }
                 
                 Spacer()
                 
-                // Quick action button
+                // Quick action button with improved design
                 if user.clerkId != appState.currentUser?.clerkId {
                     QuickFollowButton(targetUser: User(
                         id: UUID(uuidString: user.clerkId) ?? UUID(),
@@ -219,7 +236,8 @@ struct SearchResultUserRow: View {
                     ))
                 }
             }
-            .padding(.vertical, 4)
+            .padding(.vertical, 12)
+            .padding(.horizontal, 4)
         }
         .buttonStyle(PlainButtonStyle())
     }
@@ -249,32 +267,41 @@ struct SuggestedUserCard: View {
             followingCount: 0,
             postsCount: 0
         ))) {
-            VStack(spacing: 8) {
-                // Profile image
+            VStack(spacing: 12) {
+                // Profile image with modern design
                 AsyncImage(url: URL(string: user.avatarUrl ?? "")) { image in
                     image
                         .resizable()
                         .aspectRatio(contentMode: .fill)
                 } placeholder: {
                     Circle()
-                        .fill(Color.gray.opacity(0.3))
+                        .fill(LinearGradient(
+                            colors: [Color.gray.opacity(0.2), Color.gray.opacity(0.4)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ))
                         .overlay(
                             Image(systemName: "person.fill")
                                 .foregroundColor(.gray)
+                                .font(.system(size: 28, weight: .medium))
                         )
                 }
-                .frame(width: 60, height: 60)
+                .frame(width: 70, height: 70)
                 .clipShape(Circle())
+                .overlay(
+                    Circle()
+                        .stroke(Color.divider.opacity(0.3), lineWidth: 1.5)
+                )
                 
-                VStack(spacing: 2) {
+                VStack(spacing: 4) {
                     Text(user.displayName ?? user.username ?? "Unknown")
-                        .font(.caption)
-                        .fontWeight(.semibold)
+                        .font(.system(size: 14, weight: .semibold))
                         .foregroundColor(.primaryText)
                         .lineLimit(1)
+                        .multilineTextAlignment(.center)
                     
                     Text("@\(user.username ?? "unknown")")
-                        .font(.caption2)
+                        .font(.system(size: 12, weight: .regular))
                         .foregroundColor(.secondaryText)
                         .lineLimit(1)
                 }
@@ -298,13 +325,17 @@ struct SuggestedUserCard: View {
                         followingCount: 0,
                         postsCount: 0
                     ))
-                        .scaleEffect(0.8)
+                        .scaleEffect(0.85)
                 }
             }
-            .frame(width: 100)
-            .padding(.vertical, 8)
-            .background(Color.cardBackground)
-            .cornerRadius(12)
+            .frame(width: 120, height: 160)
+            .padding(.vertical, 16)
+            .padding(.horizontal, 12)
+            .background(
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(Color.cardBackground)
+                    .shadow(color: Color.black.opacity(0.05), radius: 8, x: 0, y: 2)
+            )
         }
         .buttonStyle(PlainButtonStyle())
     }
@@ -408,51 +439,76 @@ struct SearchBarSection: View {
     @FocusState private var isFocused: Bool
     
     var body: some View {
-        HStack {
-            HStack(spacing: 8) {
-                Image(systemName: "magnifyingglass")
-                    .foregroundColor(.tertiaryText)
-                
-                TextField("Search users...", text: $searchText)
-                    .focused($isFocused)
-                    .textFieldStyle(PlainTextFieldStyle())
-                    .foregroundColor(.primaryText)
-                    .onSubmit(onSubmit)
-                
-                if !searchText.isEmpty {
-                    Button(action: onClear) {
-                        Image(systemName: "xmark.circle.fill")
-                            .foregroundColor(.tertiaryText)
+        VStack(spacing: 0) {
+            HStack(spacing: 12) {
+                HStack(spacing: 12) {
+                    Image(systemName: "magnifyingglass")
+                        .foregroundColor(.tertiaryText)
+                        .font(.system(size: 16, weight: .medium))
+                    
+                    TextField("Search users...", text: $searchText)
+                        .focused($isFocused)
+                        .textFieldStyle(PlainTextFieldStyle())
+                        .foregroundColor(.primaryText)
+                        .font(.system(size: 16, weight: .regular))
+                        .onSubmit(onSubmit)
+                    
+                    if !searchText.isEmpty {
+                        Button(action: onClear) {
+                            Image(systemName: "xmark.circle.fill")
+                                .foregroundColor(.tertiaryText)
+                                .font(.system(size: 16, weight: .medium))
+                        }
+                        .transition(.scale.combined(with: .opacity))
                     }
                 }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 14)
+                .background(Color.cardBackground)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12)
+                        .stroke(isFocused ? Color.accentColor : Color.clear, lineWidth: 2)
+                )
+                .cornerRadius(12)
+                
+                if isFocused {
+                    Button("Cancel", action: onCancel)
+                        .foregroundColor(.primaryBrand)
+                        .font(.system(size: 16, weight: .medium))
+                        .transition(.move(edge: .trailing).combined(with: .opacity))
+                }
             }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
-            .background(Color.cardBackground)
-            .cornerRadius(10)
+            .padding(.horizontal, 20)
+            .padding(.top, 16)
+            .padding(.bottom, 12)
             
-            if isFocused {
-                Button("Cancel", action: onCancel)
-                    .foregroundColor(.primaryBrand)
-                    .transition(.move(edge: .trailing).combined(with: .opacity))
+            // Subtle divider
+            if !isFocused {
+                Rectangle()
+                    .fill(Color.divider.opacity(0.3))
+                    .frame(height: 0.5)
+                    .padding(.horizontal, 20)
             }
         }
-        .padding(.horizontal)
-        .padding(.top, 8)
-        .animation(.easeInOut(duration: 0.2), value: isFocused)
+        .background(Color.background)
+        .animation(.spring(response: 0.3, dampingFraction: 0.8), value: isFocused)
+        .animation(.easeInOut(duration: 0.2), value: searchText.isEmpty)
     }
 }
 
 struct LoadingStateView: View {
     var body: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: 24) {
             ProgressView()
-                .scaleEffect(1.2)
+                .scaleEffect(1.4)
+                .tint(.primaryBrand)
+            
             Text("Searching users...")
-                .font(.subheadline)
+                .font(.system(size: 16, weight: .medium))
                 .foregroundColor(.secondaryText)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .padding(.top, 60)
     }
 }
 
@@ -460,26 +516,34 @@ struct UserSearchEmptyStateView: View {
     let suggestedUsers: [BackendUser]
     
     var body: some View {
-        VStack(spacing: 20) {
-            Image(systemName: "person.2.badge.gearshape")
-                .font(.system(size: 60))
-                .foregroundColor(.tertiaryText)
-            
-            VStack(spacing: 8) {
-                Text("Discover People")
-                    .font(.title2)
-                    .fontWeight(.semibold)
-                    .foregroundColor(.primaryText)
+        ScrollView {
+            VStack(spacing: 32) {
+                VStack(spacing: 24) {
+                    Image(systemName: "person.2.badge.gearshape")
+                        .font(.system(size: 72))
+                        .foregroundColor(.tertiaryText)
+                        .symbolRenderingMode(.hierarchical)
+                    
+                    VStack(spacing: 12) {
+                        Text("Discover People")
+                            .font(.system(size: 24, weight: .bold))
+                            .foregroundColor(.primaryText)
+                        
+                        Text("Search for users by name, username, or email to connect with friends and discover new food enthusiasts.")
+                            .font(.system(size: 16, weight: .regular))
+                            .foregroundColor(.secondaryText)
+                            .multilineTextAlignment(.center)
+                            .lineSpacing(2)
+                            .padding(.horizontal, 24)
+                    }
+                }
+                .padding(.top, 40)
                 
-                Text("Search for users by name, username, or email to connect with friends and discover new food enthusiasts.")
-                    .font(.subheadline)
-                    .foregroundColor(.secondaryText)
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal)
-            }
-            
-            if !suggestedUsers.isEmpty {
-                SuggestedUsersSection(users: suggestedUsers)
+                if !suggestedUsers.isEmpty {
+                    SuggestedUsersSection(users: suggestedUsers)
+                }
+                
+                Spacer(minLength: 40)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -490,19 +554,22 @@ struct SuggestedUsersSection: View {
     let users: [BackendUser]
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Suggested for You")
-                .font(.headline)
-                .foregroundColor(.primaryText)
-                .padding(.horizontal)
+        VStack(alignment: .leading, spacing: 20) {
+            HStack {
+                Text("Suggested for You")
+                    .font(.system(size: 20, weight: .bold))
+                    .foregroundColor(.primaryText)
+                Spacer()
+            }
+            .padding(.horizontal, 20)
             
             ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 12) {
+                HStack(spacing: 16) {
                     ForEach(users, id: \.clerkId) { user in
                         SuggestedUserCard(user: user)
                     }
                 }
-                .padding(.horizontal)
+                .padding(.horizontal, 20)
             }
         }
     }
@@ -510,23 +577,27 @@ struct SuggestedUsersSection: View {
 
 struct NoResultsStateView: View {
     var body: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: 24) {
             Image(systemName: "person.crop.circle.badge.questionmark")
-                .font(.system(size: 50))
+                .font(.system(size: 64))
                 .foregroundColor(.tertiaryText)
+                .symbolRenderingMode(.hierarchical)
             
-            Text("No Users Found")
-                .font(.title2)
-                .fontWeight(.semibold)
-                .foregroundColor(.primaryText)
-            
-            Text("Try searching with a different name, username, or email address.")
-                .font(.subheadline)
-                .foregroundColor(.secondaryText)
-                .multilineTextAlignment(.center)
-                .padding(.horizontal)
+            VStack(spacing: 12) {
+                Text("No Users Found")
+                    .font(.system(size: 22, weight: .bold))
+                    .foregroundColor(.primaryText)
+                
+                Text("Try searching with a different name, username, or email address.")
+                    .font(.system(size: 16, weight: .regular))
+                    .foregroundColor(.secondaryText)
+                    .multilineTextAlignment(.center)
+                    .lineSpacing(2)
+                    .padding(.horizontal, 32)
+            }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .padding(.top, 60)
     }
 }
 
@@ -538,31 +609,48 @@ struct SearchResultsListView: View {
     
     var body: some View {
         List {
-            ForEach(searchResults, id: \.clerkId) { user in
-                SearchResultUserRow(user: user)
-                    .listRowBackground(Color.cardBackground)
-                    .listRowSeparatorTint(Color.divider)
+            Section {
+                ForEach(searchResults, id: \.clerkId) { user in
+                    SearchResultUserRow(user: user)
+                        .listRowBackground(Color.background)
+                        .listRowSeparator(.hidden)
+                        .padding(.vertical, 4)
+                }
             }
             
             if hasMore && !isLoading {
-                HStack {
-                    Spacer()
-                    Button("Load More", action: onLoadMore)
-                        .font(.subheadline)
+                Section {
+                    HStack {
+                        Spacer()
+                        Button("Load More") {
+                            onLoadMore()
+                        }
+                        .font(.system(size: 16, weight: .medium))
                         .foregroundColor(.primaryBrand)
-                    Spacer()
+                        .padding(.vertical, 12)
+                        Spacer()
+                    }
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
                 }
-                .listRowBackground(Color.clear)
             } else if isLoading {
-                HStack {
-                    Spacer()
-                    ProgressView()
-                        .scaleEffect(0.8)
-                    Spacer()
+                Section {
+                    HStack {
+                        Spacer()
+                        ProgressView()
+                            .scaleEffect(1.2)
+                            .tint(.primaryBrand)
+                        Spacer()
+                    }
+                    .padding(.vertical, 16)
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
                 }
-                .listRowBackground(Color.clear)
             }
         }
+        .listStyle(.plain)
+        .scrollContentBackground(.hidden)
+        .background(Color.background)
     }
 } 
 
@@ -575,16 +663,109 @@ struct SearchResultsListView: View {
 }
 
 #Preview("Search Results") {
-    let mockUsers = MockData.sampleUsers.prefix(3)
-    
+    NavigationStack {
+        SearchResultsListView(
+            searchResults: MockData.sampleUsers.prefix(5).map { user in
+                BackendUser(
+                    id: user.id.uuidString,
+                    userId: user.id.uuidString,
+                    clerkId: user.clerkId ?? "clerk_\(user.id.uuidString)",
+                    email: user.email,
+                    firstName: user.firstName,
+                    lastName: user.lastName,
+                    username: user.username,
+                    displayName: "\(user.firstName ?? "") \(user.lastName ?? "")".trimmingCharacters(in: .whitespaces),
+                    bio: user.bio,
+                    avatarUrl: user.avatarURL?.absoluteString,
+                    role: "user",
+                    appleId: nil,
+                    googleId: nil,
+                    dietaryPreferences: [],
+                    followersCount: 0,
+                    followingCount: 0,
+                    postsCount: 0,
+                    isVerified: false,
+                    isActive: true,
+                    createdAt: Int(Date().timeIntervalSince1970),
+                    updatedAt: Int(Date().timeIntervalSince1970)
+                )
+            },
+            hasMore: true,
+            isLoading: false,
+            onLoadMore: {}
+        )
+    }
+    .environmentObject(MockAppState())
+}
+
+#Preview("Suggested Users Section") {
     NavigationStack {
         VStack {
-            ForEach(Array(mockUsers), id: \.clerkId) { user in
-                Text("User: \(user.displayName)")
-                    .padding(.horizontal)
-            }
+            SuggestedUsersSection(users: Array(MockData.sampleUsers.prefix(4).map { user in
+                BackendUser(
+                    id: user.id.uuidString,
+                    userId: user.id.uuidString,
+                    clerkId: user.clerkId ?? "clerk_\(user.id.uuidString)",
+                    email: user.email,
+                    firstName: user.firstName,
+                    lastName: user.lastName,
+                    username: user.username,
+                    displayName: "\(user.firstName ?? "") \(user.lastName ?? "")".trimmingCharacters(in: .whitespaces),
+                    bio: user.bio,
+                    avatarUrl: user.avatarURL?.absoluteString,
+                    role: "user",
+                    appleId: nil,
+                    googleId: nil,
+                    dietaryPreferences: [],
+                    followersCount: 0,
+                    followingCount: 0,
+                    postsCount: 0,
+                    isVerified: false,
+                    isActive: true,
+                    createdAt: Int(Date().timeIntervalSince1970),
+                    updatedAt: Int(Date().timeIntervalSince1970)
+                )
+            }))
             Spacer()
         }
+    }
+    .environmentObject(MockAppState())
+}
+
+#Preview("Empty State") {
+    NavigationStack {
+        UserSearchEmptyStateView(suggestedUsers: Array(MockData.sampleUsers.prefix(6).map { user in
+            BackendUser(
+                id: user.id.uuidString,
+                userId: user.id.uuidString,
+                clerkId: user.clerkId ?? "clerk_\(user.id.uuidString)",
+                email: user.email,
+                firstName: user.firstName,
+                lastName: user.lastName,
+                username: user.username,
+                displayName: "\(user.firstName ?? "") \(user.lastName ?? "")".trimmingCharacters(in: .whitespaces),
+                bio: user.bio,
+                avatarUrl: user.avatarURL?.absoluteString,
+                role: "user",
+                appleId: nil,
+                googleId: nil,
+                dietaryPreferences: [],
+                followersCount: 0,
+                followingCount: 0,
+                postsCount: 0,
+                isVerified: false,
+                isActive: true,
+                createdAt: Int(Date().timeIntervalSince1970),
+                updatedAt: Int(Date().timeIntervalSince1970)
+            )
+        }))
+    }
+    .environmentObject(MockAppState())
+}
+
+#Preview("No Results State") {
+    NavigationStack {
+        NoResultsStateView()
     }
     .environmentObject(MockAppState())
 }

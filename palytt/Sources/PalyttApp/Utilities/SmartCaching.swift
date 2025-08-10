@@ -36,8 +36,7 @@ class SmartCachingManager: ObservableObject {
     func preloadContent(for user: User) async {
         print("🔄 SmartCache: Preloading content for user")
         
-        // Preload user's timeline posts
-        await preloadTimelinePosts(for: user)
+
         
         // Preload user's profile data
         await preloadUserProfile(user)
@@ -140,10 +139,7 @@ class SmartCachingManager: ObservableObject {
         }
     }
     
-    private func preloadTimelinePosts(for user: User) async {
-        // Mock implementation - would load from backend
-        print("📦 SmartCache: Preloading timeline posts")
-    }
+
     
     private func preloadUserProfile(_ user: User) async {
         await userCache.store(user)

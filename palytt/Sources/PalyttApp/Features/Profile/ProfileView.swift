@@ -26,8 +26,7 @@ struct ProfileView: View {
     @State private var showFollowersSheet = false
     @State private var showFollowingSheet = false
     @State private var showFriendRequestsSheet = false
-    @State private var showPrivacyDashboard = false
-    @State private var showTimeline = false
+
     @State private var showInviteView = false
     
     // Phase 3 Services (temporarily disabled for build)
@@ -77,12 +76,8 @@ struct ProfileView: View {
                 showFollowersSheet: $showFollowersSheet,
                 showFollowingSheet: $showFollowingSheet,
                 showFriendRequestsSheet: $showFriendRequestsSheet,
-                showTimeline: $showTimeline,
                 viewModel: viewModel
             ))
-            .sheet(isPresented: $showPrivacyDashboard) {
-                PrivacyDashboardView()
-            }
             .sheet(isPresented: $showInviteView) {
                 InviteView()
             }
@@ -267,13 +262,7 @@ struct ProfileView: View {
                         .foregroundColor(.primaryBrand)
                 }
                 
-                Button(action: { 
-                    showPrivacyDashboard = true
-                    // analyticsService.trackUserAction(.profileView, properties: ["section": "privacy"])
-                }) {
-                    Image(systemName: "hand.raised.fill")
-                        .foregroundColor(.primaryBrand)
-                }
+
                 
                 Button(action: { 
                     showFriendRequestsSheet = true
@@ -294,13 +283,7 @@ struct ProfileView: View {
                 }
             }
             
-            Button(action: { 
-                showTimeline = true
-                // analyticsService.trackUserAction(.profileView, properties: ["section": "timeline"])
-            }) {
-                Image(systemName: "clock.fill")
-                    .foregroundColor(.primaryBrand)
-            }
+
             
             Button(action: { 
                 showSettings = true
@@ -1206,7 +1189,8 @@ struct SettingsView: View {
             NotificationPreferencesView()
         }
         .sheet(isPresented: $showPrivacySettings) {
-            PrivacyControlsView()
+            Text("Privacy settings coming soon")
+                .padding()
         }
         .sheet(isPresented: $showBlockedUsers) {
             BlockedUsersView()
@@ -1367,9 +1351,9 @@ struct ThemeQuickSwitcher: View {
             Spacer()
             
             Picker("Theme", selection: $themeManager.currentTheme) {
-                Text("Light").tag("light")
-                Text("Dark").tag("dark")
-                Text("Auto").tag("auto")
+                Text("Light").tag(ThemeManager.Theme.light)
+                Text("Dark").tag(ThemeManager.Theme.dark)
+                Text("Auto").tag(ThemeManager.Theme.system)
             }
             .pickerStyle(SegmentedPickerStyle())
             .frame(width: 120)
@@ -1411,46 +1395,7 @@ struct NotificationPreferencesView: View {
     }
 }
 
-struct PrivacyControlsView: View {
-    @State private var isPrivateAccount = false
-    @State private var allowMessageFromEveryone = true
-    @State private var showLocationInPosts = true
-    @State private var allowTagging = true
-    
-    var body: some View {
-        Form {
-            Section("Account Privacy") {
-                Toggle("Private Account", isOn: $isPrivateAccount)
-                    .onChange(of: isPrivateAccount) { _, newValue in
-                        // TODO: Update privacy setting via backend
-                    }
-                
-                if !isPrivateAccount {
-                    Text("When your account is public, anyone can see your posts and profile")
-                        .font(.caption)
-                        .foregroundColor(.secondaryText)
-                }
-            }
-            
-            Section("Messages") {
-                Toggle("Allow messages from everyone", isOn: $allowMessageFromEveryone)
-                
-                if !allowMessageFromEveryone {
-                    Text("Only friends can send you messages")
-                        .font(.caption)
-                        .foregroundColor(.secondaryText)
-                }
-            }
-            
-            Section("Posts") {
-                Toggle("Show location in posts", isOn: $showLocationInPosts)
-                Toggle("Allow others to tag you", isOn: $allowTagging)
-            }
-        }
-        .navigationTitle("Privacy")
-        .navigationBarTitleDisplayMode(.inline)
-    }
-}
+
 
 struct BlockedUsersView: View {
     @State private var blockedUsers: [User] = []
@@ -1720,36 +1665,7 @@ struct ReportProblemView: View {
     }
 }
 
-struct FeedTimelineView: View {
-    var body: some View {
-        VStack {
-            Image(systemName: "chart.line.uptrend.xyaxis")
-                .font(.system(size: 60))
-                .foregroundColor(.primaryBrand)
-                .padding(.bottom, 20)
-            
-            Text("Feed Timeline")
-                .font(.title2)
-                .fontWeight(.semibold)
-                .padding(.bottom, 8)
-            
-            Text("See how your posts perform over time and track your engagement metrics.")
-                .font(.body)
-                .foregroundColor(.secondaryText)
-                .multilineTextAlignment(.center)
-                .padding(.horizontal, 40)
-            
-            Button("Coming Soon") {
-                // Future implementation
-            }
-            .padding(.top, 20)
-            .foregroundColor(.primaryBrand)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .navigationTitle("Feed Timeline")
-        .navigationBarTitleDisplayMode(.inline)
-    }
-}
+
 
 // MARK: - Missing Helper Views
 
@@ -1761,7 +1677,6 @@ struct SheetPresentationModifier: ViewModifier {
     @Binding var showFollowersSheet: Bool
     @Binding var showFollowingSheet: Bool
     @Binding var showFriendRequestsSheet: Bool
-    @Binding var showTimeline: Bool
     let viewModel: ProfileViewModel
     
     func body(content: Content) -> some View {
@@ -1796,49 +1711,10 @@ struct SheetPresentationModifier: ViewModifier {
             .sheet(isPresented: $showFriendRequestsSheet) {
                 FriendRequestsView()
             }
-            .sheet(isPresented: $showTimeline) {
-                VStack(spacing: 20) {
-                    Text("Timeline")
-                        .font(.largeTitle)
-                        .fontWeight(.bold)
-                    
-                    Text("Feed timeline coming soon!")
-                        .font(.body)
-                        .foregroundColor(.secondary)
-                    
-                    Button("Close") {
-                        showTimeline = false
-                    }
-                    .buttonStyle(.borderedProminent)
-                }
-                .padding()
-            }
     }
 }
 
-// MARK: - Privacy Dashboard View
-struct PrivacyDashboardView: View {
-    var body: some View {
-        NavigationView {
-            VStack(spacing: 20) {
-                Image(systemName: "hand.raised.fill")
-                    .font(.system(size: 50))
-                    .foregroundColor(.primaryBrand)
-                
-                Text("Privacy Dashboard")
-                    .font(.largeTitle)
-                    .fontWeight(.bold)
-                
-                Text("Privacy controls coming soon...")
-                    .font(.subheadline)
-                    .foregroundColor(.secondaryText)
-            }
-            .padding()
-            .navigationTitle("Privacy")
-            .navigationBarTitleDisplayMode(.inline)
-        }
-    }
-}
+
 
 // MARK: - Invite View
 struct InviteView: View {
@@ -1873,18 +1749,22 @@ struct InviteView: View {
 
 // MARK: - SwiftUI Previews with Rich Content
 #Preview("Current User Profile - Rich Content") {
+    let mockAppState = MockAppState()
     NavigationView {
         ProfileView()
-            .environmentObject(MockAppState())
+            .environmentObject(mockAppState)
+            .environmentObject(mockAppState.themeManager)
     }
 }
 
 #Preview("Food Photographer Profile - Tons of Content") {
     @Previewable @StateObject var photographerViewModel = MockFoodPhotographerProfileViewModel()
+    let mockAppState = MockAppState()
     
     NavigationView {
         ProfileView(targetUser: photographerViewModel.currentUser)
-            .environmentObject(MockAppState())
+            .environmentObject(mockAppState)
+            .environmentObject(mockAppState.themeManager)
             .onAppear {
                 // Inject rich photography-focused posts
                 if let user = photographerViewModel.currentUser {
@@ -1897,10 +1777,12 @@ struct InviteView: View {
 
 #Preview("Sushi Expert Profile - Master Content") {
     @Previewable @StateObject var sushiViewModel = MockSushiExpertProfileViewModel()
+    let mockAppState = MockAppState()
     
     NavigationView {
         ProfileView(targetUser: sushiViewModel.currentUser)
-            .environmentObject(MockAppState())
+            .environmentObject(mockAppState)
+            .environmentObject(mockAppState.themeManager)
             .onAppear {
                 // Inject rich sushi-focused posts
                 if let user = sushiViewModel.currentUser {
@@ -1912,10 +1794,12 @@ struct InviteView: View {
 
 #Preview("Wine Sommelier Profile - Expert Content") {
     @Previewable @StateObject var wineViewModel = MockWineSommelierProfileViewModel()
+    let mockAppState = MockAppState()
     
     NavigationView {
         ProfileView(targetUser: wineViewModel.currentUser)
-            .environmentObject(MockAppState())
+            .environmentObject(mockAppState)
+            .environmentObject(mockAppState.themeManager)
             .onAppear {
                 // Inject rich wine-focused posts
                 if let user = wineViewModel.currentUser {
@@ -1927,10 +1811,12 @@ struct InviteView: View {
 
 #Preview("BBQ Master Profile - Pitmaster Content") {
     @Previewable @StateObject var bbqViewModel = MockBBQMasterProfileViewModel()
+    let mockAppState = MockAppState()
     
     NavigationView {
         ProfileView(targetUser: bbqViewModel.currentUser)
-            .environmentObject(MockAppState())
+            .environmentObject(mockAppState)
+            .environmentObject(mockAppState.themeManager)
             .onAppear {
                 // Inject rich BBQ-focused posts
                 if let user = bbqViewModel.currentUser {
@@ -1942,10 +1828,12 @@ struct InviteView: View {
 
 #Preview("Vegan Advocate Profile - Plant-Based Content") {
     @Previewable @StateObject var veganViewModel = MockVeganAdvocateProfileViewModel()
+    let mockAppState = MockAppState()
     
     NavigationView {
         ProfileView(targetUser: veganViewModel.currentUser)
-            .environmentObject(MockAppState())
+            .environmentObject(mockAppState)
+            .environmentObject(mockAppState.themeManager)
             .onAppear {
                 // Inject rich vegan-focused posts
                 if let user = veganViewModel.currentUser {
@@ -1956,9 +1844,11 @@ struct InviteView: View {
 }
 
 #Preview("Admin User Profile - Management Content") {
+    let mockAppState = MockAppState()
     NavigationView {
         ProfileView(targetUser: MockData.adminUser)
-            .environmentObject(MockAppState())
+            .environmentObject(mockAppState)
+            .environmentObject(mockAppState.themeManager)
             .onAppear {
                 print("🛡️ Admin Profile loaded with enhanced admin features")
             }
@@ -1968,24 +1858,30 @@ struct InviteView: View {
 #Preview("Profile Comparison - Multiple Users") {
     @Previewable @StateObject var photographerViewModel = MockFoodPhotographerProfileViewModel()
     @Previewable @StateObject var sushiViewModel = MockSushiExpertProfileViewModel()
+    let mockAppState1 = MockAppState()
+    let mockAppState2 = MockAppState()
     
     HStack(spacing: 0) {
         ProfileView(targetUser: photographerViewModel.currentUser)
-            .environmentObject(MockAppState())
+            .environmentObject(mockAppState1)
+            .environmentObject(mockAppState1.themeManager)
         
         Divider()
         
         ProfileView(targetUser: sushiViewModel.currentUser)
-            .environmentObject(MockAppState())
+            .environmentObject(mockAppState2)
+            .environmentObject(mockAppState2.themeManager)
     }
 }
 
 #Preview("Profile - Dark Mode with Rich Content") {
     @Previewable @StateObject var wineViewModel = MockWineSommelierProfileViewModel()
+    let mockAppState = MockAppState()
     
     NavigationView {
         ProfileView(targetUser: wineViewModel.currentUser)
-            .environmentObject(MockAppState())
+            .environmentObject(mockAppState)
+            .environmentObject(mockAppState.themeManager)
     }
     .preferredColorScheme(.dark)
 }

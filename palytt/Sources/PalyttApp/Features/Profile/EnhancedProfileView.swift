@@ -20,7 +20,7 @@ struct EnhancedProfileView: View {
     
     @State private var selectedTab: ProfileTab = .posts
     @State private var showAchievementDetail = false
-    @State private var showFoodJourney = false
+
     @State private var showTasteProfile = false
     @State private var showAchievementUnlock = false
     @State private var unlockedAchievement: Achievement?
@@ -65,9 +65,7 @@ struct EnhancedProfileView: View {
             .sheet(isPresented: $showAchievementDetail) {
                 AchievementDetailView(userId: viewModel.currentUser?.clerkId ?? "")
             }
-            .sheet(isPresented: $showFoodJourney) {
-                FoodJourneyTimelineView(user: viewModel.currentUser ?? User.preview)
-            }
+
             .sheet(isPresented: $showTasteProfile) {
                 TasteProfileView(user: viewModel.currentUser ?? User.preview)
             }
@@ -229,7 +227,7 @@ struct EnhancedProfileView: View {
                     value: "\(viewModel.userPosts.count)",
                     subtitle: "experiences",
                     color: .green,
-                    action: { showFoodJourney = true }
+                    action: { /* Journey functionality removed */ }
                 )
             }
             
@@ -288,7 +286,7 @@ struct EnhancedProfileView: View {
                 title: "Food Journey",
                 color: .green
             ) {
-                showFoodJourney = true
+                /* Journey functionality removed */
             }
             
             QuickActionButton(

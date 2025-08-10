@@ -127,7 +127,7 @@ struct ExploreView: View {
             switch self {
             case .myPosts: return .orange
             case .friendsPosts: return .blue
-            case .nearbyPlaces: return .green
+            case .nearbyPlaces: return .shopsPlaces
             case .everything: return .purple
             }
         }
@@ -1793,7 +1793,7 @@ struct ShopMapPin: View {
     let onTap: () -> Void
     
     private var pinColor: Color {
-        .green
+        .shopsPlaces
     }
     
     private var shadowRadius: CGFloat {
@@ -2028,7 +2028,7 @@ struct ShopPreviewCard: View {
                 .frame(width: 60, height: 60)
                 .overlay(
                     Image(systemName: "fork.knife")
-                        .foregroundColor(.green)
+                        .foregroundColor(.shopsPlaces)
                         .font(.title3)
                 )
             
@@ -2042,7 +2042,7 @@ struct ShopPreviewCard: View {
                 if let firstCuisine = shop.cuisineTypes.first {
                     Text(firstCuisine.rawValue)
                         .font(.caption)
-                        .foregroundColor(.green)
+                        .foregroundColor(.shopsPlaces)
                         .lineLimit(1)
                 }
                 

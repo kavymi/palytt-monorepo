@@ -71,6 +71,9 @@ extension Color {
     // Primary brand color (consistent)
     static let primaryBrand = oldRose
     
+    // Shops and Places color (aligned with primary brand)
+    static let shopsPlaces = oldRose
+    
     // Legacy app-prefixed colors (for backward compatibility)
     static var appPrimaryText: Color {
         primaryText
