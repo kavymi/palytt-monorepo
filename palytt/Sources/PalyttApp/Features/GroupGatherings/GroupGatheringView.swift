@@ -199,8 +199,13 @@ struct GroupGatheringView: View {
             HStack(spacing: -8) {
                 ForEach(viewModel.gathering.participants.prefix(5), id: \.id) { participant in
                     UserAvatar(
-                        imageURL: participant.userAvatar,
-                        displayName: participant.userName,
+                        user: User(
+                            id: UUID(),
+                            email: "user@example.com",
+                            username: participant.userName,
+                            displayName: participant.userName,
+                            avatarURL: URL(string: participant.userAvatar ?? "")
+                        ),
                         size: 24
                     )
                 }
@@ -271,27 +276,33 @@ struct GroupGatheringView: View {
     }
     
     private var timeVotingTab: some View {
-        TimeVotingView(viewModel: viewModel)
+        Text("Time Voting - Coming Soon")
+            .foregroundColor(.secondary)
+            .padding()
     }
     
     private var venueVotingTab: some View {
-        VenueVotingView(viewModel: viewModel) {
-            showingAddManualVenue = true
-        }
+        Text("Venue Voting - Coming Soon")
+            .foregroundColor(.secondary)
+            .padding()
     }
     
     private var chatTab: some View {
-        GatheringChatView(viewModel: viewModel)
+        Text("Group Chat - Coming Soon")
+            .foregroundColor(.secondary)
+            .padding()
     }
     
     private var filesTab: some View {
-        GatheringFilesView(viewModel: viewModel)
+        Text("Files & Media - Coming Soon")
+            .foregroundColor(.secondary)
+            .padding()
     }
     
     private var postsTab: some View {
-        LinkedPostsView(viewModel: viewModel) {
-            showingCreatePost = true
-        }
+        Text("Linked Posts - Coming Soon")
+            .foregroundColor(.secondary)
+            .padding()
     }
     
     // MARK: - Overview Cards

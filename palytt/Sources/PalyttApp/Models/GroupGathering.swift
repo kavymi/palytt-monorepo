@@ -401,15 +401,21 @@ struct VenueRecommendation: Codable, Identifiable, Hashable {
         self.latitude = latitude
         self.longitude = longitude
         self.category = category
-        self.aiScore = aiScore
-        self.aiReasoning = aiReasoning
+        self.cuisine = nil
         self.priceLevel = 2
         self.rating = 0.0
         self.reviewCount = 0
+        self.phoneNumber = nil
+        self.website = nil
+        self.imageUrl = nil
+        self.aiScore = aiScore
+        self.aiReasoning = aiReasoning
         self.matchingPreferences = []
+        self.estimatedCost = nil
         self.distanceFromCenter = 0.0
         self.isOpen = true
         self.reservationRequired = false
+        self.reservationUrl = nil
     }
 }
 
@@ -947,7 +953,7 @@ struct LocationSearchResult: Codable, Identifiable, Hashable {
         let phoneNumber: String?
         let website: String?
         let email: String?
-        let socialMedia: [String: String] = [:] // platform: handle
+        var socialMedia: [String: String] = [:] // platform: handle
     }
     
     init(

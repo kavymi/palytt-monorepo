@@ -53,6 +53,9 @@
 
 		BE9345712E08398200FC869F /* NotificationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = BE9345702E08398200FC869F /* NotificationService.swift */; };
 		NATIVEMGR123456789ABCDEF1 /* NativeNotificationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = NATIVEMGR123456789ABCDEF /* NativeNotificationManager.swift */; };
+		GROUPGATHER123456789ABCDE0 /* GroupGathering.swift in Sources */ = {isa = PBXBuildFile; fileRef = GROUPGATHER123456789ABCDE /* GroupGathering.swift */; };
+		GROUPGATHERV12456789ABCDE0 /* GroupGatheringView.swift in Sources */ = {isa = PBXBuildFile; fileRef = GROUPGATHERV12456789ABCDE /* GroupGatheringView.swift */; };
+		GROUPGATHERVM3456789ABCDE0 /* GroupGatheringViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = GROUPGATHERVM3456789ABCDE /* GroupGatheringViewModel.swift */; };
 		BEA897542E064CC0003D5B56 /* Location.swift in Sources */ = {isa = PBXBuildFile; fileRef = BEA897532E064CC0003D5B56 /* Location.swift */; };
 		C158FCF50D0B8007D534D006 /* palytt-logo.png in Resources */ = {isa = PBXBuildFile; fileRef = 5C3F7A75D238479CE653FB13 /* palytt-logo.png */; };
 		C68EB754B3A8F56B139B0673 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 4ABEFE489013663AEA2C2F10 /* Assets.xcassets */; };
@@ -126,6 +129,9 @@
 		BE7DB8B52E052E38006BCCDB /* LocationPickerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocationPickerView.swift; sourceTree = "<group>"; };
 		BE9345702E08398200FC869F /* NotificationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationService.swift; sourceTree = "<group>"; };
 		NATIVEMGR123456789ABCDEF /* NativeNotificationManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeNotificationManager.swift; sourceTree = "<group>"; };
+		GROUPGATHER123456789ABCDE /* GroupGathering.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GroupGathering.swift; sourceTree = "<group>"; };
+		GROUPGATHERV12456789ABCDE /* GroupGatheringView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GroupGatheringView.swift; sourceTree = "<group>"; };
+		GROUPGATHERVM3456789ABCDE /* GroupGatheringViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GroupGatheringViewModel.swift; sourceTree = "<group>"; };
 		BEA897532E064CC0003D5B56 /* Location.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Location.swift; sourceTree = "<group>"; };
 		C238499F1008F111C1175FB1 /* Palytt.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Palytt.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		C7B1B855B69C07B70B1FAF97 /* ExploreView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExploreView.swift; sourceTree = "<group>"; };
@@ -274,8 +280,18 @@
 				D8C1054E078C1BE8EEA02C82 /* Post.swift */,
 				77C1CBE613F2853260447D93 /* Shop.swift */,
 				02C242FEA257BA231293F69D /* User.swift */,
+				GROUPGATHER123456789ABCDE /* GroupGathering.swift */,
 			);
 			path = Models;
+			sourceTree = "<group>";
+		};
+		GROUPGATHERINGS123456789A /* GroupGatherings */ = {
+			isa = PBXGroup;
+			children = (
+				GROUPGATHERV12456789ABCDE /* GroupGatheringView.swift */,
+				GROUPGATHERVM3456789ABCDE /* GroupGatheringViewModel.swift */,
+			);
+			path = GroupGatherings;
 			sourceTree = "<group>";
 		};
 		7AD0E8F20AE47C3BA4ABAFD6 /* Home */ = {
@@ -331,6 +347,7 @@
 				4AB24AA451415AE413A477D6 /* Comments */,
 				FA61DECCD0ECDDDF279FEBFF /* CreatePost */,
 				FCCCB599D643B3B446C6FFCD /* Explore */,
+				GROUPGATHERINGS123456789A /* GroupGatherings */,
 				7AD0E8F20AE47C3BA4ABAFD6 /* Home */,
 				MAPGROUP123456789ABCDEF /* Map */,
 				MESSAGESGROUP123456789AB /* Messages */,
@@ -617,6 +634,9 @@
 				72D3C98DE55D0D4A40F397B9 /* PostCard.swift in Sources */,
 				BE9345712E08398200FC869F /* NotificationService.swift in Sources */,
 				NATIVEMGR123456789ABCDEF1 /* NativeNotificationManager.swift in Sources */,
+				GROUPGATHER123456789ABCDE0 /* GroupGathering.swift in Sources */,
+				GROUPGATHERV12456789ABCDE0 /* GroupGatheringView.swift in Sources */,
+				GROUPGATHERVM3456789ABCDE0 /* GroupGatheringViewModel.swift in Sources */,
 				AE0957B07DA5367349FF599D /* ProfileView.swift in Sources */,
 				QUICKTHEME123456789ABCDEF /* QuickThemeToggle.swift in Sources */,
 				FE807D5C9DA14BA99D52CCEE /* ProfileViewModel.swift in Sources */,
