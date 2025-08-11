@@ -33,6 +33,10 @@ struct Post: Identifiable, Codable, Equatable {
     var gatheringLinkType: GatheringLinkType? // Type of gathering link
     var gatheringHashtag: String? // Auto-populated from gathering
     
+    // Mutual friends with current user
+    var mutualFriendsCount: Int = 0
+    var mutualFriends: [User] = []
+    
     init(
         id: UUID = UUID(),
         convexId: String = "",
@@ -53,7 +57,9 @@ struct Post: Identifiable, Codable, Equatable {
         isSaved: Bool = false,
         linkedGatheringId: String? = nil,
         gatheringLinkType: GatheringLinkType? = nil,
-        gatheringHashtag: String? = nil
+        gatheringHashtag: String? = nil,
+        mutualFriendsCount: Int = 0,
+        mutualFriends: [User] = []
     ) {
         self.id = id
         self.convexId = convexId
@@ -75,6 +81,8 @@ struct Post: Identifiable, Codable, Equatable {
         self.linkedGatheringId = linkedGatheringId
         self.gatheringLinkType = gatheringLinkType
         self.gatheringHashtag = gatheringHashtag
+        self.mutualFriendsCount = mutualFriendsCount
+        self.mutualFriends = mutualFriends
     }
 }
 

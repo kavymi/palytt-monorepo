@@ -81,13 +81,7 @@ class BackendService: ObservableObject {
     }
     
     private init() {
-        #if DEBUG
-        print("🔧 DEBUG: BackendService initializing...")
-        print("🔧 DEBUG: APIConfig environment: \(apiConfig.currentEnvironment.displayName)")
-        print("🔧 DEBUG: APIConfig base URL: \(apiConfig.currentBaseURL)")
-        print("🔧 DEBUG: APIConfig tRPC URL: \(apiConfig.currentTRPCURL)")
-        print("🔧 DEBUG: Convex support: \(isConvexSupported ? "✅ Supported" : "❌ Not supported on this architecture")")
-        #endif
+        // Production initialization - debug logs removed for App Store submission
         
         // Initialize Convex client only on supported architectures
         #if canImport(ConvexMobile)
@@ -234,6 +228,27 @@ class BackendService: ObservableObject {
         let totalReturned: Int
         let fromFollowed: Int
         let fromNearby: Int
+    }
+    
+    struct MutualFriendsResponse: Codable {
+        let mutualFriends: [BackendUser]
+        let totalCount: Int
+    }
+    
+    struct FriendSuggestionsResponse: Codable {
+        let suggestions: [SuggestedUser]
+    }
+    
+    struct SuggestedUser: Codable {
+        let id: String
+        let clerkId: String
+        let username: String?
+        let name: String?
+        let profileImage: String?
+        let bio: String?
+        let followerCount: Int
+        let mutualFriendsCount: Int
+        let connectionReason: String
     }
     
     struct TRPCPost: Codable {
@@ -822,13 +837,7 @@ class BackendService: ObservableObject {
         print("🔗 BackendService: Base URL: \(baseURL)")
         print("🔗 BackendService: API Config Base URL: \(apiConfig.currentBaseURL)")
         
-        // Force LOCAL environment if in DEBUG
-        #if DEBUG
-        if apiConfig.currentEnvironment != .local {
-            print("🚨 WARNING: DEBUG build but not using LOCAL environment! Forcing switch...")
-            // This shouldn't happen, but let's force it
-        }
-        #endif
+        // Environment configuration handled by APIConfiguration
         
         // Use the correct tRPC endpoint "posts.getRecentPosts" with GET method for queries
         let input = ["page": page, "limit": limit]
@@ -1141,21 +1150,24 @@ class BackendService: ObservableObject {
     // MARK: - Recent Comments & Post Likes
     
     func getRecentComments(postId: String, limit: Int = 2) async throws -> [BackendComment] {
-        let request = ["postId": postId, "limit": limit] as [String : Any]
+        struct GetRecentCommentsRequest: Codable {
+            let postId: String
+            let limit: Int
+        }
+        
+        let request = GetRecentCommentsRequest(postId: postId, limit: limit)
         let comments: [BackendComment] = try await performTRPCQuery(procedure: "posts.getRecentComments", input: request)
         return comments
     }
     
     func getPostLikes(postId: String, limit: Int = 20, cursor: String? = nil) async throws -> PostLikesResponse {
-        var request: [String: Any] = [
-            "postId": postId,
-            "limit": limit
-        ]
-        
-        if let cursor = cursor {
-            request["cursor"] = cursor
+        struct GetPostLikesRequest: Codable {
+            let postId: String
+            let limit: Int
+            let cursor: String?
         }
         
+        let request = GetPostLikesRequest(postId: postId, limit: limit, cursor: cursor)
         let response: PostLikesResponse = try await performTRPCQuery(procedure: "posts.getPostLikes", input: request)
         return response
     }
@@ -1475,6 +1487,27 @@ class BackendService: ObservableObject {
     }
     
     // MARK: - Friend Management
+    
+    func getMutualFriends(between userId1: String, and userId2: String, limit: Int = 10) async throws -> MutualFriendsResponse {
+        struct MutualFriendsRequest: Codable {
+            let userId1: String
+            let userId2: String
+            let limit: Int
+        }
+        
+        let request = MutualFriendsRequest(userId1: userId1, userId2: userId2, limit: limit)
+        return try await performTRPCQuery(procedure: "friends.getMutualFriends", input: request)
+    }
+    
+    func getFriendSuggestions(limit: Int = 20, excludeRequested: Bool = true) async throws -> FriendSuggestionsResponse {
+        struct FriendSuggestionsRequest: Codable {
+            let limit: Int
+            let excludeRequested: Bool
+        }
+        
+        let request = FriendSuggestionsRequest(limit: limit, excludeRequested: excludeRequested)
+        return try await performTRPCQuery(procedure: "friends.getFriendSuggestions", input: request)
+    }
     
     func sendFriendRequest(senderId: String, receiverId: String) async throws -> FriendRequestResponse {
         let request = ["senderId": senderId, "receiverId": receiverId]
@@ -2009,7 +2042,7 @@ class BackendService: ObservableObject {
     
     // MARK: - User Search for Messaging
     
-    func searchUsers(query: String, limit: Int = 20) async throws -> [User] {
+    func searchUsersMessaging(query: String, limit: Int = 20) async throws -> [User] {
         let request = SearchUsersRequest(query: query, limit: limit)
         return try await performTRPCQuery(procedure: "messages.searchUsers", input: request)
     }

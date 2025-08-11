@@ -431,4 +431,279 @@ export const friendsRouter = router({
 
       return { success: true };
     }),
+
+  // Get mutual friends between two users
+  getMutualFriends: publicProcedure
+    .input(z.object({
+      userId1: z.string(),
+      userId2: z.string(),
+      limit: z.number().min(1).max(50).default(10),
+    }))
+    .query(async ({ input }) => {
+      const { userId1, userId2, limit } = input;
+
+      // Get friends of both users
+      const [user1Friends, user2Friends] = await Promise.all([
+        prisma.friend.findMany({
+          where: {
+            OR: [
+              { senderId: userId1, status: 'ACCEPTED' },
+              { receiverId: userId1, status: 'ACCEPTED' },
+            ],
+          },
+          include: {
+            sender: {
+              select: {
+                id: true,
+                clerkId: true,
+                username: true,
+                name: true,
+                profileImage: true,
+              },
+            },
+            receiver: {
+              select: {
+                id: true,
+                clerkId: true,
+                username: true,
+                name: true,
+                profileImage: true,
+              },
+            },
+          },
+        }),
+        prisma.friend.findMany({
+          where: {
+            OR: [
+              { senderId: userId2, status: 'ACCEPTED' },
+              { receiverId: userId2, status: 'ACCEPTED' },
+            ],
+          },
+          include: {
+            sender: {
+              select: {
+                id: true,
+                clerkId: true,
+                username: true,
+                name: true,
+                profileImage: true,
+              },
+            },
+            receiver: {
+              select: {
+                id: true,
+                clerkId: true,
+                username: true,
+                name: true,
+                profileImage: true,
+              },
+            },
+          },
+        })
+      ]);
+
+      // Extract friend user IDs
+      const user1FriendIds = new Set(
+        user1Friends.map(f => f.senderId === userId1 ? f.receiverId : f.senderId)
+      );
+      const user2FriendIds = new Set(
+        user2Friends.map(f => f.senderId === userId2 ? f.receiverId : f.senderId)
+      );
+
+      // Find mutual friend IDs
+      const mutualFriendIds = Array.from(user1FriendIds).filter(id => user2FriendIds.has(id));
+
+      // Get mutual friend details
+      const mutualFriends = await prisma.user.findMany({
+        where: {
+          clerkId: {
+            in: mutualFriendIds.slice(0, limit),
+          },
+        },
+        select: {
+          id: true,
+          clerkId: true,
+          username: true,
+          name: true,
+          profileImage: true,
+          bio: true,
+        },
+        take: limit,
+      });
+
+      return {
+        mutualFriends,
+        totalCount: mutualFriendIds.length,
+      };
+    }),
+
+  // Get friend suggestions based on friends-of-friends
+  getFriendSuggestions: protectedProcedure
+    .input(z.object({
+      limit: z.number().min(1).max(50).default(20),
+      excludeRequested: z.boolean().default(true),
+    }))
+    .query(async ({ input, ctx }) => {
+      const { limit, excludeRequested } = input;
+      const userId = ctx.user.clerkId;
+
+      // Get current user's friends
+      const userFriends = await prisma.friend.findMany({
+        where: {
+          OR: [
+            { senderId: userId, status: 'ACCEPTED' },
+            { receiverId: userId, status: 'ACCEPTED' },
+          ],
+        },
+      });
+
+      const userFriendIds = userFriends.map(f => 
+        f.senderId === userId ? f.receiverId : f.senderId
+      );
+
+      if (userFriendIds.length === 0) {
+        // If user has no friends, return random suggested users
+        const randomUsers = await prisma.user.findMany({
+          where: {
+            clerkId: {
+              not: userId,
+            },
+          },
+          take: limit,
+          orderBy: {
+            createdAt: 'desc',
+          },
+          select: {
+            id: true,
+            clerkId: true,
+            username: true,
+            name: true,
+            profileImage: true,
+            bio: true,
+            followerCount: true,
+          },
+        });
+
+        return {
+          suggestions: randomUsers.map(user => ({
+            ...user,
+            mutualFriendsCount: 0,
+            connectionReason: 'new_user' as const,
+          })),
+        };
+      }
+
+      // Get friends of friends
+      const friendsOfFriends = await prisma.friend.findMany({
+        where: {
+          OR: [
+            { senderId: { in: userFriendIds }, status: 'ACCEPTED' },
+            { receiverId: { in: userFriendIds }, status: 'ACCEPTED' },
+          ],
+          NOT: {
+            OR: [
+              { senderId: userId },
+              { receiverId: userId },
+              { senderId: { in: userFriendIds } },
+              { receiverId: { in: userFriendIds } },
+            ],
+          },
+        },
+        include: {
+          sender: {
+            select: {
+              id: true,
+              clerkId: true,
+              username: true,
+              name: true,
+              profileImage: true,
+              bio: true,
+              followerCount: true,
+            },
+          },
+          receiver: {
+            select: {
+              id: true,
+              clerkId: true,
+              username: true,
+              name: true,
+              profileImage: true,
+              bio: true,
+              followerCount: true,
+            },
+          },
+        },
+      });
+
+      // Count mutual friends for each suggestion
+      const suggestionMap = new Map<string, {
+        user: any;
+        mutualFriendsCount: number;
+        mutualFriends: string[];
+      }>();
+
+      for (const friendship of friendsOfFriends) {
+        const suggestedUser = userFriendIds.includes(friendship.senderId) 
+          ? friendship.receiver 
+          : friendship.sender;
+        
+        const mutualFriendId = userFriendIds.includes(friendship.senderId)
+          ? friendship.senderId
+          : friendship.receiverId;
+
+        if (suggestionMap.has(suggestedUser.clerkId)) {
+          const existing = suggestionMap.get(suggestedUser.clerkId)!;
+          existing.mutualFriendsCount++;
+          existing.mutualFriends.push(mutualFriendId);
+        } else {
+          suggestionMap.set(suggestedUser.clerkId, {
+            user: suggestedUser,
+            mutualFriendsCount: 1,
+            mutualFriends: [mutualFriendId],
+          });
+        }
+      }
+
+      // Exclude users with existing friend requests if specified
+      let finalSuggestions = Array.from(suggestionMap.values());
+      
+      if (excludeRequested) {
+        const existingRequests = await prisma.friend.findMany({
+          where: {
+            OR: [
+              { senderId: userId, status: { in: ['PENDING', 'ACCEPTED'] } },
+              { receiverId: userId, status: { in: ['PENDING', 'ACCEPTED'] } },
+            ],
+          },
+        });
+
+        const requestedUserIds = new Set(
+          existingRequests.map(req => 
+            req.senderId === userId ? req.receiverId : req.senderId
+          )
+        );
+
+        finalSuggestions = finalSuggestions.filter(
+          suggestion => !requestedUserIds.has(suggestion.user.clerkId)
+        );
+      }
+
+      // Sort by mutual friends count and follower count
+      finalSuggestions.sort((a, b) => {
+        if (a.mutualFriendsCount !== b.mutualFriendsCount) {
+          return b.mutualFriendsCount - a.mutualFriendsCount;
+        }
+        return b.user.followerCount - a.user.followerCount;
+      });
+
+      const result = finalSuggestions.slice(0, limit).map(suggestion => ({
+        ...suggestion.user,
+        mutualFriendsCount: suggestion.mutualFriendsCount,
+        connectionReason: 'mutual_friends' as const,
+      }));
+
+      return {
+        suggestions: result,
+      };
+    }),
 });

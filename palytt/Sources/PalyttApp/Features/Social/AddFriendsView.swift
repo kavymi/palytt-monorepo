@@ -167,16 +167,16 @@ struct AddFriendsView: View {
                                 )
                                 .padding(.top, 60)
                             } else {
-                                ForEach(viewModel.suggestedUsers, id: \.userId) { user in
-                                    AddFriendUserRowView(
-                                        user: user,
-                                        buttonText: "Add Friend",
-                                        buttonAction: {
-                                            Task {
-                                                await viewModel.sendFriendRequest(to: user)
-                                            }
+                                                            ForEach(viewModel.suggestedUsers, id: \.user.userId) { suggestion in
+                                EnhancedAddFriendUserRowView(
+                                    suggestion: suggestion,
+                                    buttonText: "Add Friend",
+                                    buttonAction: {
+                                        Task {
+                                            await viewModel.sendFriendRequest(to: suggestion.user)
                                         }
-                                    )
+                                    }
+                                )
                                 }
                             }
                         } else {
@@ -295,6 +295,84 @@ struct AddFriendsView: View {
 }
 
 // MARK: - User Row View
+struct EnhancedAddFriendUserRowView: View {
+    let suggestion: EnhancedUserSuggestion
+    let buttonText: String
+    let buttonAction: () -> Void
+    @State private var isLoading = false
+    
+    var user: BackendUser { suggestion.user }
+    
+    var body: some View {
+        HStack(spacing: 12) {
+            // Avatar
+            BackendUserAvatar(user: user, size: 50)
+            
+            // User Info
+            VStack(alignment: .leading, spacing: 2) {
+                Text(user.displayName ?? user.username ?? "Unknown User")
+                    .font(.subheadline)
+                    .fontWeight(.semibold)
+                    .foregroundColor(.primaryText)
+                
+                Text("@\(user.username ?? "unknown")")
+                    .font(.caption)
+                    .foregroundColor(.secondaryText)
+                
+                // Mutual friends info
+                if suggestion.mutualFriendsCount > 0 {
+                    Text("\(suggestion.mutualFriendsCount) mutual friend\(suggestion.mutualFriendsCount == 1 ? "" : "s")")
+                        .font(.caption2)
+                        .foregroundColor(.primaryBrand)
+                        .fontWeight(.medium)
+                } else if suggestion.connectionReason == "new_user" {
+                    Text("New to Palytt")
+                        .font(.caption2)
+                        .foregroundColor(.secondaryText)
+                }
+                
+                if let bio = user.bio, !bio.isEmpty {
+                    Text(bio)
+                        .font(.caption)
+                        .foregroundColor(.tertiaryText)
+                        .lineLimit(1)
+                }
+            }
+            
+            Spacer()
+            
+            // Action Button
+            Button(action: {
+                HapticManager.shared.impact(.light)
+                isLoading = true
+                buttonAction()
+                // Reset loading state after a delay
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
+                    isLoading = false
+                }
+            }) {
+                if isLoading {
+                    ProgressView()
+                        .progressViewStyle(CircularProgressViewStyle(tint: .primaryBrand))
+                        .scaleEffect(0.8)
+                        .frame(width: 80, height: 32)
+                } else {
+                    Text(buttonText)
+                        .font(.caption)
+                        .fontWeight(.semibold)
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 8)
+                        .background(Color.primaryBrand)
+                        .cornerRadius(20)
+                }
+            }
+            .disabled(isLoading)
+        }
+        .padding(.vertical, 4)
+    }
+}
+
 struct AddFriendUserRowView: View {
     let user: BackendUser
     let buttonText: String
@@ -404,9 +482,16 @@ struct UserRowSkeleton: View {
 }
 
 // MARK: - Add Friends View Model
+// Enhanced user struct to include mutual friends info
+struct EnhancedUserSuggestion {
+    let user: BackendUser
+    let mutualFriendsCount: Int
+    let connectionReason: String
+}
+
 @MainActor
 class AddFriendsViewModel: ObservableObject {
-    @Published var suggestedUsers: [BackendUser] = []
+    @Published var suggestedUsers: [EnhancedUserSuggestion] = []
     @Published var searchResults: [BackendUser] = []
     @Published var isLoadingSuggested = false
     @Published var isSearching = false
@@ -419,8 +504,37 @@ class AddFriendsViewModel: ObservableObject {
         errorMessage = nil
         
         do {
-            let users = try await backendService.getSuggestedUsers(limit: 20)
-            suggestedUsers = users
+            let response = try await backendService.getFriendSuggestions(limit: 20, excludeRequested: true)
+            suggestedUsers = response.suggestions.map { suggestion in
+                let user = BackendUser(
+                    id: suggestion.id,
+                    userId: nil,
+                    clerkId: suggestion.clerkId,
+                    email: nil,
+                    firstName: nil,
+                    lastName: nil,
+                    username: suggestion.username,
+                    displayName: suggestion.name,
+                    bio: suggestion.bio,
+                    avatarUrl: suggestion.profileImage,
+                    role: nil,
+                    appleId: nil,
+                    googleId: nil,
+                    dietaryPreferences: nil,
+                    followersCount: suggestion.followerCount,
+                    followingCount: 0,
+                    postsCount: 0,
+                    isVerified: false,
+                    isActive: true,
+                    createdAt: 0,
+                    updatedAt: 0
+                )
+                return EnhancedUserSuggestion(
+                    user: user,
+                    mutualFriendsCount: suggestion.mutualFriendsCount,
+                    connectionReason: suggestion.connectionReason
+                )
+            }
         } catch {
             errorMessage = "Failed to load suggested users: \(error.localizedDescription)"
             print("❌ Failed to load suggested users: \(error)")

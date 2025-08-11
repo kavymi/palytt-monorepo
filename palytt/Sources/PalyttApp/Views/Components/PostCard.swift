@@ -42,6 +42,7 @@ struct PostCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             authorHeader
+            mutualFriendsSection
             mediaCarousel
             interactionBar
             titleSection
@@ -76,7 +77,10 @@ struct PostCard: View {
             }
         }
         .sheet(isPresented: $showPostLikes) {
-            PostLikesView(post: post)
+            // Post interactions will be added here
+            Text("\(post.likesCount) likes")
+                .font(.subheadline)
+                .foregroundColor(.secondary)
         }
     }
     
@@ -106,6 +110,59 @@ struct PostCard: View {
             }
             
             Spacer()
+        }
+    }
+    
+    @ViewBuilder
+    private var mutualFriendsSection: some View {
+        if post.mutualFriendsCount > 0 {
+            HStack(spacing: 8) {
+                HStack(spacing: -8) {
+                    // Show up to 3 mutual friends avatars
+                    ForEach(post.mutualFriends.prefix(3), id: \.id) { friend in
+                        UserAvatar(user: friend, size: 24)
+                            .overlay(
+                                Circle()
+                                    .stroke(Color.appCardBackground, lineWidth: 2)
+                            )
+                    }
+                }
+                
+                Text(mutualFriendsText)
+                    .font(.caption)
+                    .foregroundColor(.secondaryText)
+                
+                Spacer()
+            }
+            .padding(.horizontal, 4)
+        }
+    }
+    
+    private var mutualFriendsText: String {
+        if post.mutualFriendsCount == 1 {
+            if let firstName = post.mutualFriends.first?.firstName {
+                return "Followed by \(firstName)"
+            } else {
+                return "1 mutual friend"
+            }
+        } else if post.mutualFriendsCount <= 3 {
+            let names = post.mutualFriends.prefix(post.mutualFriendsCount).compactMap { $0.firstName }
+            if names.count == post.mutualFriendsCount {
+                if post.mutualFriendsCount == 2 {
+                    return "Followed by \(names[0]) and \(names[1])"
+                } else {
+                    return "Followed by \(names[0]), \(names[1]) and \(names[2])"
+                }
+            } else {
+                return "\(post.mutualFriendsCount) mutual friends"
+            }
+        } else {
+            let names = post.mutualFriends.prefix(2).compactMap { $0.firstName }
+            if names.count >= 2 {
+                return "Followed by \(names[0]), \(names[1]) and \(post.mutualFriendsCount - 2) others"
+            } else {
+                return "\(post.mutualFriendsCount) mutual friends"
+            }
         }
     }
     

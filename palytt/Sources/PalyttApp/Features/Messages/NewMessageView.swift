@@ -39,7 +39,7 @@ struct NewMessageView: View {
             .background(Color.background)
             .navigationTitle("New Message")
             .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
+            .toolbar(content: {
                 ToolbarItem(placement: .navigationBarLeading) {
                     Button("Cancel") {
                         HapticManager.shared.impact(.light)
@@ -56,7 +56,7 @@ struct NewMessageView: View {
                     .foregroundColor(.primaryBrand)
                     .fontWeight(.semibold)
                 }
-            }
+            })
         }
         .onChange(of: searchText) { _, newValue in
             viewModel.searchUsers(query: newValue)
@@ -72,7 +72,26 @@ struct NewMessageView: View {
             }
         }
         .sheet(isPresented: $showingGroupCreation) {
-            GroupCreationView()
+            // Group creation view will be implemented
+            NavigationView {
+                VStack {
+                    Text("Group Creation")
+                        .font(.title)
+                        .padding()
+                    Text("This feature is coming soon!")
+                        .foregroundColor(.secondary)
+                    Spacer()
+                }
+                .navigationTitle("New Group")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar(content: {
+                    ToolbarItem(placement: .navigationBarLeading) {
+                        Button("Cancel") {
+                            showingGroupCreation = false
+                        }
+                    }
+                })
+            }
         }
     }
     

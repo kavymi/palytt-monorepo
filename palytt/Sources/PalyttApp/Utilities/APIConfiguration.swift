@@ -73,7 +73,6 @@ class APIConfigurationManager: ObservableObject {
     
     @Published var currentEnvironment: APIEnvironment = {
         #if DEBUG
-        print("🔧 INIT DEBUG: Setting initial environment to LOCAL")
         return .local
         #else
         return .production
@@ -88,18 +87,15 @@ class APIConfigurationManager: ObservableObject {
     private var healthCheckTimer: Timer?
     
     private init() {
-        // DEBUG: Force reset to local for development BEFORE loading saved environment
+        // Configure environment based on build type
         #if DEBUG
-        print("🔧 DEBUG: Forcing API environment to local for development")
+        // Development builds use local environment
         userDefaults.removeObject(forKey: environmentKey) // Clear any saved preference
         currentEnvironment = .local
         saveEnvironment()
-        print("🔧 DEBUG: Environment forced to: \(currentEnvironment.displayName)")
-        print("🔧 DEBUG: Base URL will be: \(currentEnvironment.baseURL)")
         #else
+        // Production builds load saved environment or default to production
         loadSavedEnvironment()
-        print("🚀 RELEASE: Using environment: \(currentEnvironment.displayName)")
-        print("🚀 RELEASE: Base URL: \(currentEnvironment.baseURL)")
         #endif
         
         startHealthChecking()
