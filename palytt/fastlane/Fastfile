@@ -54,19 +54,92 @@ platform :ios do
   
   desc "Deploy to TestFlight"
   lane :deploy_testflight do
+    # Ensure clean build
+    clean
+    
     # Run tests first
+    test_all
+    
+    # Increment build number
+    increment_build_number(
+      build_number: latest_testflight_build_number + 1
+    )
+    
+    # Build for release
+    build_app(
+      scheme: "Palytt",
+      export_method: "app-store",
+      export_options: "ExportOptions.plist",
+      clean: true,
+      output_directory: "./build",
+      output_name: "Palytt.ipa"
+    )
+    
+    # Upload to TestFlight
+    upload_to_testflight(
+      skip_waiting_for_build_processing: true,
+      changelog: "Latest build with enhanced messaging features and bug fixes"
+    )
+    
+    # Clean up
+    clean_build_artifacts
+  end
+  
+  desc "Deploy to App Store"
+  lane :deploy_app_store do
+    # Ensure clean build
+    clean
+    
+    # Run comprehensive tests
     test_all
     
     # Build for release
     build_app(
       scheme: "Palytt",
-      export_method: "app-store"
+      export_method: "app-store",
+      export_options: "ExportOptions.plist",
+      clean: true,
+      output_directory: "./build",
+      output_name: "Palytt.ipa"
     )
     
-    # Upload to TestFlight
-    upload_to_testflight(
-      skip_waiting_for_build_processing: true
+    # Upload to App Store
+    upload_to_app_store(
+      force: true,
+      reject_build_waiting_for_review: true,
+      skip_metadata: false,
+      skip_screenshots: false,
+      submit_for_review: false # Set to true when ready for automatic submission
     )
+    
+    # Clean up
+    clean_build_artifacts
+  end
+  
+  desc "Prepare for App Store (build only)"
+  lane :prepare_app_store do
+    # Clean environment
+    clean
+    
+    # Run tests to ensure quality
+    test_all
+    
+    # Build for App Store without uploading
+    build_app(
+      scheme: "Palytt",
+      export_method: "app-store",
+      export_options: "ExportOptions.plist",
+      clean: true,
+      output_directory: "./build",
+      output_name: "Palytt.ipa"
+    )
+    
+    # Validate the build
+    validate_app_store_build
+    
+    UI.success("✅ App Store build ready for upload!")
+    UI.message("📦 Build location: ./build/Palytt.ipa")
+    UI.message("🚀 Run 'fastlane deploy_app_store' to upload to App Store Connect")
   end
   
   # Continuous Integration Lane
@@ -102,6 +175,125 @@ platform :ios do
       path: "./DerivedData/Logs/Test",
       extension: ".html"
     )
+  end
+  
+  # App Store Preparation Helpers
+  desc "Validate App Store build"
+  private_lane :validate_app_store_build do
+    # Check if IPA exists
+    ipa_path = "./build/Palytt.ipa"
+    unless File.exist?(ipa_path)
+      UI.user_error!("IPA file not found at #{ipa_path}")
+    end
+    
+    # Validate IPA
+    validate_app_store_build_for_internal_testing(ipa_path: ipa_path)
+    
+    UI.success("✅ App Store build validation passed!")
+  end
+  
+  desc "Check app metadata and assets"
+  lane :check_app_store_requirements do
+    UI.header("🔍 Checking App Store Requirements")
+    
+    # Check app icons
+    icon_path = "./Sources/PalyttApp/Resources/Assets.xcassets/AppIcon.appiconset"
+    if Dir.exist?(icon_path)
+      UI.success("✅ App icons found")
+    else
+      UI.error("❌ App icons not found at #{icon_path}")
+    end
+    
+    # Check Info.plist requirements
+    info_plist = "./Sources/PalyttApp/Resources/Info.plist"
+    if File.exist?(info_plist)
+      UI.success("✅ Info.plist found")
+      
+      # Check required keys
+      plist_data = Plist.parse_xml(info_plist)
+      required_keys = [
+        "CFBundleDisplayName",
+        "CFBundleShortVersionString", 
+        "CFBundleVersion",
+        "NSCameraUsageDescription",
+        "NSPhotoLibraryUsageDescription",
+        "NSLocationWhenInUseUsageDescription"
+      ]
+      
+      required_keys.each do |key|
+        if plist_data[key]
+          UI.success("✅ #{key} configured")
+        else
+          UI.error("❌ Missing required key: #{key}")
+        end
+      end
+    else
+      UI.error("❌ Info.plist not found")
+    end
+    
+    # Check for development settings that should be removed
+    check_production_readiness
+    
+    UI.success("🎉 App Store requirements check completed!")
+  end
+  
+  desc "Check production readiness"
+  private_lane :check_production_readiness do
+    UI.message("🔍 Checking production readiness...")
+    
+    # Check for debug code
+    debug_patterns = [
+      "print(",
+      "debugPrint(",
+      "NSLog(",
+      "console.log",
+      "TODO:",
+      "FIXME:",
+      "HACK:"
+    ]
+    
+    swift_files = Dir.glob("Sources/**/*.swift")
+    warnings = []
+    
+    swift_files.each do |file|
+      content = File.read(file)
+      debug_patterns.each do |pattern|
+        if content.include?(pattern)
+          warnings << "#{file}: Contains #{pattern}"
+        end
+      end
+    end
+    
+    if warnings.any?
+      UI.important("⚠️  Found potential debug code:")
+      warnings.each { |warning| UI.message("  #{warning}") }
+      UI.message("Consider removing debug code before App Store submission")
+    else
+      UI.success("✅ No debug code found")
+    end
+    
+    # Check for localhost URLs
+    if File.read("./Sources/PalyttApp/Resources/Info.plist").include?("localhost")
+      UI.important("⚠️  Info.plist contains localhost - consider removing for production")
+    end
+  end
+  
+  desc "Setup release configuration"
+  lane :setup_release do
+    # Update version if specified
+    if ENV['VERSION']
+      increment_version_number(version_number: ENV['VERSION'])
+    end
+    
+    # Update build number if specified
+    if ENV['BUILD_NUMBER']
+      increment_build_number(build_number: ENV['BUILD_NUMBER'])
+    end
+    
+    # Check requirements
+    check_app_store_requirements
+    
+    UI.success("🚀 Release configuration setup complete!")
   end
   
 end 

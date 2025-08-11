@@ -179,6 +179,7 @@ model Message {
   content       String
   messageType   MessageType  @default(TEXT)
   mediaUrl      String?
+  metadata      Json?        // For shared content data, link previews, etc.
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @updatedAt
   readAt        DateTime?
@@ -258,6 +259,9 @@ enum MessageType {
   VIDEO
   AUDIO
   FILE
+  POST_SHARE
+  PLACE_SHARE
+  LINK_SHARE
 }
 
 enum ChatroomType {

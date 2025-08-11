@@ -97,17 +97,23 @@ export const messagesRouter = router({
   // Create a new chatroom (direct message)
   createChatroom: protectedProcedure
     .input(z.object({
-      participantId: z.string(), // For direct messages
+      participantId: z.string().optional(), // For direct messages
+      participantIds: z.array(z.string()).optional(), // For group messages
       type: z.enum(['DIRECT', 'GROUP']).default('DIRECT'),
       name: z.string().optional(),
       description: z.string().optional(),
+      imageUrl: z.string().optional(),
     }))
     .mutation(async ({ input, ctx }) => {
-      const { participantId, type, name, description } = input;
+      const { participantId, participantIds, type, name, description, imageUrl } = input;
       const userId = ctx.user.clerkId;
 
       // For direct messages, check if chatroom already exists
       if (type === 'DIRECT') {
+        if (!participantId) {
+          throw new Error('participantId is required for direct messages');
+        }
+
         const existingChatroom = await prisma.chatroom.findFirst({
           where: {
             type: 'DIRECT',
@@ -146,6 +152,13 @@ export const messagesRouter = router({
         if (existingChatroom) {
           return existingChatroom;
         }
+      } else if (type === 'GROUP') {
+        if (!participantIds || participantIds.length === 0) {
+          throw new Error('participantIds is required for group messages');
+        }
+        if (!name) {
+          throw new Error('name is required for group messages');
+        }
       }
 
       // Create new chatroom
@@ -154,16 +167,21 @@ export const messagesRouter = router({
           type,
           name,
           description,
+          imageUrl,
           participants: {
             create: [
               {
                 userId,
                 isAdmin: true,
               },
-              ...(type === 'DIRECT' ? [{
+              ...(type === 'DIRECT' && participantId ? [{
                 userId: participantId,
                 isAdmin: false,
               }] : []),
+              ...(type === 'GROUP' && participantIds ? participantIds.map(id => ({
+                userId: id,
+                isAdmin: false,
+              })) : []),
             ],
           },
         },
@@ -192,11 +210,18 @@ export const messagesRouter = router({
     .input(z.object({
       chatroomId: z.string(),
       content: z.string().min(1).max(1000),
-      messageType: z.enum(['TEXT', 'IMAGE', 'VIDEO', 'AUDIO', 'FILE']).default('TEXT'),
+      messageType: z.enum(['TEXT', 'IMAGE', 'VIDEO', 'AUDIO', 'FILE', 'POST_SHARE', 'PLACE_SHARE', 'LINK_SHARE']).default('TEXT'),
       mediaUrl: z.string().optional(),
+      sharedContentId: z.string().optional(), // For post/place shares
+      linkPreview: z.object({
+        title: z.string(),
+        description: z.string().optional(),
+        imageUrl: z.string().optional(),
+        url: z.string(),
+      }).optional(), // For link shares
     }))
     .mutation(async ({ input, ctx }) => {
-      const { chatroomId, content, messageType, mediaUrl } = input;
+      const { chatroomId, content, messageType, mediaUrl, sharedContentId, linkPreview } = input;
       const userId = ctx.user.clerkId;
 
       // Verify user is a participant in the chatroom
@@ -212,15 +237,24 @@ export const messagesRouter = router({
         throw new Error('You are not a participant in this chatroom');
       }
 
+      // Prepare message data
+      const messageData = {
+        chatroomId,
+        senderId: userId,
+        content,
+        messageType,
+        mediaUrl,
+        ...(sharedContentId && { 
+          metadata: { sharedContentId } 
+        }),
+        ...(linkPreview && { 
+          metadata: { linkPreview } 
+        }),
+      };
+
       // Create the message
       const message = await prisma.message.create({
-        data: {
-          chatroomId,
-          senderId: userId,
-          content,
-          messageType,
-          mediaUrl,
-        },
+        data: messageData,
         include: {
           sender: {
             select: {
@@ -462,5 +496,225 @@ export const messagesRouter = router({
       });
 
       return { unreadCount };
+    }),
+
+  // Update group settings (name, description, image)
+  updateGroupSettings: protectedProcedure
+    .input(z.object({
+      chatroomId: z.string(),
+      name: z.string().optional(),
+      description: z.string().optional(),
+      imageUrl: z.string().optional(),
+    }))
+    .mutation(async ({ input, ctx }) => {
+      const { chatroomId, name, description, imageUrl } = input;
+      const userId = ctx.user.clerkId;
+
+      // Verify user is an admin of the chatroom
+      const participant = await prisma.chatroomParticipant.findFirst({
+        where: {
+          chatroomId,
+          userId,
+          isAdmin: true,
+          leftAt: null,
+        },
+        include: {
+          chatroom: true,
+        },
+      });
+
+      if (!participant) {
+        throw new Error('You must be an admin to update group settings');
+      }
+
+      if (participant.chatroom.type === 'DIRECT') {
+        throw new Error('Cannot update settings for direct messages');
+      }
+
+      // Update chatroom
+      const updatedChatroom = await prisma.chatroom.update({
+        where: { id: chatroomId },
+        data: {
+          ...(name && { name }),
+          ...(description && { description }),
+          ...(imageUrl && { imageUrl }),
+        },
+        include: {
+          participants: {
+            where: {
+              leftAt: null,
+            },
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  clerkId: true,
+                  username: true,
+                  name: true,
+                  profileImage: true,
+                },
+              },
+            },
+          },
+        },
+      });
+
+      return updatedChatroom;
+    }),
+
+  // Make participant admin
+  makeAdmin: protectedProcedure
+    .input(z.object({
+      chatroomId: z.string(),
+      userId: z.string(),
+    }))
+    .mutation(async ({ input, ctx }) => {
+      const { chatroomId, userId: targetUserId } = input;
+      const userId = ctx.user.clerkId;
+
+      // Verify user is an admin of the chatroom
+      const participant = await prisma.chatroomParticipant.findFirst({
+        where: {
+          chatroomId,
+          userId,
+          isAdmin: true,
+          leftAt: null,
+        },
+        include: {
+          chatroom: true,
+        },
+      });
+
+      if (!participant) {
+        throw new Error('You must be an admin to make others admin');
+      }
+
+      if (participant.chatroom.type === 'DIRECT') {
+        throw new Error('Cannot make admin in direct messages');
+      }
+
+      // Update target participant to admin
+      await prisma.chatroomParticipant.updateMany({
+        where: {
+          chatroomId,
+          userId: targetUserId,
+          leftAt: null,
+        },
+        data: {
+          isAdmin: true,
+        },
+      });
+
+      return { success: true };
+    }),
+
+  // Remove participant from group
+  removeParticipant: protectedProcedure
+    .input(z.object({
+      chatroomId: z.string(),
+      userId: z.string(),
+    }))
+    .mutation(async ({ input, ctx }) => {
+      const { chatroomId, userId: targetUserId } = input;
+      const userId = ctx.user.clerkId;
+
+      // Verify user is an admin of the chatroom
+      const participant = await prisma.chatroomParticipant.findFirst({
+        where: {
+          chatroomId,
+          userId,
+          isAdmin: true,
+          leftAt: null,
+        },
+        include: {
+          chatroom: true,
+        },
+      });
+
+      if (!participant) {
+        throw new Error('You must be an admin to remove participants');
+      }
+
+      if (participant.chatroom.type === 'DIRECT') {
+        throw new Error('Cannot remove participants from direct messages');
+      }
+
+      // Mark target participant as left
+      await prisma.chatroomParticipant.updateMany({
+        where: {
+          chatroomId,
+          userId: targetUserId,
+          leftAt: null,
+        },
+        data: {
+          leftAt: new Date(),
+        },
+      });
+
+      return { success: true };
+    }),
+
+  // Get shared media in conversation
+  getSharedMedia: protectedProcedure
+    .input(z.object({
+      chatroomId: z.string(),
+      messageType: z.enum(['IMAGE', 'VIDEO', 'AUDIO', 'FILE', 'POST_SHARE', 'PLACE_SHARE', 'LINK_SHARE']).optional(),
+      limit: z.number().min(1).max(50).default(20),
+      cursor: z.string().optional(),
+    }))
+    .query(async ({ input, ctx }) => {
+      const { chatroomId, messageType, limit, cursor } = input;
+      const userId = ctx.user.clerkId;
+
+      // Verify user is a participant
+      const participant = await prisma.chatroomParticipant.findFirst({
+        where: {
+          chatroomId,
+          userId,
+        },
+      });
+
+      if (!participant) {
+        throw new Error('You are not a participant in this chatroom');
+      }
+
+      const messages = await prisma.message.findMany({
+        where: {
+          chatroomId,
+          messageType: messageType || {
+            in: ['IMAGE', 'VIDEO', 'AUDIO', 'FILE', 'POST_SHARE', 'PLACE_SHARE', 'LINK_SHARE']
+          },
+          createdAt: {
+            gte: participant.joinedAt,
+          },
+        },
+        take: limit + 1,
+        cursor: cursor ? { id: cursor } : undefined,
+        orderBy: {
+          createdAt: 'desc',
+        },
+        include: {
+          sender: {
+            select: {
+              id: true,
+              clerkId: true,
+              username: true,
+              name: true,
+              profileImage: true,
+            },
+          },
+        },
+      });
+
+      let nextCursor: typeof cursor | undefined = undefined;
+      if (messages.length > limit) {
+        const nextItem = messages.pop();
+        nextCursor = nextItem!.id;
+      }
+
+      return {
+        messages,
+        nextCursor,
+      };
     }),
 });

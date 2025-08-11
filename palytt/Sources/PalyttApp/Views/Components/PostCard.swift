@@ -28,6 +28,9 @@ struct PostCard: View {
     @State private var showHeartAnimation: Bool = false
     @State private var showSaveOptions: Bool = false
     @State private var currentCommentsCount: Int = 0
+    @State private var showPostLikes: Bool = false
+    @State private var recentComments: [Comment] = []
+    @State private var isLoadingComments: Bool = false
     
     init(post: Post, onLike: ((UUID) -> Void)? = nil, onBookmark: ((UUID) -> Void)? = nil, onBookmarkNavigate: (() -> Void)? = nil) {
         self.post = post
@@ -43,6 +46,7 @@ struct PostCard: View {
             interactionBar
             titleSection
             captionSection
+            recentCommentsSection
         }
         .padding()
         .background(Color.appCardBackground)
@@ -52,6 +56,11 @@ struct PostCard: View {
             isLiked = post.isLiked
             isSaved = post.isSaved
             currentCommentsCount = post.commentsCount
+            
+            // Load recent comments
+            Task {
+                await loadRecentComments()
+            }
         }
         .onChange(of: post.isLiked) { _, newValue in
             withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
@@ -65,6 +74,9 @@ struct PostCard: View {
                     currentCommentsCount = newCount
                 }
             }
+        }
+        .sheet(isPresented: $showPostLikes) {
+            PostLikesView(post: post)
         }
     }
     
@@ -290,27 +302,38 @@ struct PostCard: View {
     }
     
     private var likeButton: some View {
-        Button(action: { 
-            HapticManager.shared.impact(.medium)
-            withAnimation(.spring(response: 0.4, dampingFraction: 0.6)) {
-                isLiked.toggle()
-            }
-            onLike?(post.id)
-        }) {
-            HStack(spacing: 4) {
+        HStack(spacing: 8) {
+            // Heart icon button
+            Button(action: { 
+                HapticManager.shared.impact(.medium)
+                withAnimation(.spring(response: 0.4, dampingFraction: 0.6)) {
+                    isLiked.toggle()
+                }
+                onLike?(post.id)
+            }) {
                 Image(systemName: isLiked ? "heart.fill" : "heart")
                     .foregroundColor(isLiked ? .red : .primaryText)
                     .scaleEffect(isLiked ? 1.2 : 1.0)
                     .rotation3DEffect(.degrees(isLiked ? 360 : 0), axis: (x: 0, y: 1, z: 0))
                     .animation(.spring(response: 0.4, dampingFraction: 0.6), value: isLiked)
-                Text("\(post.likesCount)")
-                    .font(.caption)
-                    .foregroundColor(.primaryText)
-                    .contentTransition(.numericText())
+            }
+            .scaleEffect(isLiked ? 1.1 : 1.0)
+            .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isLiked)
+            
+            // Clickable likes count
+            if post.likesCount > 0 {
+                Button(action: {
+                    HapticManager.shared.impact(.light)
+                    showPostLikes = true
+                }) {
+                    Text("\(post.likesCount) likes")
+                        .font(.caption)
+                        .foregroundColor(.primaryText)
+                        .fontWeight(.medium)
+                        .contentTransition(.numericText())
+                }
             }
         }
-        .scaleEffect(isLiked ? 1.1 : 1.0)
-        .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isLiked)
     }
     
     private var commentButton: some View {
@@ -389,6 +412,50 @@ struct PostCard: View {
             .foregroundColor(.primaryText)
     }
     
+    @ViewBuilder
+    private var recentCommentsSection: some View {
+        if !recentComments.isEmpty {
+            VStack(alignment: .leading, spacing: 6) {
+                // "View all comments" button if there are more comments
+                if currentCommentsCount > recentComments.count {
+                    Button(action: {
+                        HapticManager.shared.impact(.light)
+                        showComments = true
+                    }) {
+                        Text("View all \(currentCommentsCount) comments")
+                            .font(.caption)
+                            .foregroundColor(.secondaryText)
+                            .fontWeight(.medium)
+                    }
+                }
+                
+                // Recent comments
+                ForEach(recentComments.prefix(2)) { comment in
+                    RecentCommentRow(comment: comment)
+                }
+            }
+            .padding(.top, 4)
+        } else if isLoadingComments {
+            // Show skeleton loader for comments
+            VStack(alignment: .leading, spacing: 6) {
+                HStack(spacing: 8) {
+                    RoundedRectangle(cornerRadius: 10)
+                        .fill(Color.gray.opacity(0.3))
+                        .frame(width: 20, height: 20)
+                    
+                    RoundedRectangle(cornerRadius: 4)
+                        .fill(Color.gray.opacity(0.3))
+                        .frame(height: 12)
+                        .frame(maxWidth: 200)
+                    
+                    Spacer()
+                }
+                .shimmer(isAnimating: .constant(true))
+            }
+            .padding(.top, 4)
+        }
+    }
+    
     // MARK: - Helper Functions
     private func doubleTapToLike() {
         HapticManager.shared.impact(.medium)
@@ -425,6 +492,81 @@ struct PostCard: View {
         ]
         
         mapItem.openInMaps(launchOptions: launchOptions)
+    }
+    
+    private func loadRecentComments() async {
+        guard !isLoadingComments else { return }
+        
+        isLoadingComments = true
+        
+        do {
+            let backendComments = try await BackendService.shared.getRecentComments(
+                postId: post.convexId,
+                limit: 2
+            )
+            
+            // Convert backend comments to frontend comments
+            var convertedComments: [Comment] = []
+            for backendComment in backendComments {
+                // Try to get author information
+                var author: User?
+                do {
+                    let backendAuthor = try await BackendService.shared.getUserByClerkId(clerkId: backendComment.authorClerkId)
+                    author = backendAuthor.toUser()
+                } catch {
+                    print("⚠️ Failed to get author info for comment: \(error)")
+                }
+                
+                let comment = Comment.from(backendComment, author: author)
+                convertedComments.append(comment)
+            }
+            
+            await MainActor.run {
+                recentComments = convertedComments
+            }
+            
+        } catch {
+            print("❌ Failed to load recent comments: \(error)")
+            await MainActor.run {
+                recentComments = []
+            }
+        }
+        
+        isLoadingComments = false
+    }
+}
+
+// MARK: - Recent Comment Row
+struct RecentCommentRow: View {
+    let comment: Comment
+    
+    var body: some View {
+        HStack(alignment: .top, spacing: 8) {
+            // Small avatar
+            UserAvatar(user: comment.author, size: 20)
+            
+            VStack(alignment: .leading, spacing: 2) {
+                // Comment content with username
+                Group {
+                    Text(comment.author.username)
+                        .fontWeight(.semibold)
+                        .foregroundColor(.primaryText) +
+                    Text(" ") +
+                    Text(comment.text)
+                        .foregroundColor(.primaryText)
+                }
+                .font(.caption)
+                .lineLimit(2)
+                .fixedSize(horizontal: false, vertical: true)
+                
+                // Time ago
+                Text(comment.createdAt.timeAgoDisplay())
+                    .font(.caption2)
+                    .foregroundColor(.tertiaryText)
+            }
+            
+            Spacer()
+        }
     }
 }
 

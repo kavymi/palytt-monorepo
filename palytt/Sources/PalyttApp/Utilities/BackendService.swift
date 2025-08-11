@@ -481,6 +481,19 @@ class BackendService: ObservableObject {
         let comment: BackendComment
     }
     
+    struct PostLike: Codable {
+        let id: String
+        let postId: String
+        let userId: String
+        let createdAt: String
+        let user: BackendUser
+    }
+    
+    struct PostLikesResponse: Codable {
+        let likes: [PostLike]
+        let nextCursor: String?
+    }
+    
     // MARK: - Notifications Management
     
     struct BackendNotification: Codable {
@@ -1125,6 +1138,28 @@ class BackendService: ObservableObject {
         )
     }
     
+    // MARK: - Recent Comments & Post Likes
+    
+    func getRecentComments(postId: String, limit: Int = 2) async throws -> [BackendComment] {
+        let request = ["postId": postId, "limit": limit] as [String : Any]
+        let comments: [BackendComment] = try await performTRPCQuery(procedure: "posts.getRecentComments", input: request)
+        return comments
+    }
+    
+    func getPostLikes(postId: String, limit: Int = 20, cursor: String? = nil) async throws -> PostLikesResponse {
+        var request: [String: Any] = [
+            "postId": postId,
+            "limit": limit
+        ]
+        
+        if let cursor = cursor {
+            request["cursor"] = cursor
+        }
+        
+        let response: PostLikesResponse = try await performTRPCQuery(procedure: "posts.getPostLikes", input: request)
+        return response
+    }
+    
     // MARK: - Convex Response Models
     
     struct ConvexPostsResponse: Codable {
@@ -1764,6 +1799,218 @@ class BackendService: ObservableObject {
     func searchUsersForMessaging(query: String, limit: Int = 20) async throws -> [User] {
         let request = SearchUsersRequest(query: query, limit: limit)
         // ✅ Use the correct messaging endpoint for user search
+        return try await performTRPCQuery(procedure: "messages.searchUsers", input: request)
+    }
+    
+    // MARK: - Enhanced Group Messaging
+    
+    struct CreateGroupChatroomRequest: Codable {
+        let participantIds: [String]
+        let type: String
+        let name: String
+        let description: String?
+        let imageUrl: String?
+    }
+    
+    func createGroupChatroom(name: String, description: String?, participantIds: [String], imageUrl: String? = nil) async throws -> Chatroom {
+        let request = CreateGroupChatroomRequest(
+            participantIds: participantIds,
+            type: "GROUP",
+            name: name,
+            description: description,
+            imageUrl: imageUrl
+        )
+        
+        return try await performTRPCMutation(procedure: "messages.createChatroom", input: request)
+    }
+    
+    func createDirectChatroom(with participantId: String) async throws -> Chatroom {
+        struct CreateDirectChatroomRequest: Codable {
+            let participantId: String
+            let type: String
+        }
+        
+        let request = CreateDirectChatroomRequest(
+            participantId: participantId,
+            type: "DIRECT"
+        )
+        
+        return try await performTRPCMutation(procedure: "messages.createChatroom", input: request)
+    }
+    
+    // MARK: - Enhanced Message Sending
+    
+    struct EnhancedSendMessageRequest: Codable {
+        let chatroomId: String
+        let content: String
+        let messageType: String
+        let mediaUrl: String?
+        let sharedContentId: String?
+        let linkPreview: LinkPreview?
+        
+        struct LinkPreview: Codable {
+            let title: String
+            let description: String?
+            let imageUrl: String?
+            let url: String
+        }
+    }
+    
+    func sendTextMessage(_ content: String, to chatroomId: String) async throws -> Message {
+        let request = EnhancedSendMessageRequest(
+            chatroomId: chatroomId,
+            content: content,
+            messageType: "TEXT",
+            mediaUrl: nil,
+            sharedContentId: nil,
+            linkPreview: nil
+        )
+        
+        return try await performTRPCMutation(procedure: "messages.sendMessage", input: request)
+    }
+    
+    func sendPostShare(_ postId: String, content: String, to chatroomId: String) async throws -> Message {
+        let request = EnhancedSendMessageRequest(
+            chatroomId: chatroomId,
+            content: content,
+            messageType: "POST_SHARE",
+            mediaUrl: nil,
+            sharedContentId: postId,
+            linkPreview: nil
+        )
+        
+        return try await performTRPCMutation(procedure: "messages.sendMessage", input: request)
+    }
+    
+    func sendPlaceShare(_ placeId: String, content: String, to chatroomId: String) async throws -> Message {
+        let request = EnhancedSendMessageRequest(
+            chatroomId: chatroomId,
+            content: content,
+            messageType: "PLACE_SHARE",
+            mediaUrl: nil,
+            sharedContentId: placeId,
+            linkPreview: nil
+        )
+        
+        return try await performTRPCMutation(procedure: "messages.sendMessage", input: request)
+    }
+    
+    func sendLinkShare(url: String, title: String, description: String?, imageUrl: String?, content: String, to chatroomId: String) async throws -> Message {
+        let linkPreview = EnhancedSendMessageRequest.LinkPreview(
+            title: title,
+            description: description,
+            imageUrl: imageUrl,
+            url: url
+        )
+        
+        let request = EnhancedSendMessageRequest(
+            chatroomId: chatroomId,
+            content: content,
+            messageType: "LINK_SHARE",
+            mediaUrl: nil,
+            sharedContentId: nil,
+            linkPreview: linkPreview
+        )
+        
+        return try await performTRPCMutation(procedure: "messages.sendMessage", input: request)
+    }
+    
+    func sendMediaMessage(_ mediaUrl: String, content: String, messageType: String, to chatroomId: String) async throws -> Message {
+        let request = EnhancedSendMessageRequest(
+            chatroomId: chatroomId,
+            content: content,
+            messageType: messageType,
+            mediaUrl: mediaUrl,
+            sharedContentId: nil,
+            linkPreview: nil
+        )
+        
+        return try await performTRPCMutation(procedure: "messages.sendMessage", input: request)
+    }
+    
+    // MARK: - Group Management
+    
+    struct UpdateGroupSettingsRequest: Codable {
+        let chatroomId: String
+        let name: String?
+        let description: String?
+        let imageUrl: String?
+    }
+    
+    func updateGroupSettings(chatroomId: String, name: String? = nil, description: String? = nil, imageUrl: String? = nil) async throws -> Chatroom {
+        let request = UpdateGroupSettingsRequest(
+            chatroomId: chatroomId,
+            name: name,
+            description: description,
+            imageUrl: imageUrl
+        )
+        
+        return try await performTRPCMutation(procedure: "messages.updateGroupSettings", input: request)
+    }
+    
+    struct AddParticipantsRequest: Codable {
+        let chatroomId: String
+        let userIds: [String]
+    }
+    
+    func addParticipants(to chatroomId: String, userIds: [String]) async throws {
+        let request = AddParticipantsRequest(chatroomId: chatroomId, userIds: userIds)
+        let _: [String: Bool] = try await performTRPCMutation(procedure: "messages.addParticipants", input: request)
+    }
+    
+    struct RemoveParticipantRequest: Codable {
+        let chatroomId: String
+        let userId: String
+    }
+    
+    func removeParticipant(from chatroomId: String, userId: String) async throws {
+        let request = RemoveParticipantRequest(chatroomId: chatroomId, userId: userId)
+        let _: [String: Bool] = try await performTRPCMutation(procedure: "messages.removeParticipant", input: request)
+    }
+    
+    func makeAdmin(in chatroomId: String, userId: String) async throws {
+        let request = RemoveParticipantRequest(chatroomId: chatroomId, userId: userId)
+        let _: [String: Bool] = try await performTRPCMutation(procedure: "messages.makeAdmin", input: request)
+    }
+    
+    func leaveChatroom(_ chatroomId: String) async throws {
+        struct LeaveChatroomRequest: Codable {
+            let chatroomId: String
+        }
+        
+        let request = LeaveChatroomRequest(chatroomId: chatroomId)
+        let _: [String: Bool] = try await performTRPCMutation(procedure: "messages.leaveChatroom", input: request)
+    }
+    
+    // MARK: - Shared Media
+    
+    struct GetSharedMediaRequest: Codable {
+        let chatroomId: String
+        let messageType: String?
+        let limit: Int
+        let cursor: String?
+    }
+    
+    struct GetSharedMediaResponse: Codable {
+        let messages: [Message]
+        let nextCursor: String?
+    }
+    
+    func getSharedMedia(in chatroomId: String, messageType: String? = nil, limit: Int = 20, cursor: String? = nil) async throws -> GetSharedMediaResponse {
+        let request = GetSharedMediaRequest(
+            chatroomId: chatroomId,
+            messageType: messageType,
+            limit: limit,
+            cursor: cursor
+        )
+        
+        return try await performTRPCQuery(procedure: "messages.getSharedMedia", input: request)
+    }
+    
+    // MARK: - User Search for Messaging
+    
+    func searchUsers(query: String, limit: Int = 20) async throws -> [User] {
+        let request = SearchUsersRequest(query: query, limit: limit)
         return try await performTRPCQuery(procedure: "messages.searchUsers", input: request)
     }
 

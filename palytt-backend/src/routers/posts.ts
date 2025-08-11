@@ -881,4 +881,121 @@ export const postsRouter = router({
         },
       };
     }),
+
+  /**
+   * Get recent comments for a post (latest 2)
+   */
+  getRecentComments: publicProcedure
+    .input(
+      z.object({
+        postId: z.string().uuid(),
+        limit: z.number().int().positive().max(10).default(2),
+      })
+    )
+    .query(async ({ input }) => {
+      const comments = await prisma.comment.findMany({
+        where: {
+          postId: input.postId,
+        },
+        include: {
+          author: {
+            select: {
+              id: true,
+              clerkId: true,
+              username: true,
+              name: true,
+              profileImage: true,
+            },
+          },
+        },
+        orderBy: {
+          createdAt: 'desc',
+        },
+        take: input.limit,
+      });
+      
+      return {
+        comments: comments.map((comment: any) => ({
+          id: comment.id,
+          postId: comment.postId,
+          authorId: comment.authorId,
+          authorClerkId: comment.author.clerkId,
+          content: comment.content,
+          createdAt: comment.createdAt.toISOString(),
+          updatedAt: comment.updatedAt.toISOString(),
+          author: {
+            _id: comment.author.id,
+            clerkId: comment.author.clerkId,
+            username: comment.author.username,
+            displayName: comment.author.name,
+            firstName: comment.author.name?.split(' ')[0],
+            lastName: comment.author.name?.split(' ').slice(1).join(' '),
+            avatarUrl: comment.author.profileImage,
+          },
+        })),
+      };
+    }),
+
+  /**
+   * Get users who liked a post
+   */
+  getPostLikes: publicProcedure
+    .input(
+      z.object({
+        postId: z.string().uuid(),
+        limit: z.number().int().positive().max(100).default(20),
+        cursor: z.string().optional(),
+      })
+    )
+    .query(async ({ input }) => {
+      const { postId, limit, cursor } = input;
+      
+      const likes = await prisma.like.findMany({
+        where: {
+          postId,
+        },
+        include: {
+          user: {
+            select: {
+              id: true,
+              clerkId: true,
+              username: true,
+              name: true,
+              profileImage: true,
+            },
+          },
+        },
+        orderBy: {
+          createdAt: 'desc',
+        },
+        take: limit + 1,
+        cursor: cursor ? { id: cursor } : undefined,
+      });
+
+      let nextCursor: typeof cursor | undefined = undefined;
+      if (likes.length > limit) {
+        const nextItem = likes.pop();
+        nextCursor = nextItem!.id;
+      }
+      
+      return {
+        likes: likes.map((like: any) => ({
+          id: like.id,
+          postId: like.postId,
+          userId: like.userId,
+          createdAt: like.createdAt.toISOString(),
+          user: {
+            _id: like.user.id,
+            clerkId: like.user.clerkId,
+            username: like.user.username,
+            displayName: like.user.name,
+            firstName: like.user.name?.split(' ')[0],
+            lastName: like.user.name?.split(' ').slice(1).join(' '),
+            email: '', // Not needed for likes display
+            avatarUrl: like.user.profileImage,
+          },
+        })),
+        nextCursor,
+      };
+    }),
 }); 

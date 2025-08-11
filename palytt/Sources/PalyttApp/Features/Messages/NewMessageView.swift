@@ -21,6 +21,7 @@ struct NewMessageView: View {
     @State private var searchText = ""
     @State private var selectedUser: BackendService.User?
     @State private var showingChat = false
+    @State private var showingGroupCreation = false
     
     var body: some View {
         NavigationStack {
@@ -39,12 +40,21 @@ struct NewMessageView: View {
             .navigationTitle("New Message")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
+                ToolbarItem(placement: .navigationBarLeading) {
                     Button("Cancel") {
                         HapticManager.shared.impact(.light)
                         dismiss()
                     }
                     .foregroundColor(.primaryText)
+                }
+                
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("New Group") {
+                        HapticManager.shared.impact(.light)
+                        showingGroupCreation = true
+                    }
+                    .foregroundColor(.primaryBrand)
+                    .fontWeight(.semibold)
                 }
             }
         }
@@ -60,6 +70,9 @@ struct NewMessageView: View {
             if newChatroom != nil {
                 showingChat = true
             }
+        }
+        .sheet(isPresented: $showingGroupCreation) {
+            GroupCreationView()
         }
     }
     
