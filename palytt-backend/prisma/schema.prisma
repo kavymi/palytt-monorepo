@@ -30,6 +30,7 @@ model User {
   comments      Comment[]
   likes         Like[]
   bookmarks     Bookmark[]
+  lists         List[]
 
   // Social Relations
   friendsSent        Friend[]  @relation("FriendSender")
@@ -83,6 +84,7 @@ model Post {
   comments      Comment[]
   likes         Like[]
   bookmarks     Bookmark[]
+  listPosts     ListPost[]
 
   @@index([userId])
   @@index([createdAt])
@@ -136,6 +138,41 @@ model Bookmark {
   @@index([postId])
   @@index([userId])
   @@map("bookmarks")
+}
+
+model List {
+  id            String     @id @default(uuid())
+  name          String
+  description   String?
+  userId        String
+  isPrivate     Boolean    @default(false)
+  coverImageUrl String?
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  // Relations
+  user          User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  listPosts     ListPost[]
+
+  @@index([userId])
+  @@index([createdAt])
+  @@map("lists")
+}
+
+model ListPost {
+  id        String   @id @default(uuid())
+  listId    String
+  postId    String
+  addedAt   DateTime @default(now())
+
+  // Relations
+  list      List     @relation(fields: [listId], references: [id], onDelete: Cascade)
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@unique([listId, postId])
+  @@index([listId])
+  @@index([postId])
+  @@map("list_posts")
 }
 
 model Friend {

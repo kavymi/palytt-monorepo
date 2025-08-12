@@ -49,21 +49,12 @@ struct UserSearchView: View {
             .navigationBarTitleDisplayMode(.inline)
             #endif
             .toolbar {
-                #if os(iOS)
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button("Done") {
                         dismiss()
                     }
                     .foregroundColor(.primaryBrand)
                 }
-                #else
-                ToolbarItem(placement: .primaryAction) {
-                    Button("Done") {
-                        dismiss()
-                    }
-                    .foregroundColor(.primaryBrand)
-                }
-                #endif
             }
             .background(Color.background)
         }
