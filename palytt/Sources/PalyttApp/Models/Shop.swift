@@ -19,6 +19,7 @@ struct Shop: Identifiable, Codable, Equatable {
     let hours: BusinessHours
     let cuisineTypes: [CuisineType]
     let drinkTypes: [DrinkType]
+    let dessertTypes: [DessertType]
     let priceRange: PriceRange
     let rating: Double
     let reviewsCount: Int
@@ -39,6 +40,7 @@ struct Shop: Identifiable, Codable, Equatable {
         hours: BusinessHours,
         cuisineTypes: [CuisineType] = [],
         drinkTypes: [DrinkType] = [],
+        dessertTypes: [DessertType] = [],
         priceRange: PriceRange = .moderate,
         rating: Double = 0.0,
         reviewsCount: Int = 0,
@@ -58,6 +60,7 @@ struct Shop: Identifiable, Codable, Equatable {
         self.hours = hours
         self.cuisineTypes = cuisineTypes
         self.drinkTypes = drinkTypes
+        self.dessertTypes = dessertTypes
         self.priceRange = priceRange
         self.rating = rating
         self.reviewsCount = reviewsCount
@@ -147,21 +150,50 @@ struct MenuItem: Identifiable, Codable, Equatable {
 // MARK: - Supporting Types
 enum CuisineType: String, CaseIterable, Codable {
     case american = "American"
-    case cafe = "Cafe"
-    case chinese = "Chinese"
-    case dessert = "Dessert"
-    case french = "French"
-    case fusion = "Fusion"
-    case indian = "Indian"
     case italian = "Italian"
-    case japanese = "Japanese"
-    case korean = "Korean"
-    case mediterranean = "Mediterranean"
     case mexican = "Mexican"
-    case middleEastern = "Middle Eastern"
-    case other = "Other"
+    case chinese = "Chinese"
+    case japanese = "Japanese"
     case thai = "Thai"
+    case indian = "Indian"
+    case french = "French"
+    case mediterranean = "Mediterranean"
+    case greek = "Greek"
+    case korean = "Korean"
     case vietnamese = "Vietnamese"
+    case spanish = "Spanish"
+    case cuban = "Cuban"
+    case lebanese = "Lebanese"
+    case turkish = "Turkish"
+    case caribbean = "Caribbean"
+    case brazilian = "Brazilian"
+    case ethiopian = "Ethiopian"
+    case moroccan = "Moroccan"
+    case middleEastern = "Middle Eastern"
+    case filipino = "Filipino"
+    case soulFood = "Soul Food"
+    case pizza = "Pizza"
+    case burgers = "Burgers"
+    case seafood = "Seafood"
+    case sushi = "Sushi"
+    case bbq = "BBQ"
+    case vegetarian = "Vegetarian"
+    case vegan = "Vegan"
+    case deli = "Deli"
+    case steakhouse = "Steakhouse"
+    case tapas = "Tapas"
+    case sandwiches = "Sandwiches"
+    case breakfastBrunch = "Breakfast/Brunch"
+    case afghan = "Afghan"
+    case salad = "Salad"
+    case hotPot = "Hot Pot"
+    case shabuShabu = "Shabu Shabu"
+    case ramen = "Ramen"
+    case bakeryPastries = "Bakery/Pastries"
+    case cafe = "Cafe"
+    case fusion = "Fusion"
+    case dessert = "Dessert"
+    case other = "Other"
 }
 
 enum DrinkType: String, CaseIterable, Codable {
@@ -172,6 +204,21 @@ enum DrinkType: String, CaseIterable, Codable {
     case milkTea = "Milk Tea"
     case smoothie = "Smoothie"
     case tea = "Tea"
+}
+
+enum DessertType: String, CaseIterable, Codable {
+    case iceCream = "Ice Cream"
+    case cake = "Cake"
+    case cookies = "Cookies"
+    case pastries = "Pastries"
+    case chocolate = "Chocolate"
+    case donuts = "Donuts"
+    case cupcakes = "Cupcakes"
+    case macarons = "Macarons"
+    case gelato = "Gelato"
+    case frozenYogurt = "Frozen Yogurt"
+    case pie = "Pie"
+    case cheesecake = "Cheesecake"
 }
 
 enum PriceRange: Int, CaseIterable, Codable {

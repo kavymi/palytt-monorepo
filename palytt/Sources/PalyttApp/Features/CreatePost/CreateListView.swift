@@ -8,7 +8,6 @@
 //  distribution, or use is strictly prohibited.
 //
 import SwiftUI
-import PhotosUI
 import Clerk
 
 // MARK: - Create List View
@@ -19,8 +18,7 @@ struct CreateListView: View {
     @State private var listName = ""
     @State private var listDescription = ""
     @State private var isPrivate = false
-    @State private var selectedPhoto: PhotosPickerItem?
-    @State private var selectedImageData: Data?
+
     @State private var isCreating = false
     @State private var errorMessage: String?
     
@@ -29,7 +27,6 @@ struct CreateListView: View {
             ScrollView {
                 VStack(spacing: 24) {
                     headerSection
-                    coverImageSection
                     listDetailsSection
                 }
             }
@@ -38,13 +35,6 @@ struct CreateListView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 toolbarContent
-            }
-        }
-        .onChange(of: selectedPhoto) { _, newPhoto in
-            Task {
-                if let newPhoto = newPhoto {
-                    selectedImageData = try? await newPhoto.loadTransferable(type: Data.self)
-                }
             }
         }
         .alert("Error", isPresented: .constant(errorMessage != nil)) {
@@ -60,8 +50,8 @@ struct CreateListView: View {
     private var headerSection: some View {
         VStack(spacing: 16) {
             Text("Create New List")
-                .font(.largeTitle)
-                .fontWeight(.bold)
+                .font(.title2)
+                .fontWeight(.semibold)
                 .foregroundColor(.primaryText)
             
             Text("Organize your favorite posts into themed collections")
@@ -73,59 +63,7 @@ struct CreateListView: View {
         .padding(.top)
     }
     
-    // MARK: - Cover Image Section
-    private var coverImageSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Cover Image")
-                .font(.headline)
-                .fontWeight(.semibold)
-                .foregroundColor(.primaryText)
-            
-            PhotosPicker(selection: $selectedPhoto, matching: .images, photoLibrary: .shared()) {
-                coverImageContent
-            }
-            .buttonStyle(.plain)
-            
-            Text("Optional - Choose a cover image for your list")
-                .font(.caption)
-                .foregroundColor(.tertiaryText)
-        }
-        .padding(.horizontal)
-    }
-    
-    // MARK: - Cover Image Content
-    private var coverImageContent: some View {
-        ZStack {
-            RoundedRectangle(cornerRadius: 16)
-                .fill(LinearGradient.primaryGradient.opacity(0.1))
-                .frame(height: 120)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 16)
-                        .stroke(Color.primaryBrand.opacity(0.3), style: StrokeStyle(lineWidth: 2, dash: [5]))
-                )
-            
-            if let selectedImageData = selectedImageData,
-               let uiImage = UIImage(data: selectedImageData) {
-                Image(uiImage: uiImage)
-                    .resizable()
-                    .aspectRatio(contentMode: .fill)
-                    .frame(height: 120)
-                    .clipShape(RoundedRectangle(cornerRadius: 16))
-            } else {
-                VStack(spacing: 8) {
-                    Image(systemName: "photo.badge.plus")
-                        .font(.title2)
-                        .foregroundColor(.primaryBrand)
-                    
-                    Text("Add Cover Photo")
-                        .font(.subheadline)
-                        .fontWeight(.medium)
-                        .foregroundColor(.primaryBrand)
-                }
-            }
-        }
-    }
-    
+
     // MARK: - List Details Section
     private var listDetailsSection: some View {
         VStack(alignment: .leading, spacing: 20) {

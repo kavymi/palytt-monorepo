@@ -364,7 +364,7 @@ struct CreateSaveListView: View {
 // MARK: - SwiftUI Previews
 #Preview("Save Options - With Lists") {
     @Previewable @State var isSaved = false
-    let mockLists = [
+    let _ = [
         SavedList(name: "Favorite Restaurants", description: "My go-to dining spots", userId: "user1", isPrivate: false),
         SavedList(name: "Coffee Shops", description: "Best coffee in the city", userId: "user1", isPrivate: false),
         SavedList(name: "Date Night", description: "Romantic dinner ideas", userId: "user1", isPrivate: true)

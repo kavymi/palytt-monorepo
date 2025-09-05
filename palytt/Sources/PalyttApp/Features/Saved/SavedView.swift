@@ -207,7 +207,7 @@ struct SavedView: View {
         \(listURL)
         """
         
-        shareContent = [message, URL(string: listURL)].compactMap { $0 }
+        shareContent = [message, URL(string: listURL) as Any].compactMap { $0 }
     }
     
     private func generateListShareURL(for list: SavedList) -> String {

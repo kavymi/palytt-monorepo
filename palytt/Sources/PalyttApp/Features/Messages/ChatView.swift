@@ -189,7 +189,7 @@ struct ChatView: View {
         if !isTyping && !messageText.isEmpty {
             isTyping = true
             Task {
-                await viewModel.setTypingStatus(true, for: chatroom._id)
+                viewModel.setTypingStatus(true, for: chatroom._id)
             }
         }
         
@@ -203,7 +203,7 @@ struct ChatView: View {
         if isTyping {
             isTyping = false
             Task {
-                await viewModel.setTypingStatus(false, for: chatroom._id)
+                viewModel.setTypingStatus(false, for: chatroom._id)
             }
         }
         typingTimer?.invalidate()

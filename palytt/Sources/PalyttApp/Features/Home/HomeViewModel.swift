@@ -251,12 +251,7 @@ class HomeViewModel: ObservableObject {
             )
             
             let newPosts = response.posts.compactMap { tRPCPost -> Post? in
-                do {
-                    return Post.from(tRPCPost: tRPCPost)
-                } catch {
-                    print("⚠️ HomeViewModel: Failed to convert tRPC post: \(error)")
-                    return nil
-                }
+                return Post.from(tRPCPost: tRPCPost)
             }
             
             // Update pagination state
@@ -307,7 +302,7 @@ class HomeViewModel: ObservableObject {
             return
         }
         
-        guard let backendService = backendService else { return }
+        guard backendService != nil else { return }
         
         // Cancel any existing loading task
         loadingTask?.cancel()
@@ -393,12 +388,7 @@ class HomeViewModel: ObservableObject {
             
             // Convert to Post objects
             let newPosts = response.posts.compactMap { tRPCPost -> Post? in
-                do {
-                    return Post.from(tRPCPost: tRPCPost)
-                } catch {
-                    print("⚠️ HomeViewModel: Failed to convert tRPC post: \(error)")
-                    return nil
-                }
+                return Post.from(tRPCPost: tRPCPost)
             }
             
             self.posts = newPosts
@@ -445,12 +435,7 @@ class HomeViewModel: ObservableObject {
             )
             
             let newPosts = response.posts.compactMap { tRPCPost -> Post? in
-                do {
-                    return Post.from(tRPCPost: tRPCPost)
-                } catch {
-                    print("⚠️ HomeViewModel: Failed to convert tRPC post: \(error)")
-                    return nil
-                }
+                return Post.from(tRPCPost: tRPCPost)
             }
             
             self.posts.append(contentsOf: newPosts)

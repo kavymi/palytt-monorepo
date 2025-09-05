@@ -180,11 +180,11 @@ struct MapFiltersView: View {
                             .font(.subheadline)
                             .fontWeight(.medium)
                             .foregroundColor(.red)
-                            .frame(maxWidth: .infinity)
+                            .padding(.horizontal, 20)
                             .padding(.vertical, 12)
                             .background(
                                 RoundedRectangle(cornerRadius: 12)
-                                    .stroke(Color.red, lineWidth: 1)
+                                    .stroke(Color.red, lineWidth: 0.5)
                             )
                     }
                     .padding(.top)
@@ -196,10 +196,16 @@ struct MapFiltersView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Reset") {
-                        mapViewModel.resetFilters()
+                    Button(action: {
+                        isPresented = false
+                    }) {
+                        HStack(spacing: 4) {
+                            Image(systemName: "chevron.left")
+                                .font(.system(size: 16, weight: .medium))
+                            Text("Back")
+                        }
+                        .foregroundColor(.primaryBrand)
                     }
-                    .foregroundColor(.red)
                 }
                 
                 ToolbarItem(placement: .navigationBarTrailing) {
@@ -219,10 +225,16 @@ struct MapFiltersView: View {
                 }
                 
                 ToolbarItem(placement: .secondaryAction) {
-                    Button("Reset") {
-                        mapViewModel.resetFilters()
+                    Button(action: {
+                        isPresented = false
+                    }) {
+                        HStack(spacing: 4) {
+                            Image(systemName: "chevron.left")
+                                .font(.system(size: 16, weight: .medium))
+                            Text("Back")
+                        }
+                        .foregroundColor(.primaryBrand)
                     }
-                    .foregroundColor(.red)
                 }
             }
 #endif

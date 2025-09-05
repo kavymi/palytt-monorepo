@@ -1,6 +1,6 @@
 //
 //  RootView.swift
-//  Palytt
+//  Palytt 
 //
 //  Copyright © 2025 Palytt Inc. All rights reserved.
 //

@@ -97,7 +97,6 @@ struct ExploreView: View {
     @State private var showingShopDetail = false
     @State private var cameraPosition: MapCameraPosition = .automatic
     @State private var showFilters = false
-    @State private var showUserSearch = false
     @State private var selectedTab = 0
     
     // Clustering state
@@ -137,7 +136,7 @@ struct ExploreView: View {
             case .myPosts: return "Your food posts"
             case .friendsPosts: return "Posts from friends"
             case .nearbyPlaces: return "Restaurants & cafes"
-            case .everything: return "All posts & places"
+            case .everything: return "Palytt"
             }
         }
     }
@@ -152,9 +151,6 @@ struct ExploreView: View {
                 exploreViewModel: viewModel,
                 contentType: contentType
             )
-        }
-        .sheet(isPresented: $showUserSearch) {
-            UserSearchView()
         }
         .fullScreenCover(isPresented: $showingPostDetail) {
             if let selectedPost = selectedPost {
@@ -196,7 +192,7 @@ struct ExploreView: View {
             #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
             #endif
-            .navigationTitle("All posts & places")
+            .navigationTitle("Palytt")
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
                     Button(action: {
@@ -213,14 +209,6 @@ struct ExploreView: View {
                 
                 ToolbarItem(placement: .navigationBarTrailing) {
                     HStack(spacing: 12) {
-                        Button(action: { 
-                            HapticManager.shared.impact(.light)
-                            showUserSearch = true 
-                        }) {
-                            Image(systemName: "person.2.fill")
-                                .foregroundColor(.primaryBrand)
-                        }
-                        
                         Button(action: { 
                             HapticManager.shared.impact(.light)
                             showFilters = true 
@@ -282,16 +270,9 @@ struct ExploreView: View {
         }
         
         ToolbarItem(placement: .navigationBarTrailing) {
-            HStack(spacing: 12) {
-                Button(action: { showUserSearch = true }) {
-                    Image(systemName: "person.2.fill")
-                        .foregroundColor(.primaryBrand)
-                }
-                
-                Button(action: { showFilters = true }) {
-                    Image(systemName: "line.3.horizontal.decrease.circle")
-                        .foregroundColor(.primaryBrand)
-                }
+            Button(action: { showFilters = true }) {
+                Image(systemName: "line.3.horizontal.decrease.circle")
+                    .foregroundColor(.primaryBrand)
             }
         }
         #else
@@ -309,16 +290,9 @@ struct ExploreView: View {
         }
         
         ToolbarItem(placement: .primaryAction) {
-            HStack(spacing: 12) {
-                Button(action: { showUserSearch = true }) {
-                    Image(systemName: "person.2.fill")
-                        .foregroundColor(.primaryBrand)
-                }
-                
-                Button(action: { showFilters = true }) {
-                    Image(systemName: "line.3.horizontal.decrease.circle")
-                        .foregroundColor(.primaryBrand)
-                }
+            Button(action: { showFilters = true }) {
+                Image(systemName: "line.3.horizontal.decrease.circle")
+                    .foregroundColor(.primaryBrand)
             }
         }
         #endif
@@ -460,9 +434,7 @@ struct ExploreView: View {
                     contentType: contentType
                 )
             }
-            .sheet(isPresented: $showUserSearch) {
-                UserSearchView()
-            }
+
     }
     
 
@@ -892,6 +864,16 @@ struct ExploreView: View {
         if !viewModel.selectedDrinks.isEmpty {
             let drinkTerms = viewModel.selectedDrinks.map { $0.rawValue.lowercased() }
             searchTerms.append(contentsOf: drinkTerms)
+        }
+        
+        if !viewModel.selectedCuisines.isEmpty {
+            let cuisineTerms = viewModel.selectedCuisines.map { $0.rawValue.lowercased() }
+            searchTerms.append(contentsOf: cuisineTerms)
+        }
+        
+        if !viewModel.selectedDesserts.isEmpty {
+            let dessertTerms = viewModel.selectedDesserts.map { $0.rawValue.lowercased() }
+            searchTerms.append(contentsOf: dessertTerms)
         }
         
         // Default search terms if no specific filters
@@ -2288,6 +2270,40 @@ struct UnifiedFiltersView: View {
                             }
                         }
                         
+                        // Cuisines filter for places
+                        VStack(alignment: .leading, spacing: 12) {
+                            Text("Cuisines")
+                                .font(.headline)
+                            
+                            FlowLayout(spacing: 8) {
+                                ForEach(CuisineType.allCases, id: \.self) { cuisine in
+                                    FilterChip(
+                                        title: cuisine.rawValue,
+                                        isSelected: exploreViewModel.selectedCuisines.contains(cuisine)
+                                    ) {
+                                        exploreViewModel.toggleCuisine(cuisine)
+                                    }
+                                }
+                            }
+                        }
+                        
+                        // Desserts filter for places
+                        VStack(alignment: .leading, spacing: 12) {
+                            Text("Desserts")
+                                .font(.headline)
+                            
+                            FlowLayout(spacing: 8) {
+                                ForEach(DessertType.allCases, id: \.self) { dessert in
+                                    FilterChip(
+                                        title: dessert.rawValue,
+                                        isSelected: exploreViewModel.selectedDesserts.contains(dessert)
+                                    ) {
+                                        exploreViewModel.toggleDessert(dessert)
+                                    }
+                                }
+                            }
+                        }
+                        
                         // Distance filter
                         VStack(alignment: .leading, spacing: 12) {
                             Text("Distance")
@@ -2316,11 +2332,11 @@ struct UnifiedFiltersView: View {
                             .font(.subheadline)
                             .fontWeight(.medium)
                             .foregroundColor(.red)
-                            .frame(maxWidth: .infinity)
+                            .padding(.horizontal, 20)
                             .padding(.vertical, 12)
                             .background(
                                 RoundedRectangle(cornerRadius: 12)
-                                    .stroke(Color.red, lineWidth: 1)
+                                    .stroke(Color.red, lineWidth: 0.5)
                             )
                     }
                     .padding(.top)
@@ -2332,14 +2348,16 @@ struct UnifiedFiltersView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Reset") {
-                        if contentType == .friendsPosts || contentType == .myPosts {
-                            mapViewModel.resetFilters()
-                        } else {
-                            exploreViewModel.resetFilters()
+                    Button(action: {
+                        dismiss()
+                    }) {
+                        HStack(spacing: 4) {
+                            Image(systemName: "chevron.left")
+                                .font(.system(size: 16, weight: .medium))
+                            Text("Back")
                         }
+                        .foregroundColor(.primaryBrand)
                     }
-                    .foregroundColor(.primaryBrand)
                 }
                 
                 ToolbarItem(placement: .navigationBarTrailing) {
@@ -2373,14 +2391,16 @@ struct UnifiedFiltersView: View {
                 }
                 
                 ToolbarItem(placement: .secondaryAction) {
-                    Button("Reset") {
-                        if contentType == .friendsPosts || contentType == .myPosts {
-                            mapViewModel.resetFilters()
-                        } else {
-                            exploreViewModel.resetFilters()
+                    Button(action: {
+                        dismiss()
+                    }) {
+                        HStack(spacing: 4) {
+                            Image(systemName: "chevron.left")
+                                .font(.system(size: 16, weight: .medium))
+                            Text("Back")
                         }
+                        .foregroundColor(.primaryBrand)
                     }
-                    .foregroundColor(.primaryBrand)
                 }
             }
 #endif
@@ -2650,6 +2670,8 @@ class ExploreViewModel: ObservableObject {
     
     // Filters
     @Published var selectedDrinks: Set<DrinkType> = []
+    @Published var selectedCuisines: Set<CuisineType> = []
+    @Published var selectedDesserts: Set<DessertType> = []
     @Published var maxDistance: Double = 25
     @Published var showOnlyFavorites: Bool = false
     
@@ -2841,6 +2863,22 @@ class ExploreViewModel: ObservableObject {
         }
     }
     
+    func toggleCuisine(_ cuisine: CuisineType) {
+        if selectedCuisines.contains(cuisine) {
+            selectedCuisines.remove(cuisine)
+        } else {
+            selectedCuisines.insert(cuisine)
+        }
+    }
+    
+    func toggleDessert(_ dessert: DessertType) {
+        if selectedDesserts.contains(dessert) {
+            selectedDesserts.remove(dessert)
+        } else {
+            selectedDesserts.insert(dessert)
+        }
+    }
+    
     func toggleShowOnlyFavorites() {
         showOnlyFavorites.toggle()
     }
@@ -2856,6 +2894,8 @@ class ExploreViewModel: ObservableObject {
     
     func resetFilters() {
         selectedDrinks.removeAll()
+        selectedCuisines.removeAll()
+        selectedDesserts.removeAll()
         maxDistance = 25
         showOnlyFavorites = false
     }
@@ -2874,6 +2914,20 @@ class ExploreViewModel: ObservableObject {
         if !selectedDrinks.isEmpty {
             filteredShops = filteredShops.filter { shop in
                 shop.drinkTypes.contains { selectedDrinks.contains($0) }
+            }
+        }
+        
+        // Apply cuisine filter
+        if !selectedCuisines.isEmpty {
+            filteredShops = filteredShops.filter { shop in
+                shop.cuisineTypes.contains { selectedCuisines.contains($0) }
+            }
+        }
+        
+        // Apply dessert filter
+        if !selectedDesserts.isEmpty {
+            filteredShops = filteredShops.filter { shop in
+                shop.dessertTypes.contains { selectedDesserts.contains($0) }
             }
         }
         
@@ -3130,7 +3184,7 @@ private extension ExploreView {
             #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
             #endif
-            .navigationTitle("All posts & places")
+            .navigationTitle("Palytt")
     }
     
 
@@ -3145,9 +3199,7 @@ private extension ExploreView {
                     contentType: contentType
                 )
             }
-            .sheet(isPresented: $showUserSearch) {
-                UserSearchView()
-            }
+
             .fullScreenCover(isPresented: $showingPostDetail) {
                 if let selectedPost = selectedPost {
                     PostDetailView(post: selectedPost.originalPost)

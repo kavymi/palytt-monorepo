@@ -35,7 +35,7 @@ struct HomeView: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                LazyVStack(spacing: 16) {
+                LazyVStack(spacing: 8) {
                     // Feed Status Indicator
                     if viewModel.isUsingPersonalizedFeed, let feedStats = viewModel.feedStats {
                         FeedStatusIndicatorView(feedStats: feedStats)
@@ -151,7 +151,7 @@ struct HomeView: View {
                         }
                     }
                 }
-                .padding(.vertical)
+                .padding(.vertical, 4)
             }
             .background(Color.appBackground)
             .animation(.easeInOut(duration: 0.3), value: viewModel.posts.count)
@@ -231,7 +231,7 @@ struct HomeView: View {
             //         }
             //     }
             // }
-            .navigationTitle("All posts & places")
+            .navigationTitle("Palytt")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {

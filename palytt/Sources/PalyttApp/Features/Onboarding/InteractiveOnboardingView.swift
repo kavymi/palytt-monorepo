@@ -397,8 +397,7 @@ struct OnboardingBottomNavigation: View {
                             .fontWeight(.semibold)
                     }
                     .foregroundColor(.white)
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 56)
+                    .frame(width: 140, height: 56)
                     .background(
                         RoundedRectangle(cornerRadius: 16)
                             .fill(LinearGradient.primaryGradient)

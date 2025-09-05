@@ -109,7 +109,7 @@ struct AddFriendsView: View {
                         searchDebounceTask = Task {
                             try? await Task.sleep(nanoseconds: 500_000_000) // 0.5 seconds
                             if !Task.isCancelled && searchText == newValue {
-                                await performSearch()
+                                performSearch()
                             }
                         }
                     }
@@ -251,7 +251,7 @@ struct AddFriendsView: View {
                 SearchFiltersView(filters: $searchFilters, onApply: {
                     if !searchText.isEmpty {
                         Task {
-                            await performSearch()
+                            performSearch()
                         }
                     }
                 })
@@ -559,7 +559,7 @@ class AddFriendsViewModel: ObservableObject {
             var filteredUsers = users
             
             if filters.onlyVerified {
-                filteredUsers = filteredUsers.filter { $0.isVerified ?? false }
+                filteredUsers = filteredUsers.filter { $0.isVerified }
             }
             
             if !filters.dietaryPreferences.isEmpty {

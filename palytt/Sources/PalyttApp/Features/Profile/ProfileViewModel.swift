@@ -218,12 +218,7 @@ class ProfileViewModel: ObservableObject {
             
             // Convert backend posts to Post objects
             let posts = backendPosts.compactMap { backendPost in
-                do {
-                    return Post.from(backendPost: backendPost)
-                } catch {
-                    print("⚠️ ProfileViewModel: Failed to convert backend post \(backendPost.id): \(error)")
-                    return nil
-                }
+                return Post.from(backendPost: backendPost)
             }
             
             await MainActor.run {
@@ -526,7 +521,7 @@ class ProfileViewModel: ObservableObject {
         }
         
         // Update avatar URL if provided
-        if let imageURL = imageURL {
+        if imageURL != nil {
             // Note: Clerk SDK setProfileImage method may not support URL strings directly
             // The profile image URL will be stored in our backend instead
             // try await user.setProfileImage(.init(file: imageURL))

@@ -26,6 +26,8 @@ struct ProfileView: View {
     @State private var showFollowersSheet = false
     @State private var showFollowingSheet = false
     @State private var showFriendRequestsSheet = false
+    @State private var showFindFriends = false
+    @State private var showFriendsList = false
 
     @State private var showInviteView = false
     
@@ -80,6 +82,19 @@ struct ProfileView: View {
             ))
             .sheet(isPresented: $showInviteView) {
                 InviteView()
+            }
+            .sheet(isPresented: $showFindFriends) {
+                UserSearchView()
+                    .environmentObject(appState)
+            }
+            .sheet(isPresented: $showFriendsList) {
+                if let currentUser = viewModel.currentUser {
+                    FriendsListView(
+                        userId: currentUser.clerkId ?? "",
+                        userName: currentUser.username
+                    )
+                    .environmentObject(appState)
+                }
             }
         }
         .background(Color.appBackground)
@@ -255,14 +270,30 @@ struct ProfileView: View {
             // Only show these buttons for own profile
             if targetUser == nil {
                 Button(action: { 
+                    showFriendsList = true
+                    HapticManager.shared.impact(.light)
+                    // analyticsService.trackUserAction(.profileView, properties: ["section": "friends_list"])
+                }) {
+                    Image(systemName: "person.2.fill")
+                        .foregroundColor(.primaryBrand)
+                }
+                
+                Button(action: { 
+                    showFindFriends = true
+                    HapticManager.shared.impact(.light)
+                    // analyticsService.trackUserAction(.profileView, properties: ["section": "find_friends"])
+                }) {
+                    Image(systemName: "location.fill")
+                        .foregroundColor(.primaryBrand)
+                }
+                
+                Button(action: { 
                     showInviteView = true
                     // analyticsService.trackUserAction(.profileView, properties: ["section": "invite"])
                 }) {
                     Image(systemName: "square.and.arrow.up")
                         .foregroundColor(.primaryBrand)
                 }
-                
-
                 
                 Button(action: { 
                     showFriendRequestsSheet = true
@@ -1767,7 +1798,7 @@ struct InviteView: View {
             .environmentObject(mockAppState.themeManager)
             .onAppear {
                 // Inject rich photography-focused posts
-                if let user = photographerViewModel.currentUser {
+                if let _ = photographerViewModel.currentUser {
                     // This profile will show 18+ general posts + 3 specialized photography posts
                     print("📸 Photography Profile loaded with \(photographerViewModel.userPosts.count) posts")
                 }
@@ -1785,7 +1816,7 @@ struct InviteView: View {
             .environmentObject(mockAppState.themeManager)
             .onAppear {
                 // Inject rich sushi-focused posts
-                if let user = sushiViewModel.currentUser {
+                if let _ = sushiViewModel.currentUser {
                     print("🍣 Sushi Expert Profile loaded with \(sushiViewModel.userPosts.count) posts")
                 }
             }
@@ -1802,7 +1833,7 @@ struct InviteView: View {
             .environmentObject(mockAppState.themeManager)
             .onAppear {
                 // Inject rich wine-focused posts
-                if let user = wineViewModel.currentUser {
+                if let _ = wineViewModel.currentUser {
                     print("🍷 Wine Expert Profile loaded with \(wineViewModel.userPosts.count) posts")
                 }
             }
@@ -1819,7 +1850,7 @@ struct InviteView: View {
             .environmentObject(mockAppState.themeManager)
             .onAppear {
                 // Inject rich BBQ-focused posts
-                if let user = bbqViewModel.currentUser {
+                if let _ = bbqViewModel.currentUser {
                     print("🔥 BBQ Master Profile loaded with \(bbqViewModel.userPosts.count) posts")
                 }
             }
@@ -1836,7 +1867,7 @@ struct InviteView: View {
             .environmentObject(mockAppState.themeManager)
             .onAppear {
                 // Inject rich vegan-focused posts
-                if let user = veganViewModel.currentUser {
+                if let _ = veganViewModel.currentUser {
                     print("🌱 Vegan Advocate Profile loaded with \(veganViewModel.userPosts.count) posts")
                 }
             }
