@@ -18,8 +18,38 @@ import UIKit
 
 struct ProfileView: View {
     let targetUser: User? // If nil, shows current user's profile
-    @StateObject private var viewModel = ProfileViewModel()
+    @StateObject private var viewModel: ProfileViewModel
     @EnvironmentObject var appState: AppState
+    
+    // Initialize with appropriate ViewModel based on context
+    init(targetUser: User? = nil, mockViewModel: ProfileViewModel? = nil) {
+        self.targetUser = targetUser
+        
+        if let mockViewModel = mockViewModel {
+            self._viewModel = StateObject(wrappedValue: mockViewModel)
+        } else {
+            // Check if we're in preview mode
+            let isPreviewMode = ProcessInfo.processInfo.environment["XCODE_RUNNING_FOR_PREVIEWS"] == "1"
+            
+            if isPreviewMode {
+                // We're in preview mode - use a mock view model with data
+                let mockVM = ProfileViewModel()
+                if let targetUser = targetUser {
+                    mockVM.currentUser = targetUser
+                    mockVM.userPosts = MockData.generateUserPosts(for: targetUser)
+                } else {
+                    mockVM.currentUser = MockData.currentUser
+                    mockVM.userPosts = MockData.generateUserPosts(for: MockData.currentUser)
+                }
+                mockVM.isLoading = false
+                mockVM.errorMessage = nil
+                self._viewModel = StateObject(wrappedValue: mockVM)
+            } else {
+                // Normal runtime - use regular ProfileViewModel
+                self._viewModel = StateObject(wrappedValue: ProfileViewModel())
+            }
+        }
+    }
     @State private var showSettings = false
     @State private var showEditProfile = false
     @State private var showAdminSettings = false
@@ -35,10 +65,6 @@ struct ProfileView: View {
     // @StateObject private var privacyManager = PrivacyControlsManager.shared
     // @StateObject private var analyticsService = AnalyticsService.shared
     // @StateObject private var contentModeration = ContentModerationService.shared
-    
-    init(targetUser: User? = nil) {
-        self.targetUser = targetUser
-    }
     
     var body: some View {
         NavigationStack {
@@ -1779,10 +1805,11 @@ struct InviteView: View {
 }
 
 // MARK: - SwiftUI Previews
+
 #Preview("Current User Profile") {
     NavigationView {
         ProfileView()
-            .environmentObject(MockAppState())
+            .environmentObject(AppState.createForPreview())
             .environmentObject(ThemeManager())
     }
 }
@@ -1790,7 +1817,7 @@ struct InviteView: View {
 #Preview("Other User Profile") {
     NavigationView {
         ProfileView(targetUser: MockData.previewUser)
-            .environmentObject(MockAppState())
+            .environmentObject(AppState.createForPreview())
             .environmentObject(ThemeManager())
     }
 }
@@ -1798,15 +1825,15 @@ struct InviteView: View {
 #Preview("Admin User Profile") {
     NavigationView {
         ProfileView(targetUser: MockData.adminUser)
-            .environmentObject(MockAppState())
+            .environmentObject(AppState.createForPreview())
             .environmentObject(ThemeManager())
     }
 }
 
-#Preview("Profile Preview User") {
+#Preview("Food Photographer Profile") {
     NavigationView {
         ProfileView(targetUser: MockData.previewUser)
-            .environmentObject(MockAppState())
+            .environmentObject(AppState.createForPreview())
             .environmentObject(ThemeManager())
     }
 }
@@ -1814,8 +1841,51 @@ struct InviteView: View {
 #Preview("Profile - Dark Mode") {
     NavigationView {
         ProfileView(targetUser: MockData.previewUser)
-            .environmentObject(MockAppState())
+            .environmentObject(AppState.createForPreview())
             .environmentObject(ThemeManager())
     }
     .preferredColorScheme(.dark)
+}
+
+#Preview("Profile - Loading State") {
+    NavigationView {
+        ProfileView(mockViewModel: ProfileViewModelLoadingPreview())
+            .environmentObject(AppState.createForPreview())
+            .environmentObject(ThemeManager())
+    }
+}
+
+#Preview("Profile - Error State") {
+    NavigationView {
+        ProfileView(mockViewModel: ProfileViewModelErrorPreview())
+            .environmentObject(AppState.createForPreview())
+            .environmentObject(ThemeManager())
+    }
+}
+
+// MARK: - Preview Helper ViewModels
+@MainActor
+class ProfileViewModelLoadingPreview: ProfileViewModel {
+    override init() {
+        super.init()
+        DispatchQueue.main.async {
+            self.isLoading = true
+            self.currentUser = nil
+            self.userPosts = []
+            self.errorMessage = nil
+        }
+    }
+}
+
+@MainActor
+class ProfileViewModelErrorPreview: ProfileViewModel {
+    override init() {
+        super.init()
+        DispatchQueue.main.async {
+            self.isLoading = false
+            self.currentUser = nil
+            self.userPosts = []
+            self.errorMessage = "Failed to load profile. Please check your internet connection and try again."
+        }
+    }
 }
