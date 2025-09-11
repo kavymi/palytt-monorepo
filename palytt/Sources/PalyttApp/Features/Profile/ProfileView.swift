@@ -1778,141 +1778,44 @@ struct InviteView: View {
     }
 }
 
-// MARK: - SwiftUI Previews with Rich Content
-#Preview("Current User Profile - Rich Content") {
-    let mockAppState = MockAppState()
+// MARK: - SwiftUI Previews
+#Preview("Current User Profile") {
     NavigationView {
         ProfileView()
-            .environmentObject(mockAppState)
-            .environmentObject(mockAppState.themeManager)
+            .environmentObject(MockAppState())
+            .environmentObject(ThemeManager())
     }
 }
 
-#Preview("Food Photographer Profile - Tons of Content") {
-    @Previewable @StateObject var photographerViewModel = MockFoodPhotographerProfileViewModel()
-    let mockAppState = MockAppState()
-    
+#Preview("Other User Profile") {
     NavigationView {
-        ProfileView(targetUser: photographerViewModel.currentUser)
-            .environmentObject(mockAppState)
-            .environmentObject(mockAppState.themeManager)
-            .onAppear {
-                // Inject rich photography-focused posts
-                if let _ = photographerViewModel.currentUser {
-                    // This profile will show 18+ general posts + 3 specialized photography posts
-                    print("📸 Photography Profile loaded with \(photographerViewModel.userPosts.count) posts")
-                }
-            }
+        ProfileView(targetUser: MockData.previewUser)
+            .environmentObject(MockAppState())
+            .environmentObject(ThemeManager())
     }
 }
 
-#Preview("Sushi Expert Profile - Master Content") {
-    @Previewable @StateObject var sushiViewModel = MockSushiExpertProfileViewModel()
-    let mockAppState = MockAppState()
-    
-    NavigationView {
-        ProfileView(targetUser: sushiViewModel.currentUser)
-            .environmentObject(mockAppState)
-            .environmentObject(mockAppState.themeManager)
-            .onAppear {
-                // Inject rich sushi-focused posts
-                if let _ = sushiViewModel.currentUser {
-                    print("🍣 Sushi Expert Profile loaded with \(sushiViewModel.userPosts.count) posts")
-                }
-            }
-    }
-}
-
-#Preview("Wine Sommelier Profile - Expert Content") {
-    @Previewable @StateObject var wineViewModel = MockWineSommelierProfileViewModel()
-    let mockAppState = MockAppState()
-    
-    NavigationView {
-        ProfileView(targetUser: wineViewModel.currentUser)
-            .environmentObject(mockAppState)
-            .environmentObject(mockAppState.themeManager)
-            .onAppear {
-                // Inject rich wine-focused posts
-                if let _ = wineViewModel.currentUser {
-                    print("🍷 Wine Expert Profile loaded with \(wineViewModel.userPosts.count) posts")
-                }
-            }
-    }
-}
-
-#Preview("BBQ Master Profile - Pitmaster Content") {
-    @Previewable @StateObject var bbqViewModel = MockBBQMasterProfileViewModel()
-    let mockAppState = MockAppState()
-    
-    NavigationView {
-        ProfileView(targetUser: bbqViewModel.currentUser)
-            .environmentObject(mockAppState)
-            .environmentObject(mockAppState.themeManager)
-            .onAppear {
-                // Inject rich BBQ-focused posts
-                if let _ = bbqViewModel.currentUser {
-                    print("🔥 BBQ Master Profile loaded with \(bbqViewModel.userPosts.count) posts")
-                }
-            }
-    }
-}
-
-#Preview("Vegan Advocate Profile - Plant-Based Content") {
-    @Previewable @StateObject var veganViewModel = MockVeganAdvocateProfileViewModel()
-    let mockAppState = MockAppState()
-    
-    NavigationView {
-        ProfileView(targetUser: veganViewModel.currentUser)
-            .environmentObject(mockAppState)
-            .environmentObject(mockAppState.themeManager)
-            .onAppear {
-                // Inject rich vegan-focused posts
-                if let _ = veganViewModel.currentUser {
-                    print("🌱 Vegan Advocate Profile loaded with \(veganViewModel.userPosts.count) posts")
-                }
-            }
-    }
-}
-
-#Preview("Admin User Profile - Management Content") {
-    let mockAppState = MockAppState()
+#Preview("Admin User Profile") {
     NavigationView {
         ProfileView(targetUser: MockData.adminUser)
-            .environmentObject(mockAppState)
-            .environmentObject(mockAppState.themeManager)
-            .onAppear {
-                print("🛡️ Admin Profile loaded with enhanced admin features")
-            }
+            .environmentObject(MockAppState())
+            .environmentObject(ThemeManager())
     }
 }
 
-#Preview("Profile Comparison - Multiple Users") {
-    @Previewable @StateObject var photographerViewModel = MockFoodPhotographerProfileViewModel()
-    @Previewable @StateObject var sushiViewModel = MockSushiExpertProfileViewModel()
-    let mockAppState1 = MockAppState()
-    let mockAppState2 = MockAppState()
-    
-    HStack(spacing: 0) {
-        ProfileView(targetUser: photographerViewModel.currentUser)
-            .environmentObject(mockAppState1)
-            .environmentObject(mockAppState1.themeManager)
-        
-        Divider()
-        
-        ProfileView(targetUser: sushiViewModel.currentUser)
-            .environmentObject(mockAppState2)
-            .environmentObject(mockAppState2.themeManager)
-    }
-}
-
-#Preview("Profile - Dark Mode with Rich Content") {
-    @Previewable @StateObject var wineViewModel = MockWineSommelierProfileViewModel()
-    let mockAppState = MockAppState()
-    
+#Preview("Profile Preview User") {
     NavigationView {
-        ProfileView(targetUser: wineViewModel.currentUser)
-            .environmentObject(mockAppState)
-            .environmentObject(mockAppState.themeManager)
+        ProfileView(targetUser: MockData.previewUser)
+            .environmentObject(MockAppState())
+            .environmentObject(ThemeManager())
+    }
+}
+
+#Preview("Profile - Dark Mode") {
+    NavigationView {
+        ProfileView(targetUser: MockData.previewUser)
+            .environmentObject(MockAppState())
+            .environmentObject(ThemeManager())
     }
     .preferredColorScheme(.dark)
 }
