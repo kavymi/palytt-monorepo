@@ -32,12 +32,13 @@ class ChatViewModel: ObservableObject {
         
         self.chatroomId = chatroomId
         
-        Task {
-            isLoading = true
-            errorMessage = nil
+        Task { [weak self] in
+            guard let self = self else { return }
+            self.isLoading = true
+            self.errorMessage = nil
             
             do {
-                let fetchedMessages = try await backendService.getMessages(for: chatroomId)
+                let fetchedMessages = try await self.backendService.getMessages(for: chatroomId)
                 messages = fetchedMessages.sorted { $0.createdAt < $1.createdAt }
                 
                 // Mark messages as read
@@ -90,9 +91,10 @@ class ChatViewModel: ObservableObject {
     }
     
     func setTypingStatus(_ isTyping: Bool, for chatroomId: String) {
-        Task {
+        Task { [weak self] in
+            guard let self = self else { return }
             do {
-                try await backendService.setTypingStatus(isTyping, for: chatroomId)
+                try await self.backendService.setTypingStatus(isTyping, for: chatroomId)
             } catch {
                 print("❌ Error setting typing status: \(error)")
             }
@@ -119,8 +121,9 @@ class ChatViewModel: ObservableObject {
         
         // Clear typing status when leaving chat
         if let chatroomId = chatroomId {
-            Task {
-                try? await backendService.setTypingStatus(false, for: chatroomId)
+            Task { [weak self] in
+                guard let self = self else { return }
+                try? await self.backendService.setTypingStatus(false, for: chatroomId)
             }
         }
         
@@ -193,9 +196,10 @@ class ChatViewModel: ObservableObject {
     func markMessagesAsRead() {
         guard let chatroomId = chatroomId else { return }
         
-        Task {
+        Task { [weak self] in
+            guard let self = self else { return }
             do {
-                let _ = try await backendService.markMessagesAsRead(in: chatroomId)
+                let _ = try await self.backendService.markMessagesAsRead(in: chatroomId)
             } catch {
                 print("❌ Error marking messages as read: \(error)")
             }
@@ -230,8 +234,8 @@ class ChatViewModel: ObservableObject {
     }
     
     deinit {
-        Task { @MainActor in
-            stopRealTimeUpdates()
+        Task { @MainActor [weak self] in
+            self?.stopRealTimeUpdates()
         }
     }
 } 

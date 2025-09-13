@@ -318,37 +318,37 @@ enum ContentType: String, Codable, CaseIterable {
 }
 
 enum ReportReason: String, Codable, CaseIterable {
-    case spam = "spam"
-    case harassment = "harassment"
-    case inappropriateContent = "inappropriate_content"
     case falseInformation = "false_information"
-    case violentContent = "violent_content"
+    case harassment = "harassment"
     case hateSpeech = "hate_speech"
+    case inappropriateContent = "inappropriate_content"
     case other = "other"
+    case spam = "spam"
+    case violentContent = "violent_content"
     
     var displayName: String {
         switch self {
-        case .spam: return "Spam"
-        case .harassment: return "Harassment"
-        case .inappropriateContent: return "Inappropriate Content"
         case .falseInformation: return "False Information"
-        case .violentContent: return "Violent Content"
+        case .harassment: return "Harassment"
         case .hateSpeech: return "Hate Speech"
+        case .inappropriateContent: return "Inappropriate Content"
         case .other: return "Other"
+        case .spam: return "Spam"
+        case .violentContent: return "Violent Content"
         }
     }
 }
 
 enum ModerationLevel: String, CaseIterable {
-    case strict = "strict"
     case balanced = "balanced"
     case lenient = "lenient"
+    case strict = "strict"
     
     var displayName: String {
         switch self {
-        case .strict: return "Strict"
         case .balanced: return "Balanced"
         case .lenient: return "Lenient"
+        case .strict: return "Strict"
         }
     }
 }

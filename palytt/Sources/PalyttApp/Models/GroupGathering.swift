@@ -516,40 +516,40 @@ struct PreferenceFilters: Codable, Hashable {
     var features: [VenueFeature] = []
     
     enum DietaryRestriction: String, Codable, CaseIterable {
-        case vegetarian = "vegetarian"
-        case vegan = "vegan"
-        case glutenFree = "gluten_free"
         case dairyFree = "dairy_free"
-        case nutFree = "nut_free"
+        case glutenFree = "gluten_free"
         case halal = "halal"
-        case kosher = "kosher"
         case keto = "keto"
+        case kosher = "kosher"
+        case nutFree = "nut_free"
         case paleo = "paleo"
+        case vegan = "vegan"
+        case vegetarian = "vegetarian"
         
         var displayName: String {
             switch self {
-            case .vegetarian: return "Vegetarian"
-            case .vegan: return "Vegan"
-            case .glutenFree: return "Gluten-Free"
             case .dairyFree: return "Dairy-Free"
-            case .nutFree: return "Nut-Free"
+            case .glutenFree: return "Gluten-Free"
             case .halal: return "Halal"
-            case .kosher: return "Kosher"
             case .keto: return "Keto"
+            case .kosher: return "Kosher"
+            case .nutFree: return "Nut-Free"
             case .paleo: return "Paleo"
+            case .vegan: return "Vegan"
+            case .vegetarian: return "Vegetarian"
             }
         }
     }
     
     enum AmbienceType: String, Codable, CaseIterable {
         case casual = "casual"
-        case upscale = "upscale"
-        case romantic = "romantic"
+        case cozy = "cozy"
         case familyFriendly = "family_friendly"
-        case quiet = "quiet"
         case lively = "lively"
         case outdoor = "outdoor"
-        case cozy = "cozy"
+        case quiet = "quiet"
+        case romantic = "romantic"
+        case upscale = "upscale"
         
         var displayName: String {
             rawValue.replacingOccurrences(of: "_", with: " ").capitalized

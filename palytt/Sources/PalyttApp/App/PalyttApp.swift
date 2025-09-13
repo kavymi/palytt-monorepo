@@ -136,12 +136,10 @@ struct PalyttApp: App {
                 try? await clerk.load()
                 
                 // Update app state based on Clerk authentication
-                await updateAuthenticationState()
+                updateAuthenticationState()
             }
             .onChange(of: clerk.user) {
-                Task {
-                    await updateAuthenticationState()
-                }
+                updateAuthenticationState()
             }
         }
     }

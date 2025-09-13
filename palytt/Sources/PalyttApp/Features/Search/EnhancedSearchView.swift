@@ -740,19 +740,19 @@ enum SearchType: String, CaseIterable {
 }
 
 enum QuickFilter: String, CaseIterable {
-    case nearMe = "nearMe"
-    case trending = "trending"
     case friends = "friends"
+    case nearMe = "nearMe"
     case newPlaces = "newPlaces"
     case topRated = "topRated"
+    case trending = "trending"
     
     var title: String {
         switch self {
-        case .nearMe: return "Near Me"
-        case .trending: return "Trending"
         case .friends: return "Friends"
+        case .nearMe: return "Near Me"
         case .newPlaces: return "New Places"
         case .topRated: return "Top Rated"
+        case .trending: return "Trending"
         }
     }
 }

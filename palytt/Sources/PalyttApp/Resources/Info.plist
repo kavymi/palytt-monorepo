@@ -124,6 +124,10 @@
 		</dict>
 	</array>
 	
+	<!-- DOCUMENT HANDLING -->
+	<key>LSSupportsOpeningDocumentsInPlace</key>
+	<false/>
+	
 	<!-- APP CATEGORIES -->
 	<key>LSApplicationCategoryType</key>
 	<string>public.app-category.food-and-drink</string>

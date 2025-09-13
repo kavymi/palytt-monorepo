@@ -236,16 +236,16 @@ enum DietaryPreference: String, CaseIterable, Codable {
     
     var icon: String {
         switch self {
-        case .vegan: return "🌱"
-        case .vegetarian: return "🥗"
-        case .glutenFree: return "🌾"
         case .dairyFree: return "🥛"
+        case .glutenFree: return "🌾"
         case .halal: return "☪️"
+        case .keto: return "🥑"
         case .kosher: return "✡️"
         case .nutFree: return "🥜"
-        case .pescatarian: return "🐟"
-        case .keto: return "🥑"
         case .paleo: return ""
+        case .pescatarian: return "🐟"
+        case .vegan: return "🌱"
+        case .vegetarian: return "🥗"
         }
     }
 } 

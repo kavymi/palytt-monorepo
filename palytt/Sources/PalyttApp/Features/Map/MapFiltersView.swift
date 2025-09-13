@@ -324,50 +324,50 @@ struct MapCategoryFilterChip: View {
 
 // MARK: - Food Category Enum
 enum FoodCategory: String, CaseIterable {
-    case asian = "asian"
-    case italian = "italian"
-    case mexican = "mexican"
     case american = "american"
-    case indian = "indian"
-    case dessert = "dessert"
+    case asian = "asian"
     case coffee = "coffee"
+    case dessert = "dessert"
     case fastFood = "fast_food"
     case healthy = "healthy"
-    case vegetarian = "vegetarian"
-    case vegan = "vegan"
+    case indian = "indian"
+    case italian = "italian"
+    case mexican = "mexican"
     case streetFood = "street_food"
+    case vegan = "vegan"
+    case vegetarian = "vegetarian"
     
     var displayName: String {
         switch self {
-        case .asian: return "Asian"
-        case .italian: return "Italian"
-        case .mexican: return "Mexican"
         case .american: return "American"
-        case .indian: return "Indian"
-        case .dessert: return "Dessert"
+        case .asian: return "Asian"
         case .coffee: return "Coffee"
+        case .dessert: return "Dessert"
         case .fastFood: return "Fast Food"
         case .healthy: return "Healthy"
-        case .vegetarian: return "Vegetarian"
-        case .vegan: return "Vegan"
+        case .indian: return "Indian"
+        case .italian: return "Italian"
+        case .mexican: return "Mexican"
         case .streetFood: return "Street Food"
+        case .vegan: return "Vegan"
+        case .vegetarian: return "Vegetarian"
         }
     }
     
     var icon: String {
         switch self {
-        case .asian: return "🍜"
-        case .italian: return "🍝"
-        case .mexican: return "🌮"
         case .american: return "🍔"
-        case .indian: return "🍛"
-        case .dessert: return "🍰"
+        case .asian: return "🍜"
         case .coffee: return "☕"
+        case .dessert: return "🍰"
         case .fastFood: return "🍟"
         case .healthy: return "🥗"
-        case .vegetarian: return "🥬"
-        case .vegan: return "🌱"
+        case .indian: return "🍛"
+        case .italian: return "🍝"
+        case .mexican: return "🌮"
         case .streetFood: return "🍡"
+        case .vegan: return "🌱"
+        case .vegetarian: return "🥬"
         }
     }
 }

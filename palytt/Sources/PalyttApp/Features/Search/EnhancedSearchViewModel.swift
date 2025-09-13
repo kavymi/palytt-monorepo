@@ -355,19 +355,19 @@ struct SearchFilters {
     }
     
     enum SortOption: String, CaseIterable {
-        case relevance = "relevance"
         case distance = "distance"
-        case rating = "rating"
         case newest = "newest"
         case popular = "popular"
+        case rating = "rating"
+        case relevance = "relevance"
         
         var title: String {
             switch self {
-            case .relevance: return "Relevance"
             case .distance: return "Distance"
-            case .rating: return "Rating"
             case .newest: return "Newest"
             case .popular: return "Most Popular"
+            case .rating: return "Rating"
+            case .relevance: return "Relevance"
             }
         }
     }

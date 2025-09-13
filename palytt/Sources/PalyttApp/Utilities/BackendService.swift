@@ -892,10 +892,9 @@ class BackendService: ObservableObject {
                                     foodItem: tRPCPost.title,
                                     tags: tRPCPost.tags,
                                     rating: {
-                                        if let ratingString = tRPCPost.metadata["rating"] as? String {
-                                            return Double(ratingString)
-                                        } else if let ratingNumber = tRPCPost.metadata["rating"] as? NSNumber {
-                                            return ratingNumber.doubleValue
+                                        if let ratingString = tRPCPost.metadata["rating"] as? String,
+                                           let ratingValue = Double(ratingString) {
+                                            return ratingValue
                                         }
                                         return nil
                                     }(),

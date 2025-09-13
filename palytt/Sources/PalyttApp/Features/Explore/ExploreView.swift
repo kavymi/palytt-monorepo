@@ -110,14 +110,12 @@ struct ExploreView: View {
     enum MapContentType: String, CaseIterable {
         case myPosts = "My Posts"
         case friendsPosts = "Friends' Posts"
-        case nearbyPlaces = "Nearby Places"
         case everything = "Everything"
         
         var icon: String {
             switch self {
             case .myPosts: return "person.crop.circle.fill"
             case .friendsPosts: return "person.2.fill"
-            case .nearbyPlaces: return "location.fill"
             case .everything: return "globe"
             }
         }
@@ -126,17 +124,15 @@ struct ExploreView: View {
             switch self {
             case .myPosts: return .orange
             case .friendsPosts: return .blue
-            case .nearbyPlaces: return .shopsPlaces
             case .everything: return .purple
             }
         }
         
         var description: String {
             switch self {
-            case .myPosts: return "Your food posts"
-            case .friendsPosts: return "Posts from friends"
-            case .nearbyPlaces: return "Restaurants & cafes"
-            case .everything: return "Palytt"
+            case .myPosts: return ""
+            case .friendsPosts: return ""
+            case .everything: return ""
             }
         }
     }
@@ -150,6 +146,12 @@ struct ExploreView: View {
                 mapViewModel: mapViewModel,
                 exploreViewModel: viewModel,
                 contentType: contentType
+            )
+        }
+        .sheet(isPresented: $showContentPicker) {
+            ContentTypePickerSheet(
+                selectedType: $contentType,
+                isPresented: $showContentPicker
             )
         }
         .fullScreenCover(isPresented: $showingPostDetail) {
@@ -196,34 +198,28 @@ struct ExploreView: View {
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
                     Button(action: {
-                        HapticManager.shared.impact(.light)
-                        viewModel.toggleShowOnlyFavorites()
-                        Task {
-                            await viewModel.applyFilters()
+                        withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                            showContentPicker.toggle()
                         }
+                        HapticManager.shared.impact(.light)
                     }) {
-                        Image(systemName: viewModel.showOnlyFavorites ? "heart.fill" : "heart")
-                            .foregroundColor(viewModel.showOnlyFavorites ? .red : .primaryBrand)
+                        HStack(spacing: 6) {
+                            Image(systemName: contentType.icon)
+                                .font(.system(size: 14, weight: .semibold))
+                            Text(contentType.rawValue)
+                                .font(.system(size: 14, weight: .medium))
+                        }
+                        .foregroundColor(.primaryBrand)
                     }
                 }
                 
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    HStack(spacing: 12) {
-                        Button(action: { 
-                            HapticManager.shared.impact(.light)
-                            showFilters = true 
-                        }) {
-                            Image(systemName: "line.3.horizontal.decrease")
-                                .foregroundColor(.primaryText)
-                        }
-                        
-                        Button(action: {
-                            HapticManager.shared.impact(.medium)
-                            appState.selectedTab = .create
-                        }) {
-                            Image(systemName: "plus")
-                                .foregroundColor(.primaryBrand)
-                        }
+                    Button(action: { 
+                        HapticManager.shared.impact(.light)
+                        showFilters = true 
+                    }) {
+                        Image(systemName: "line.3.horizontal.decrease")
+                            .foregroundColor(.primaryText)
                     }
                 }
             }
@@ -590,7 +586,7 @@ struct ExploreView: View {
                 }
                 
                 // Nearby Places
-                if contentType == .nearbyPlaces || contentType == .everything {
+                if contentType == .everything {
                     ForEach(viewModel.nearbyShops) { shop in
                         Annotation(shop.name, coordinate: CLLocationCoordinate2D(
                             latitude: shop.location.latitude,
@@ -616,19 +612,9 @@ struct ExploreView: View {
                 MapScaleView()
             }
             
-            // UX Enhancement: Floating Content Type Picker & Location Button
+            // Location Focus Button (moved to bottom-right only)
             VStack {
-                HStack {
-                    Spacer()
-                    ContentTypePicker(
-                        selectedType: $contentType,
-                        isExpanded: $showContentPicker
-                    )
-                    .padding(.trailing)
-                }
                 Spacer()
-                
-                // Location Focus Button
                 HStack {
                     Spacer()
                     LocationFocusButton(locationManager: locationManager) { zoomLevel in
@@ -638,7 +624,6 @@ struct ExploreView: View {
                     .padding(.bottom, calculateLocationButtonPadding())
                 }
             }
-            .padding(.top, 10)
             
             // Bottom Content Area
             VStack {
@@ -728,8 +713,6 @@ struct ExploreView: View {
             return "My Food Map"
         case .friendsPosts:
             return "Friends' Food Map"
-        case .nearbyPlaces:
-            return "Near me"
         case .everything:
             return "Explore"
         }
@@ -755,17 +738,6 @@ struct ExploreView: View {
             }) {
                 Image(systemName: "arrow.clockwise")
                     .foregroundColor(.primaryBrand)
-            }
-        case .nearbyPlaces:
-            Button(action: {
-                HapticManager.shared.impact(.light)
-                viewModel.toggleShowOnlyFavorites()
-                Task {
-                    await viewModel.applyFilters()
-                }
-            }) {
-                Image(systemName: viewModel.showOnlyFavorites ? "heart.fill" : "heart")
-                    .foregroundColor(viewModel.showOnlyFavorites ? .red : .primaryBrand)
             }
         case .everything:
             Button(action: {
@@ -854,7 +826,7 @@ struct ExploreView: View {
     }
     
     private func loadNearbyPlacesFromAppleMaps(at location: CLLocation) async {
-        guard contentType == .nearbyPlaces || contentType == .everything else { return }
+        guard contentType == .everything else { return }
         
         let request = MKLocalSearch.Request()
         
@@ -959,14 +931,6 @@ struct ExploreView: View {
             await MainActor.run {
                 clusteredFriendsPosts = PostClusterManager.shared.clusterPosts(mapViewModel.mapPosts)
             }
-        case .nearbyPlaces:
-            if let userLocation = locationManager.currentLocation {
-                print("🗺️ ExploreView: Loading nearby places with user location")
-                await viewModel.loadNearbyShops(at: userLocation)
-            } else {
-                print("🗺️ ExploreView: Loading nearby places without user location")
-                await viewModel.loadNearbyShops()
-            }
         case .everything:
             print("🗺️ ExploreView: Loading everything - user posts, friends posts and nearby places")
             async let userPosts: Void = loadUserPosts()
@@ -1016,7 +980,7 @@ struct ExploreView: View {
             coordinates.append(contentsOf: clusteredFriendsPosts.map { $0.coordinate })
         }
         
-        if contentType == .nearbyPlaces || contentType == .everything {
+        if contentType == .everything {
             coordinates.append(contentsOf: viewModel.nearbyShops.map { 
                 CLLocationCoordinate2D(latitude: $0.location.latitude, longitude: $0.location.longitude)
             })
@@ -1097,6 +1061,56 @@ struct ExploreView: View {
         let previewCardPadding: CGFloat = hasPreviewCards ? 80 : 0
         
         return baseTabBarPadding + previewCardPadding
+    }
+}
+
+// MARK: - Content Type Picker Sheet
+
+struct ContentTypePickerSheet: View {
+    @Binding var selectedType: ExploreView.MapContentType
+    @Binding var isPresented: Bool
+    @Environment(\.dismiss) private var dismiss
+    
+    var body: some View {
+        NavigationStack {
+            List {
+                ForEach(ExploreView.MapContentType.allCases, id: \.self) { type in
+                    Button(action: {
+                        selectedType = type
+                        HapticManager.shared.impact(.medium)
+                        dismiss()
+                    }) {
+                        HStack(spacing: 12) {
+                            Image(systemName: type.icon)
+                                .foregroundColor(type.color)
+                                .frame(width: 24)
+                            
+                            Text(type.rawValue)
+                                .foregroundColor(.primaryText)
+                            
+                            Spacer()
+                            
+                            if selectedType == type {
+                                Image(systemName: "checkmark")
+                                    .foregroundColor(type.color)
+                            }
+                        }
+                        .padding(.vertical, 4)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .navigationTitle("Showing Content")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Done") {
+                        dismiss()
+                    }
+                    .foregroundColor(.primaryBrand)
+                }
+            }
+        }
     }
 }
 
@@ -2252,7 +2266,7 @@ struct UnifiedFiltersView: View {
                     }
                     
                     // Place filters for nearbyPlaces and everything
-                    if contentType == .nearbyPlaces || contentType == .everything {
+                    if contentType == .everything {
                         // Drinks filter for places
                         VStack(alignment: .leading, spacing: 12) {
                             Text("Drinks")
@@ -2343,6 +2357,7 @@ struct UnifiedFiltersView: View {
                 }
                 .padding()
             }
+            .background(Color.background)
             .navigationTitle("Filters")
 #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
@@ -2365,7 +2380,7 @@ struct UnifiedFiltersView: View {
                         Task {
                             if contentType == .friendsPosts || contentType == .myPosts {
                                 await mapViewModel.applyFilters()
-                            } else if contentType == .nearbyPlaces || contentType == .everything {
+                            } else if contentType == .everything {
                                 await exploreViewModel.applyFilters()
                             }
                             dismiss()
@@ -2381,7 +2396,7 @@ struct UnifiedFiltersView: View {
                         Task {
                             if contentType == .friendsPosts || contentType == .myPosts {
                                 await mapViewModel.applyFilters()
-                            } else if contentType == .nearbyPlaces || contentType == .everything {
+                            } else if contentType == .everything {
                                 await exploreViewModel.applyFilters()
                             }
                             dismiss()

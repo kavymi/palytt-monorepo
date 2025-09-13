@@ -10,7 +10,6 @@
 		07B442EB32A0702A1C837371 /* HapticManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = ADD0508842B853997D589AE1 /* HapticManager.swift */; };
 		0D300B94A560C89A26CA7A9F /* appstore.png in Resources */ = {isa = PBXBuildFile; fileRef = 3433C308D7E93531DE06C1E0 /* appstore.png */; };
 		0DA9CDA866F289E5343564FD /* Colors.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5F439A1F980BED1B1C79B1E1 /* Colors.swift */; };
-		0EE10ED171EA1C7A33F1915F /* README.md in Resources */ = {isa = PBXBuildFile; fileRef = F1D197632D68F4218E3ED582 /* README.md */; };
 		107AE5B34553630E5C3F9820 /* Alamofire in Frameworks */ = {isa = PBXBuildFile; productRef = E1B5768037714669647880E1 /* Alamofire */; };
 		118445366BD546DEBEECC45F /* BackendService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 86B8F108EA6649D1AD990C65 /* BackendService.swift */; };
 		12B6EF08A02A9C12C7048340 /* HomeViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = E72A4AA4F950E158E8B7CE7D /* HomeViewModel.swift */; };
@@ -139,7 +138,6 @@
 		DDB106E9A367E653C8F44547 /* FollowersListView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = FollowersListView.swift; sourceTree = "<group>"; };
 		E72A4AA4F950E158E8B7CE7D /* HomeViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeViewModel.swift; sourceTree = "<group>"; };
 		EMPTYSTATE123456789ABCDEF /* EmptyStateView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmptyStateView.swift; sourceTree = "<group>"; };
-		F1D197632D68F4218E3ED582 /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
 		FCD48A105EA06D59E5F68177 /* SaveOptionsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SaveOptionsView.swift; sourceTree = "<group>"; };
 		GROUPGATHER123456789ABCDE /* GroupGathering.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GroupGathering.swift; sourceTree = "<group>"; };
 		GROUPGATHERV12456789ABCDE /* GroupGatheringView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GroupGatheringView.swift; sourceTree = "<group>"; };
@@ -255,7 +253,6 @@
 				4ABEFE489013663AEA2C2F10 /* Assets.xcassets */,
 				5C3F7A75D238479CE653FB13 /* palytt-logo.png */,
 				42E2C81C4F3AB5148A7E3FA6 /* playstore.png */,
-				F1D197632D68F4218E3ED582 /* README.md */,
 			);
 			path = Images;
 			sourceTree = "<group>";
@@ -573,7 +570,6 @@
 			files = (
 				5C7E6F7A9F8BBE6450F77FF8 /* Assets.xcassets in Resources */,
 				C68EB754B3A8F56B139B0673 /* Assets.xcassets in Resources */,
-				0EE10ED171EA1C7A33F1915F /* README.md in Resources */,
 				0D300B94A560C89A26CA7A9F /* appstore.png in Resources */,
 				C158FCF50D0B8007D534D006 /* palytt-logo.png in Resources */,
 				B65260DBD21542A5F13614EA /* playstore.png in Resources */,
@@ -596,6 +592,7 @@
 			outputFileListPaths = (
 			);
 			outputPaths = (
+				"$(INFOPLIST_FILE)",
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;

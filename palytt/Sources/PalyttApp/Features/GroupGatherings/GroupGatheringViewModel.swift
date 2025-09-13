@@ -322,9 +322,16 @@ class GroupGatheringViewModel: ObservableObject {
     
     func requestCalendarPermission() async {
         do {
-            let granted = try await eventStore.requestAccess(to: .event)
-            await MainActor.run {
-                calendarAuthorizationStatus = granted ? .authorized : .denied
+            if #available(iOS 17.0, *) {
+                let granted = try await eventStore.requestFullAccessToEvents()
+                await MainActor.run {
+                    calendarAuthorizationStatus = granted ? .fullAccess : .denied
+                }
+            } else {
+                let granted = try await eventStore.requestAccess(to: .event)
+                await MainActor.run {
+                    calendarAuthorizationStatus = granted ? .authorized : .denied
+                }
             }
         } catch {
             await MainActor.run {
@@ -334,7 +341,14 @@ class GroupGatheringViewModel: ObservableObject {
     }
     
     func syncToCalendar() {
-        guard calendarAuthorizationStatus == .authorized,
+        // Check for both old and new authorization statuses
+        let isAuthorized = if #available(iOS 17.0, *) {
+            calendarAuthorizationStatus == .fullAccess || calendarAuthorizationStatus == .authorized
+        } else {
+            calendarAuthorizationStatus == .authorized
+        }
+        
+        guard isAuthorized,
               let finalDateTime = gathering.finalDateTime else {
             return
         }

@@ -21,25 +21,25 @@ struct UniversalSearchView: View {
     
     enum SearchCategory: String, CaseIterable {
         case all = "All"
-        case posts = "Posts"
-        case places = "Places"
         case people = "People"
+        case places = "Places"
+        case posts = "Posts"
         
         var icon: String {
             switch self {
             case .all: return "magnifyingglass"
-            case .posts: return "photo.on.rectangle"
-            case .places: return "location"
             case .people: return "person.2"
+            case .places: return "location"
+            case .posts: return "photo.on.rectangle"
             }
         }
         
         var color: Color {
             switch self {
             case .all: return .purple
-            case .posts: return .blue
-            case .places: return .shopsPlaces
             case .people: return .orange
+            case .places: return .shopsPlaces
+            case .posts: return .blue
             }
         }
     }
