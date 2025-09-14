@@ -27,105 +27,88 @@ struct SaveOptionsView: View {
     }
     
     var body: some View {
-        NavigationStack {
-            VStack(spacing: 0) {
-                // Create New List Button
-                Button(action: { showCreateList = true }) {
-                    HStack {
-                        Image(systemName: "plus.circle.fill")
-                            .font(.title2)
-                            .foregroundColor(.primaryBrand)
-                        
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("Create New List")
-                                .font(.headline)
-                                .foregroundColor(.primaryText)
-                            Text("Organize your saved posts")
-                                .font(.caption)
-                                .foregroundColor(.secondaryText)
-                        }
-                        
-                        Spacer()
-                    }
-                    .padding()
-                    .background(Color.matchaGreen.opacity(0.1))
-                    .cornerRadius(12)
-                }
-                .padding()
+        VStack(spacing: 0) {
+            // Header
+            HStack {
+                Text("Collect to")
+                    .font(.title2)
+                    .fontWeight(.bold)
+                    .foregroundColor(.primaryText)
                 
+                Spacer()
+                
+                Button(action: { showCreateList = true }) {
+                    HStack(spacing: 8) {
+                        Image(systemName: "plus")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundColor(.white)
+                            .frame(width: 24, height: 24)
+                            .background(Color.green)
+                            .clipShape(Circle())
+                        
+                        Text("New Collection")
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+                            .foregroundColor(.secondaryText)
+                    }
+                }
+            }
+            .padding(.horizontal, 20)
+            .padding(.top, 20)
+            .padding(.bottom, 16)
+            
+            // Lists
+            ScrollView {
+                LazyVStack(spacing: 0) {
+                    ForEach(userLists) { list in
+                        CollectionRow(
+                            list: list,
+                            isSelected: selectedLists.contains(list.id),
+                            onTap: {
+                                if selectedLists.contains(list.id) {
+                                    selectedLists.remove(list.id)
+                                } else {
+                                    selectedLists.insert(list.id)
+                                }
+                            }
+                        )
+                        .padding(.horizontal, 20)
+                        
+                        if list.id != userLists.last?.id {
+                            Divider()
+                                .padding(.horizontal, 20)
+                        }
+                    }
+                }
+            }
+            
+            // Confirm Button
+            VStack(spacing: 0) {
                 Divider()
                 
-                // Existing Lists
-                ScrollView {
-                    VStack(spacing: 12) {
-                        ForEach(userLists) { list in
-                            ListSelectionRow(
-                                list: list,
-                                isSelected: selectedLists.contains(list.id),
-                                onTap: {
-                                    if selectedLists.contains(list.id) {
-                                        selectedLists.remove(list.id)
-                                    } else {
-                                        selectedLists.insert(list.id)
-                                    }
-                                }
-                            )
-                        }
-                    }
-                    .padding()
+                Button(action: saveToLists) {
+                    Text("Confirm")
+                        .font(.headline)
+                        .fontWeight(.semibold)
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 50)
+                        .background(Color.green)
+                        .cornerRadius(12)
                 }
+                .padding(.horizontal, 20)
+                .padding(.vertical, 16)
+                .disabled(selectedLists.isEmpty)
+                .opacity(selectedLists.isEmpty ? 0.6 : 1.0)
             }
-            .navigationTitle("Save to List")
-            #if os(iOS)
-            .navigationBarTitleDisplayMode(.inline)
-            #endif
-            .toolbar {
-                #if os(iOS)
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Cancel") {
-                        dismiss()
-                    }
-                    .font(.headline)
-                    .fontWeight(.bold)
-                    .foregroundColor(.primaryBrand)
-                }
-                
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Save") {
-                        saveToLists()
-                    }
-                    .font(.headline)
-                    .fontWeight(.bold)
-                    .foregroundColor(.primaryBrand)
-                    .disabled(selectedLists.isEmpty)
-                }
-                #else
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") {
-                        dismiss()
-                    }
-                    .font(.headline)
-                    .fontWeight(.bold)
-                    .foregroundColor(.primaryBrand)
-                }
-                
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Save") {
-                        saveToLists()
-                    }
-                    .font(.headline)
-                    .fontWeight(.bold)
-                    .foregroundColor(.primaryBrand)
-                    .disabled(selectedLists.isEmpty)
-                }
-                #endif
-            }
-            .sheet(isPresented: $showCreateList) {
-                CreateSaveListView(onListCreated: { list in
-                    userLists.append(list)
-                    selectedLists.insert(list.id)
-                })
-            }
+            .background(Color.background)
+        }
+        .background(Color.background)
+        .sheet(isPresented: $showCreateList) {
+            CreateSaveListView(onListCreated: { list in
+                userLists.append(list)
+                selectedLists.insert(list.id)
+            })
         }
         .onAppear {
             loadUserLists()
@@ -143,7 +126,9 @@ struct SaveOptionsView: View {
             do {
                 guard let currentUserId = Clerk.shared.user?.id else {
                     print("⚠️ SaveOptionsView: No current user ID available")
-                    userLists = []
+                    await MainActor.run {
+                        userLists = [createDefaultList()]
+                    }
                     return
                 }
                 
@@ -165,14 +150,58 @@ struct SaveOptionsView: View {
                             updatedAt: Date(timeIntervalSince1970: Double(backendList.updatedAt) / 1000)
                         )
                     }
+                    
+                    // If no lists exist, create a default list
+                    if userLists.isEmpty {
+                        userLists = [createDefaultList()]
+                        // Also create the default list on the backend
+                        createDefaultListOnBackend()
+                    }
+                    
                     print("✅ SaveOptionsView: Loaded \(userLists.count) user lists")
                 }
                 
             } catch {
                 print("❌ SaveOptionsView: Failed to load user lists: \(error)")
                 await MainActor.run {
-                    userLists = []
+                    userLists = [createDefaultList()]
                 }
+            }
+        }
+    }
+    
+    private func createDefaultList() -> SavedList {
+        return SavedList(
+            name: "Saved Posts",
+            description: "Your default collection of saved posts",
+            userId: getCurrentUserId() ?? "unknown-user",
+            isPrivate: false
+        )
+    }
+    
+    private func createDefaultListOnBackend() {
+        Task {
+            do {
+                guard Clerk.shared.user?.id != nil else {
+                    print("⚠️ SaveOptionsView: No current user ID for creating default list")
+                    return
+                }
+                
+                let response = try await BackendService.shared.createList(
+                    name: "Saved Posts",
+                    description: "Your default collection of saved posts",
+                    isPrivate: false
+                )
+                
+                if response.success {
+                    print("✅ SaveOptionsView: Successfully created default list on backend")
+                    // Reload the lists to get the backend ID
+                    loadUserLists()
+                } else {
+                    print("❌ SaveOptionsView: Failed to create default list on backend")
+                }
+            } catch {
+                print("❌ SaveOptionsView: Error creating default list on backend: \(error)")
             }
         }
     }
@@ -215,54 +244,58 @@ struct SaveOptionsView: View {
     }
 }
 
-// MARK: - List Selection Row
-struct ListSelectionRow: View {
+// MARK: - Collection Row
+struct CollectionRow: View {
     let list: SavedList
     let isSelected: Bool
     let onTap: () -> Void
     
     var body: some View {
         Button(action: onTap) {
-            HStack(spacing: 12) {
-                // List Icon
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(LinearGradient.primaryGradient.opacity(0.3))
-                    .frame(width: 50, height: 50)
-                    .overlay(
-                        Text(list.name.prefix(2).uppercased())
-                            .font(.caption)
-                            .fontWeight(.bold)
-                            .foregroundColor(.primaryBrand)
-                    )
-                
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(list.name)
-                        .font(.subheadline)
-                        .fontWeight(.medium)
-                        .foregroundColor(.primaryText)
-                    
-                    HStack(spacing: 4) {
-                        Text("\(list.postCount) posts")
-                            .font(.caption)
-                            .foregroundColor(.secondaryText)
+            HStack(spacing: 16) {
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack(spacing: 8) {
+                        Text(list.name)
+                            .font(.headline)
+                            .fontWeight(.medium)
+                            .foregroundColor(.primaryText)
                         
-                        if list.isPrivate {
-                            Image(systemName: "lock.fill")
-                                .font(.caption2)
-                                .foregroundColor(.secondaryText)
+                        if list.name.lowercased() == "saved posts" {
+                            Text("Default")
+                                .font(.caption)
+                                .fontWeight(.medium)
+                                .foregroundColor(.green)
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 2)
+                                .background(Color.green.opacity(0.1))
+                                .cornerRadius(4)
                         }
                     }
+                    
+                    Text("\(list.postCount) models")
+                        .font(.subheadline)
+                        .foregroundColor(.secondaryText)
                 }
                 
                 Spacer()
                 
-                Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
-                    .font(.title3)
-                    .foregroundColor(isSelected ? .primaryBrand : .tertiaryText)
+                // Checkbox
+                RoundedRectangle(cornerRadius: 4)
+                    .fill(isSelected ? Color.green : Color.clear)
+                    .frame(width: 24, height: 24)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 4)
+                            .stroke(isSelected ? Color.green : Color.gray.opacity(0.3), lineWidth: 2)
+                    )
+                    .overlay(
+                        Image(systemName: "checkmark")
+                            .font(.system(size: 14, weight: .bold))
+                            .foregroundColor(.white)
+                            .opacity(isSelected ? 1 : 0)
+                    )
             }
-            .padding()
-            .background(isSelected ? Color.primaryBrand.opacity(0.1) : Color.cardBackground)
-            .cornerRadius(12)
+            .padding(.vertical, 16)
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
     }
@@ -402,9 +435,9 @@ struct CreateSaveListView: View {
         isPrivate: false
     )
     
-    return VStack(spacing: 12) {
-        ListSelectionRow(list: mockList, isSelected: true) { }
-        ListSelectionRow(list: mockList, isSelected: false) { }
+    VStack(spacing: 12) {
+        CollectionRow(list: mockList, isSelected: true) { }
+        CollectionRow(list: mockList, isSelected: false) { }
     }
     .padding()
 } 
