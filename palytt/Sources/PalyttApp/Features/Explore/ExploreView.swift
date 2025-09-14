@@ -110,12 +110,14 @@ struct ExploreView: View {
     enum MapContentType: String, CaseIterable {
         case myPosts = "My Posts"
         case friendsPosts = "Friends' Posts"
+        case nearbyPlaces = "Nearby Places"
         case everything = "Everything"
         
         var icon: String {
             switch self {
             case .myPosts: return "person.crop.circle.fill"
             case .friendsPosts: return "person.2.fill"
+            case .nearbyPlaces: return "location.fill"
             case .everything: return "globe"
             }
         }
@@ -124,15 +126,17 @@ struct ExploreView: View {
             switch self {
             case .myPosts: return .orange
             case .friendsPosts: return .blue
+            case .nearbyPlaces: return .green
             case .everything: return .purple
             }
         }
         
         var description: String {
             switch self {
-            case .myPosts: return ""
-            case .friendsPosts: return ""
-            case .everything: return ""
+            case .myPosts: return "Your food posts"
+            case .friendsPosts: return "Posts from friends"
+            case .nearbyPlaces: return "Restaurants & cafes"
+            case .everything: return "Palytt"
             }
         }
     }
@@ -713,6 +717,8 @@ struct ExploreView: View {
             return "My Food Map"
         case .friendsPosts:
             return "Friends' Food Map"
+        case .nearbyPlaces:
+            return "Nearby Places"
         case .everything:
             return "Explore"
         }
@@ -734,6 +740,19 @@ struct ExploreView: View {
             Button(action: {
                 Task {
                     await mapViewModel.refreshPosts()
+                }
+            }) {
+                Image(systemName: "arrow.clockwise")
+                    .foregroundColor(.primaryBrand)
+            }
+        case .nearbyPlaces:
+            Button(action: {
+                Task {
+                    if let userLocation = locationManager.currentLocation {
+                        await viewModel.loadNearbyShops(at: userLocation)
+                    } else {
+                        await viewModel.loadNearbyShops()
+                    }
                 }
             }) {
                 Image(systemName: "arrow.clockwise")
@@ -930,6 +949,13 @@ struct ExploreView: View {
             await loadFollowingPosts()
             await MainActor.run {
                 clusteredFriendsPosts = PostClusterManager.shared.clusterPosts(mapViewModel.mapPosts)
+            }
+        case .nearbyPlaces:
+            print("🗺️ ExploreView: Loading nearby places only")
+            if let userLocation = locationManager.currentLocation {
+                await viewModel.loadNearbyShops(at: userLocation)
+            } else {
+                await viewModel.loadNearbyShops()
             }
         case .everything:
             print("🗺️ ExploreView: Loading everything - user posts, friends posts and nearby places")
@@ -2142,10 +2168,34 @@ struct UnifiedFiltersView: View {
     let contentType: ExploreView.MapContentType
     @Environment(\.dismiss) private var dismiss
     
+    @ViewBuilder
+    private var distanceFilterSection: some View {
+        if contentType == .nearbyPlaces || contentType == .everything {
+            VStack(alignment: .leading, spacing: 12) {
+                Text("Distance")
+                    .font(.headline)
+                
+                HStack {
+                    Text("\(Int(exploreViewModel.maxDistance)) miles")
+                        .font(.subheadline)
+                        .foregroundColor(.secondaryText)
+                    
+                    Slider(value: $exploreViewModel.maxDistance, in: 1...50, step: 1)
+                        .tint(.primaryBrand)
+                }
+            }
+            
+            Divider()
+        }
+    }
+    
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 24) {
+                    // Distance filter (shown for nearbyPlaces and everything)
+                    distanceFilterSection
+                    
                     // Post filters for friendsPosts and myPosts
                     if contentType == .friendsPosts || contentType == .myPosts {
                         // User Type Filter Section
@@ -2315,21 +2365,6 @@ struct UnifiedFiltersView: View {
                                         exploreViewModel.toggleDessert(dessert)
                                     }
                                 }
-                            }
-                        }
-                        
-                        // Distance filter
-                        VStack(alignment: .leading, spacing: 12) {
-                            Text("Distance")
-                                .font(.headline)
-                            
-                            HStack {
-                                Text("\(Int(exploreViewModel.maxDistance)) miles")
-                                    .font(.subheadline)
-                                    .foregroundColor(.secondaryText)
-                                
-                                Slider(value: $exploreViewModel.maxDistance, in: 1...50, step: 1)
-                                    .tint(.primaryBrand)
                             }
                         }
                     }
