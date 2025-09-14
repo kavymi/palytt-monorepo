@@ -7,23 +7,33 @@ import { appRouter } from './routers/app.js';
 
 const isProduction = process.env.NODE_ENV === 'production';
 const isDevelopment = !isProduction && process.env.NODE_ENV !== 'test';
+const isDocker = process.env.DOCKER === 'true' || process.env.IS_DOCKER === 'true';
+
+// Create logger configuration with fallback for missing pino-pretty
+const createLoggerConfig = () => {
+  // Use pino-pretty only in local development (not in Docker)
+  if (isDevelopment && !isDocker) {
+    return {
+      level: 'debug',
+      transport: {
+        target: 'pino-pretty',
+        options: {
+          colorize: true,
+          translateTime: 'HH:MM:ss Z',
+          ignore: 'pid,hostname',
+        },
+      },
+    };
+  }
+  
+  // For Docker or production, use basic logging
+  return {
+    level: isProduction ? 'info' : 'debug',
+  };
+};
 
 const server = Fastify({
-  logger: isDevelopment
-    ? {
-        level: 'debug',
-        transport: {
-          target: 'pino-pretty',
-          options: {
-            colorize: true,
-            translateTime: 'HH:MM:ss Z',
-            ignore: 'pid,hostname',
-          },
-        },
-      }
-    : {
-        level: isProduction ? 'info' : 'error',
-      },
+  logger: createLoggerConfig(),
   maxParamLength: 5000,
 });
 
