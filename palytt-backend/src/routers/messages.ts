@@ -1,6 +1,6 @@
 import { z } from 'zod';
-import { router, publicProcedure, protectedProcedure } from '../trpc';
-import { prisma } from '../db';
+import { router, protectedProcedure } from '../trpc.js';
+import { prisma } from '../db.js';
 
 export const messagesRouter = router({
   // Get all chatrooms for the current user

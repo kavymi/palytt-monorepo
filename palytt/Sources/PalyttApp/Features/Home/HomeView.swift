@@ -32,35 +32,94 @@ struct HomeView: View {
         appState.homeViewModel
     }
     
+    @ViewBuilder
+    private var feedStatusSection: some View {
+        if viewModel.isUsingPersonalizedFeed, let feedStats = viewModel.feedStats {
+            FeedStatusIndicatorView(feedStats: feedStats)
+                .padding(.horizontal)
+                .padding(.top, 8)
+        }
+    }
+    
+    @ViewBuilder
+    private var connectionStatusSection: some View {
+        if !backendService.isAPIHealthy {
+            HStack(spacing: 8) {
+                Image(systemName: "wifi.slash")
+                    .foregroundColor(.red)
+                Text("Connection issues detected")
+                    .font(.caption)
+                    .foregroundColor(.red)
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
+            .background(
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(Color.red.opacity(0.1))
+                    .stroke(Color.red.opacity(0.3), lineWidth: 1)
+            )
+            .padding(.horizontal)
+        }
+    }
+    
+    @ViewBuilder
+    private var mainContentSection: some View {
+        if viewModel.isLoading && viewModel.posts.isEmpty {
+            // Initial loading skeleton
+            ForEach(0..<3, id: \.self) { _ in
+                PostCardSkeleton()
+                    .padding(.horizontal)
+            }
+        } else if viewModel.posts.isEmpty && !viewModel.isLoading {
+            // Empty state
+            EmptyFeedView()
+        } else {
+            // Posts grid
+            ForEach(viewModel.posts, id: \.id) { post in
+                PostCard(
+                    post: post,
+                    onLike: { postId in
+                        Task {
+                            await viewModel.toggleLike(for: postId)
+                        }
+                    },
+                    onBookmark: { postId in
+                        Task {
+                            await viewModel.toggleBookmark(for: postId)
+                        }
+                    },
+                    onBookmarkNavigate: {
+                        HapticManager.shared.impact(.medium)
+                        appState.selectedTab = .profile
+                    }
+                )
+                .padding(.horizontal)
+                .onAppear {
+                    viewModel.checkForMorePosts(currentPost: post)
+                }
+                .transition(.slide.combined(with: .opacity))
+            }
+            
+            // Loading more indicator
+            if viewModel.isLoadingMore {
+                LoadingMoreView()
+                    .padding(.vertical)
+            }
+            
+            // End of content indicator
+            if !viewModel.hasMorePages && !viewModel.posts.isEmpty {
+                EndOfContentView()
+                    .padding(.vertical)
+            }
+        }
+    }
+    
     var body: some View {
         NavigationStack {
             ScrollView(.vertical, showsIndicators: false) {
                 LazyVStack(spacing: 8) {
-                    // Feed Status Indicator
-                    if viewModel.isUsingPersonalizedFeed, let feedStats = viewModel.feedStats {
-                        FeedStatusIndicatorView(feedStats: feedStats)
-                            .padding(.horizontal)
-                            .padding(.top, 8)
-                    }
-                    
-                    // Simple connection status indicator
-                    if !backendService.isAPIHealthy {
-                        HStack(spacing: 8) {
-                            Image(systemName: "wifi.slash")
-                                .foregroundColor(.red)
-                            Text("Connection issues detected")
-                                .font(.caption)
-                                .foregroundColor(.red)
-                        }
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 6)
-                        .background(
-                            RoundedRectangle(cornerRadius: 8)
-                                .fill(Color.red.opacity(0.1))
-                                .stroke(Color.red.opacity(0.3), lineWidth: 1)
-                        )
-                        .padding(.horizontal)
-                    }
+                    feedStatusSection
+                    connectionStatusSection
                     // Real-time updates feed (temporarily disabled)
                     // if !realtimeService.liveUpdates.isEmpty || !offlineManager.isOffline {
                     //     VStack(spacing: 12) {
@@ -78,78 +137,7 @@ struct HomeView: View {
                     // }
                     
                     // Main content
-                    if viewModel.isLoading && viewModel.posts.isEmpty {
-                        // Initial loading skeleton
-                        ForEach(0..<3, id: \.self) { _ in
-                            PostCardSkeleton()
-                                .padding(.horizontal)
-                        }
-                    } else if viewModel.posts.isEmpty && !viewModel.isLoading {
-                        // Empty state
-                        EmptyFeedView()
-                    } else {
-                        // Posts grid
-                        ForEach(viewModel.posts, id: \.id) { post in
-                            PostCard(
-                                post: post,
-                                onLike: { postId in
-                                    Task {
-                                        await viewModel.toggleLike(for: postId)
-                                        
-                                        // Track analytics and real-time update
-                                        // AnalyticsManager.shared.trackPostInteraction(action: "like", postId: postId.uuidString)
-                                        
-                                        // let liveUpdate = LiveUpdate(
-                                        //     id: UUID().uuidString,
-                                        //     type: .newLike,
-                                        //     data: ["postId": postId, "userId": "current_user"],
-                                        //     timestamp: Date()
-                                        // )
-                                        // await realtimeService.sendLiveUpdate(liveUpdate)
-                                    }
-                                },
-                                onBookmark: { postId in
-                                    Task {
-                                        await viewModel.toggleBookmark(for: postId)
-                                        
-                                        // Track analytics
-                                        // AnalyticsManager.shared.trackPostInteraction(action: "bookmark", postId: postId.uuidString)
-                                    }
-                                },
-                                onBookmarkNavigate: {
-                                    // Add haptic feedback
-                                    HapticManager.shared.impact(.medium)
-                                    appState.selectedTab = .saved
-                                    
-                                    // Track navigation (temporarily disabled)
-                                    // analyticsService.trackUserAction(.profileView, properties: ["destination": "saved"])
-                                }
-                            )
-                            .padding(.horizontal)
-                            .onAppear {
-                                // Optimized infinite scroll with 70% threshold
-                                viewModel.checkForMorePosts(currentPost: post)
-                                
-                                // Cache post for offline support (temporarily disabled)
-                                // Task {
-                                //     await offlineManager.cachePost(post)
-                                // }
-                            }
-                            .transition(.slide.combined(with: .opacity))
-                        }
-                        
-                        // Loading more indicator
-                        if viewModel.isLoadingMore {
-                            LoadingMoreView()
-                                .padding(.vertical)
-                        }
-                        
-                        // End of content indicator
-                        if !viewModel.hasMorePages && !viewModel.posts.isEmpty {
-                            EndOfContentView()
-                                .padding(.vertical)
-                        }
-                    }
+                    mainContentSection
                 }
                 .padding(.vertical, 4)
             }

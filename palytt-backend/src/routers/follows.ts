@@ -1,6 +1,6 @@
 import { z } from 'zod';
-import { router, publicProcedure, protectedProcedure } from '../trpc';
-import { prisma } from '../db';
+import { router, publicProcedure, protectedProcedure } from '../trpc.js';
+import { prisma } from '../db.js';
 
 export const followsRouter = router({
   // Follow a user

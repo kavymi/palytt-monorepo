@@ -2,17 +2,17 @@ import { router, protectedProcedure, publicProcedure } from '../trpc.js';
 import { z } from 'zod';
 import { prisma, ensureUser } from '../db.js';
 
-// Input schemas
-const ListSchema = z.object({
-  id: z.string().uuid(),
-  name: z.string(),
-  description: z.string().nullable(),
-  userId: z.string().uuid(),
-  isPrivate: z.boolean(),
-  coverImageUrl: z.string().url().nullable(),
-  createdAt: z.string(),
-  updatedAt: z.string(),
-});
+// Input schemas (for future use)
+// const ListSchema = z.object({
+//   id: z.string().uuid(),
+//   name: z.string(),
+//   description: z.string().nullable(),
+//   userId: z.string().uuid(),
+//   isPrivate: z.boolean(),
+//   coverImageUrl: z.string().url().nullable(),
+//   createdAt: z.string(),
+//   updatedAt: z.string(),
+// });
 
 export const listsRouter = router({
   /**
