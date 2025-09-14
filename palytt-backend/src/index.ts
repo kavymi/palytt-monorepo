@@ -5,20 +5,25 @@ import { fastifyTRPCPlugin } from '@trpc/server/adapters/fastify';
 import { createContext } from './trpc.js';
 import { appRouter } from './routers/app.js';
 
+const isProduction = process.env.NODE_ENV === 'production';
+const isDevelopment = !isProduction && process.env.NODE_ENV !== 'test';
+
 const server = Fastify({
-  logger: {
-    level: process.env.NODE_ENV === 'production' ? 'info' : 'debug',
-    transport: process.env.NODE_ENV !== 'production' 
-      ? {
+  logger: isDevelopment
+    ? {
+        level: 'debug',
+        transport: {
           target: 'pino-pretty',
           options: {
             colorize: true,
             translateTime: 'HH:MM:ss Z',
             ignore: 'pid,hostname',
           },
-        }
-      : undefined,
-  },
+        },
+      }
+    : {
+        level: isProduction ? 'info' : 'error',
+      },
   maxParamLength: 5000,
 });
 
