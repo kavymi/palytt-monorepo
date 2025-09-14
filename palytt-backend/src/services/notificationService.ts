@@ -9,7 +9,8 @@
 //
 
 import { prisma } from '../db.js';
-import type { NotificationType } from '@prisma/client';
+import type pkg from '@prisma/client';
+type NotificationType = pkg.NotificationType;
 
 export interface NotificationData {
   postId?: string;
