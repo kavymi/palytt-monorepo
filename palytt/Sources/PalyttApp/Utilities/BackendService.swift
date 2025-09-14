@@ -2276,7 +2276,7 @@ class BackendService: ObservableObject {
 
     // MARK: - Generic tRPC Request Handler
     
-    private func performTRPCQuery<T: Codable, R: Codable>(
+    func performTRPCQuery<T: Codable, R: Codable>(
         procedure: String,
         input: T
     ) async throws -> R {
@@ -2284,7 +2284,7 @@ class BackendService: ObservableObject {
         return try await performTRPCRequest(procedure: procedure, input: input, method: .get)
     }
     
-    private func performTRPCMutation<T: Codable, R: Codable>(
+    func performTRPCMutation<T: Codable, R: Codable>(
         procedure: String,
         input: T
     ) async throws -> R {

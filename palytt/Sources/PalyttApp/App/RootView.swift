@@ -205,15 +205,15 @@ struct MainTabView: View {
                     HomeView()
                 case .explore:
                     ExploreView()
-                case .saved:
-                    SavedView()
+                case .notifications:
+                    NotificationsView()
                 case .profile:
                     ProfileView()
                 default:
                     HomeView()
                 }
-            case .saved:
-                SavedView()
+            case .notifications:
+                NotificationsView()
             case .profile:
                 ProfileView()
         }
@@ -328,9 +328,10 @@ struct CustomTabBar: View {
             )
             
             TabBarButton(
-                icon: "bookmark.fill",
-                tab: .saved,
-                selectedTab: $appState.selectedTab
+                icon: "bell.fill",
+                tab: .notifications,
+                selectedTab: $appState.selectedTab,
+                showBadge: true
             )
             
             TabBarButton(
@@ -355,6 +356,7 @@ struct TabBarButton: View {
     let tab: AppTab
     @Binding var selectedTab: AppTab
     var isSpecial: Bool = false
+    var showBadge: Bool = false
     
     var isSelected: Bool {
         selectedTab == tab
@@ -367,22 +369,36 @@ struct TabBarButton: View {
                 selectedTab = tab
             }
         }) {
-            VStack(spacing: 4) {
-                Image(systemName: icon)
-                    .font(.system(size: isSpecial ? 28 : 24))
-                    .foregroundColor(isSelected ? .primaryBrand : .tertiaryText)
-                    .scaleEffect(isSelected ? 1.15 : 1.0)
-                    .rotationEffect(.degrees(isSelected && !isSpecial ? 10 : 0))
-                    .animation(.spring(response: 0.3, dampingFraction: 0.5), value: isSelected)
+            ZStack {
+                VStack(spacing: 4) {
+                    Image(systemName: icon)
+                        .font(.system(size: isSpecial ? 28 : 24))
+                        .foregroundColor(isSelected ? .primaryBrand : .tertiaryText)
+                        .scaleEffect(isSelected ? 1.15 : 1.0)
+                        .rotationEffect(.degrees(isSelected && !isSpecial ? 10 : 0))
+                        .animation(.spring(response: 0.3, dampingFraction: 0.5), value: isSelected)
+                    
+                    if isSelected && !isSpecial {
+                        Circle()
+                            .fill(Color.primaryBrand)
+                            .frame(width: 5, height: 5)
+                            .transition(.scale.combined(with: .opacity))
+                    }
+                }
+                .frame(maxWidth: .infinity)
                 
-                if isSelected && !isSpecial {
-                    Circle()
-                        .fill(Color.primaryBrand)
-                        .frame(width: 5, height: 5)
-                        .transition(.scale.combined(with: .opacity))
+                // Notification badge
+                if showBadge {
+                    VStack {
+                        HStack {
+                            Spacer()
+                            TabBarNotificationBadge()
+                                .offset(x: -8, y: 8)
+                        }
+                        Spacer()
+                    }
                 }
             }
-            .frame(maxWidth: .infinity)
         }
         .scaleEffect(isSpecial ? 1.2 : 1.0)
     }

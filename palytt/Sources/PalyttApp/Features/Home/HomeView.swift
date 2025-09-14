@@ -20,7 +20,7 @@ struct HomeView: View {
     @EnvironmentObject var appState: AppState
     @State private var showNotifications = false
     
-    @ObservedObject private var notificationService = PalyttNotificationService.shared
+    @ObservedObject private var notificationService = NotificationService.shared
     private let backendService = BackendService.shared
     // @StateObject private var realtimeService = RealtimeService.shared
     // @StateObject private var analyticsService = AnalyticsService.shared
@@ -34,7 +34,7 @@ struct HomeView: View {
     
     var body: some View {
         NavigationStack {
-            ScrollView {
+            ScrollView(.vertical, showsIndicators: false) {
                 LazyVStack(spacing: 8) {
                     // Feed Status Indicator
                     if viewModel.isUsingPersonalizedFeed, let feedStats = viewModel.feedStats {

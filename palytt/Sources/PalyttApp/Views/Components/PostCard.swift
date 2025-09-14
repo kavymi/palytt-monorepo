@@ -225,45 +225,56 @@ struct PostCard: View {
         }
         .offset(x: -CGFloat(currentImageIndex) * geometry.size.width + dragOffset)
         .animation(.interactiveSpring(response: 0.6, dampingFraction: 0.8, blendDuration: 0.1), value: currentImageIndex)
-        .gesture(carouselDragGesture(geometry: geometry))
+        .simultaneousGesture(carouselDragGesture(geometry: geometry))
     }
     
     private func carouselDragGesture(geometry: GeometryProxy) -> some Gesture {
-        DragGesture()
+        DragGesture(minimumDistance: 0, coordinateSpace: .local)
             .onChanged { value in
-                // Only handle horizontal drags if they're significant
                 let horizontalAmount = abs(value.translation.width)
                 let verticalAmount = abs(value.translation.height)
                 
-                // If vertical drag is more significant, don't handle the gesture
-                if verticalAmount > horizontalAmount && verticalAmount > 20 {
-                    return
-                }
-                
-                // Only start handling if horizontal drag is significant
-                if horizontalAmount > 10 {
+                // Only handle horizontal drags for carousel navigation
+                // Require a more significant horizontal movement before taking control
+                if horizontalAmount > verticalAmount && horizontalAmount > 30 {
                     isDragging = true
                     dragOffset = value.translation.width
                 }
-            }
-            .onEnded { value in
-                isDragging = false
-                let threshold: CGFloat = 50
-                let dragThreshold = geometry.size.width * 0.25
-                
-                withAnimation(.spring(response: 0.6, dampingFraction: 0.8)) {
-                    if abs(value.translation.width) > threshold {
-                        if value.translation.width > 0 && currentImageIndex > 0 {
-                            currentImageIndex -= 1
-                        } else if value.translation.width < 0 && currentImageIndex < min(post.mediaURLs.count, 6) - 1 {
-                            currentImageIndex += 1
-                        }
-                    }
+                // If it's primarily a vertical drag, don't interfere with scroll
+                else if verticalAmount > horizontalAmount {
+                    isDragging = false
                     dragOffset = 0
                 }
+            }
+            .onEnded { value in
+                let horizontalAmount = abs(value.translation.width)
+                let verticalAmount = abs(value.translation.height)
                 
-                if abs(value.translation.width) > dragThreshold {
-                    HapticManager.shared.impact(.light)
+                isDragging = false
+                
+                // Only process carousel navigation if it was primarily horizontal
+                if horizontalAmount > verticalAmount && horizontalAmount > 50 {
+                    let threshold: CGFloat = 80
+                    let dragThreshold = geometry.size.width * 0.25
+                    
+                    withAnimation(.spring(response: 0.6, dampingFraction: 0.8)) {
+                        if abs(value.translation.width) > threshold {
+                            if value.translation.width > 0 && currentImageIndex > 0 {
+                                currentImageIndex -= 1
+                            } else if value.translation.width < 0 && currentImageIndex < min(post.mediaURLs.count, 6) - 1 {
+                                currentImageIndex += 1
+                            }
+                        }
+                    }
+                    
+                    if abs(value.translation.width) > dragThreshold {
+                        HapticManager.shared.impact(.light)
+                    }
+                }
+                
+                // Always reset drag offset
+                withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                    dragOffset = 0
                 }
             }
     }
