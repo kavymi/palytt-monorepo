@@ -79,13 +79,13 @@ export const messagesRouter = router({
         nextCursor = nextItem!.id;
       }
 
-      const chatroomsWithDetails = chatrooms.map(chatroom => ({
+      const chatroomsWithDetails = chatrooms.map((chatroom: any) => ({
         ...chatroom,
         lastMessage: chatroom.messages[0] || null,
         unreadCount: chatroom._count.messages,
         otherParticipants: chatroom.participants
-          .filter(p => p.userId !== userId)
-          .map(p => p.user),
+          .filter((p: any) => p.userId !== userId)
+          .map((p: any) => p.user),
       }));
 
       return {
@@ -178,7 +178,7 @@ export const messagesRouter = router({
                 userId: participantId,
                 isAdmin: false,
               }] : []),
-              ...(type === 'GROUP' && participantIds ? participantIds.map(id => ({
+              ...(type === 'GROUP' && participantIds ? participantIds.map((id: any) => ({
                 userId: id,
                 isAdmin: false,
               })) : []),
@@ -433,7 +433,7 @@ export const messagesRouter = router({
 
       // Add new participants
       const newParticipants = await prisma.chatroomParticipant.createMany({
-        data: userIds.map(newUserId => ({
+        data: userIds.map((newUserId: any) => ({
           chatroomId,
           userId: newUserId,
           isAdmin: false,

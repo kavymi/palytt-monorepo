@@ -77,7 +77,7 @@ export const notificationsRouter = router({
       }
 
       // Transform to match frontend BackendNotification structure
-      const transformedNotifications = notifications.map(notification => {
+      const transformedNotifications = notifications.map((notification: any) => {
         const data = notification.data as NotificationData | null;
         return {
           _id: notification.id,
@@ -321,7 +321,7 @@ export const notificationsRouter = router({
       });
 
       // Group by type
-      const grouped = notifications.reduce((acc, notification) => {
+      const grouped = notifications.reduce((acc: any, notification: any) => {
         if (!acc[notification.type]) {
           acc[notification.type] = [];
         }

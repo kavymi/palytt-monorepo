@@ -174,7 +174,7 @@ export const followsRouter = router({
         nextCursor = nextItem!.id;
       }
 
-      const followingUsers = following.map(follow => ({
+      const followingUsers = following.map((follow: any) => ({
         ...follow.following,
         followedAt: follow.createdAt,
       }));
@@ -232,7 +232,7 @@ export const followsRouter = router({
         nextCursor = nextItem!.id;
       }
 
-      const followerUsers = followers.map(follow => ({
+      const followerUsers = followers.map((follow: any) => ({
         ...follow.follower,
         followedAt: follow.createdAt,
       }));
@@ -325,7 +325,7 @@ export const followsRouter = router({
         },
       });
 
-      const mutualUsers = mutualFollows.map(follow => follow.following);
+      const mutualUsers = mutualFollows.map((follow: any) => follow.following);
 
       return {
         mutualFollows: mutualUsers,
@@ -387,8 +387,8 @@ export const followsRouter = router({
 
       // Remove duplicates and limit results
       const uniqueSuggestions = suggestions
-        .reduce((acc, follow) => {
-          const exists = acc.find(item => item.clerkId === follow.following.clerkId);
+        .reduce((acc: any[], follow: any) => {
+          const exists = acc.find((item: any) => item.clerkId === follow.following.clerkId);
           if (!exists) {
             acc.push(follow.following);
           }
