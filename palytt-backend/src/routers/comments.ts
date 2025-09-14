@@ -1,6 +1,6 @@
 import { z } from 'zod';
-import { router, publicProcedure, protectedProcedure } from '../trpc';
-import { prisma } from '../db';
+import { router, publicProcedure, protectedProcedure, type Context } from '../trpc.js';
+import { prisma } from '../db.js';
 import { createPostCommentNotification } from '../services/notificationService.js';
 
 export const commentsRouter = router({
@@ -11,7 +11,7 @@ export const commentsRouter = router({
       limit: z.number().min(1).max(50).default(20),
       cursor: z.string().optional(), // For pagination
     }))
-    .query(async ({ input }) => {
+    .query(async ({ input }: { input: { postId: string; limit: number; cursor?: string } }) => {
       const { postId, limit, cursor } = input;
       
       const comments = await prisma.comment.findMany({
@@ -53,7 +53,7 @@ export const commentsRouter = router({
       postId: z.string(),
       content: z.string().min(1).max(500),
     }))
-    .mutation(async ({ input, ctx }) => {
+    .mutation(async ({ input, ctx }: { input: { postId: string; content: string }; ctx: Context & { user: NonNullable<Context['user']> } }) => {
       const { postId, content } = input;
       const userId = ctx.user.clerkId;
 
@@ -107,7 +107,7 @@ export const commentsRouter = router({
     .input(z.object({
       commentId: z.string(),
     }))
-    .mutation(async ({ input, ctx }) => {
+    .mutation(async ({ input, ctx }: { input: { commentId: string }; ctx: Context & { user: NonNullable<Context['user']> } }) => {
       const { commentId } = input;
       const userId = ctx.user.clerkId;
 
@@ -148,9 +148,9 @@ export const commentsRouter = router({
     .input(z.object({
       commentId: z.string(),
     }))
-    .mutation(async ({ input, ctx }) => {
+    .mutation(async ({ input }: { input: { commentId: string } }) => {
       const { commentId } = input;
-      const userId = ctx.user.clerkId;
+      // Note: userId available from ctx.user.clerkId if needed for future functionality
 
       // Check if the comment exists
       const comment = await prisma.comment.findUnique({
@@ -177,7 +177,7 @@ export const commentsRouter = router({
       limit: z.number().min(1).max(50).default(20),
       cursor: z.string().optional(),
     }))
-    .query(async ({ input }) => {
+    .query(async ({ input }: { input: { userId: string; limit: number; cursor?: string } }) => {
       const { userId, limit, cursor } = input;
       
       const comments = await prisma.comment.findMany({

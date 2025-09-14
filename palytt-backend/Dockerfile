@@ -1,5 +1,8 @@
 FROM node:20-alpine AS base
 
+# Install OpenSSL and other necessary libraries for Prisma
+RUN apk add --no-cache openssl openssl-dev libc6-compat
+
 # Install pnpm
 RUN corepack enable
 RUN corepack prepare pnpm@latest --activate
@@ -19,6 +22,9 @@ RUN pnpm install --frozen-lockfile
 # Copy source code
 COPY . .
 
+# Generate Prisma client
+RUN pnpm prisma:generate
+
 EXPOSE 4000
 CMD ["pnpm", "dev"]
 
@@ -34,19 +40,37 @@ RUN pnpm install --frozen-lockfile
 # Copy source code
 COPY . .
 
+# Generate Prisma client
+RUN pnpm prisma:generate
+
 # Build the application
 RUN pnpm build
 
 # Production stage
 FROM node:20-alpine AS production
+
+# Install OpenSSL and other necessary libraries for Prisma
+RUN apk add --no-cache openssl openssl-dev libc6-compat
+
 RUN corepack enable
 RUN corepack prepare pnpm@latest --activate
 
 WORKDIR /app
 
-# Copy package files and install production dependencies
+# Set production environment variables
+ENV NODE_ENV=production
+ENV IS_DOCKER=true
+
+# Copy package files and install ALL dependencies (needed for Prisma generation)
 COPY package.json pnpm-lock.yaml* ./
-RUN pnpm install --frozen-lockfile --prod
+RUN pnpm install --frozen-lockfile
+
+# Copy schema and generate Prisma client
+COPY prisma ./prisma
+RUN pnpm prisma:generate
+
+# Remove dev dependencies to reduce image size
+RUN pnpm prune --prod
 
 # Copy built application
 COPY --from=builder /app/dist ./dist

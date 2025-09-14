@@ -92,7 +92,7 @@ class MockAppState: ObservableObject {
     let themeManager = ThemeManager()
     
     // Services
-    let notificationService = PalyttNotificationService.shared
+    let notificationService = NotificationService.shared
     
     /// Refresh the home feed - useful after creating a new post
     func refreshHomeFeed() async {
@@ -1562,25 +1562,43 @@ extension MockData {
     /// Mock notifications for notification view
     static let sampleNotifications = [
         PalyttNotification(
-            id: UUID(),
+            id: UUID().uuidString,
+            userId: "mock_user_1",
+            type: .postLike,
             title: "New like on your post",
             message: "Jamie Park liked your matcha latte post",
-            timestamp: Date(),
-            isRead: false
+            data: NotificationData(
+                postId: "mock_post_1",
+                senderId: "jamie_park_id",
+                senderName: "Jamie Park",
+                senderUsername: "jamiepark"
+            ),
+            isRead: false,
+            createdAt: Date()
         ),
         PalyttNotification(
-            id: UUID(),
+            id: UUID().uuidString,
+            userId: "mock_user_1",
+            type: .follow,
             title: "New follower",
             message: "Kim Tanaka started following you",
-            timestamp: Calendar.current.date(byAdding: .hour, value: -2, to: Date()) ?? Date(),
-            isRead: false
+            data: NotificationData(
+                senderId: "kim_tanaka_id",
+                senderName: "Kim Tanaka",
+                senderUsername: "kimtanaka"
+            ),
+            isRead: false,
+            createdAt: Calendar.current.date(byAdding: .hour, value: -2, to: Date()) ?? Date()
         ),
         PalyttNotification(
-            id: UUID(),
+            id: UUID().uuidString,
+            userId: "mock_user_1",
+            type: .general,
             title: "Weekly roundup",
             message: "Your posts got 156 likes this week!",
-            timestamp: Calendar.current.date(byAdding: .day, value: -1, to: Date()) ?? Date(),
-            isRead: true
+            data: nil,
+            isRead: true,
+            createdAt: Calendar.current.date(byAdding: .day, value: -1, to: Date()) ?? Date()
         )
     ]
     
@@ -1633,11 +1651,4 @@ struct ChatRoom: Identifiable {
 
 // MapPostAnnotation is defined in MapViewModel - removed duplicate
 
-// MARK: - Mock Notification Model
-struct PalyttNotification: Identifiable {
-    let id: UUID
-    let title: String
-    let message: String
-    let timestamp: Date
-    let isRead: Bool
-} 
+// MARK: - Mock Notification Model (using the real PalyttNotification from Models/Notification.swift) 

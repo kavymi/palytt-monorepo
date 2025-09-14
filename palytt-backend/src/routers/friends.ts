@@ -1,6 +1,6 @@
 import { z } from 'zod';
-import { router, publicProcedure, protectedProcedure } from '../trpc';
-import { prisma } from '../db';
+import { router, publicProcedure, protectedProcedure } from '../trpc.js';
+import { prisma } from '../db.js';
 import { createFriendRequestNotification, createFriendRequestAcceptedNotification } from '../services/notificationService.js';
 
 export const friendsRouter = router({
@@ -252,7 +252,7 @@ export const friendsRouter = router({
       }
 
       // Transform the results to return the friend user data
-      const friendUsers = friends.map(friendship => {
+      const friendUsers = friends.map((friendship: any) => {
         const friendUser = friendship.senderId === targetUserId 
           ? friendship.receiver 
           : friendship.sender;
@@ -504,10 +504,10 @@ export const friendsRouter = router({
 
       // Extract friend user IDs
       const user1FriendIds = new Set(
-        user1Friends.map(f => f.senderId === userId1 ? f.receiverId : f.senderId)
+        user1Friends.map((f: any) => f.senderId === userId1 ? f.receiverId : f.senderId)
       );
       const user2FriendIds = new Set(
-        user2Friends.map(f => f.senderId === userId2 ? f.receiverId : f.senderId)
+        user2Friends.map((f: any) => f.senderId === userId2 ? f.receiverId : f.senderId)
       );
 
       // Find mutual friend IDs
@@ -557,7 +557,7 @@ export const friendsRouter = router({
         },
       });
 
-      const userFriendIds = userFriends.map(f => 
+      const userFriendIds = userFriends.map((f: any) => 
         f.senderId === userId ? f.receiverId : f.senderId
       );
 
@@ -585,7 +585,7 @@ export const friendsRouter = router({
         });
 
         return {
-          suggestions: randomUsers.map(user => ({
+          suggestions: randomUsers.map((user: any) => ({
             ...user,
             mutualFriendsCount: 0,
             connectionReason: 'new_user' as const,
@@ -678,7 +678,7 @@ export const friendsRouter = router({
         });
 
         const requestedUserIds = new Set(
-          existingRequests.map(req => 
+          existingRequests.map((req: any) => 
             req.senderId === userId ? req.receiverId : req.senderId
           )
         );

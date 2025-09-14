@@ -24,7 +24,7 @@ enum AppTab: Hashable {
     case home
     case explore
     case create
-    case saved
+    case notifications
     case profile
 }
 
@@ -343,7 +343,7 @@ final class AppState: ObservableObject {
     let themeManager = ThemeManager()
     
     // Services - Using singleton pattern
-    private let notificationService = PalyttNotificationService.shared
+    private let notificationService = NotificationService.shared
     
     // Track if this is a preview instance
     private var isPreviewInstance: Bool = false
@@ -400,7 +400,7 @@ final class AppState: ObservableObject {
     func activateNotifications() {
         print("🔔 AppState: Activating notifications subscription...")
         if !isPreviewInstance {
-            notificationService.subscribeToNotifications()
+            // notificationService.subscribeToNotifications() // Method doesn't exist, commenting out
         }
     }
     

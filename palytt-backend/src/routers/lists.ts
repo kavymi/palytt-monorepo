@@ -2,17 +2,17 @@ import { router, protectedProcedure, publicProcedure } from '../trpc.js';
 import { z } from 'zod';
 import { prisma, ensureUser } from '../db.js';
 
-// Input schemas
-const ListSchema = z.object({
-  id: z.string().uuid(),
-  name: z.string(),
-  description: z.string().nullable(),
-  userId: z.string().uuid(),
-  isPrivate: z.boolean(),
-  coverImageUrl: z.string().url().nullable(),
-  createdAt: z.string(),
-  updatedAt: z.string(),
-});
+// Input schemas (for future use)
+// const ListSchema = z.object({
+//   id: z.string().uuid(),
+//   name: z.string(),
+//   description: z.string().nullable(),
+//   userId: z.string().uuid(),
+//   isPrivate: z.boolean(),
+//   coverImageUrl: z.string().url().nullable(),
+//   createdAt: z.string(),
+//   updatedAt: z.string(),
+// });
 
 export const listsRouter = router({
   /**
@@ -84,13 +84,13 @@ export const listsRouter = router({
         },
       });
       
-      return lists.map((list) => ({
+      return lists.map((list: any) => ({
         _id: list.id,
         name: list.name,
         description: list.description,
         isPrivate: list.isPrivate,
         userId: input.userId,
-        postIds: list.listPosts.map(lp => lp.postId),
+        postIds: list.listPosts.map((lp: any) => lp.postId),
         createdAt: Math.floor(list.createdAt.getTime() / 1000),
         updatedAt: Math.floor(list.updatedAt.getTime() / 1000),
       }));
@@ -162,7 +162,7 @@ export const listsRouter = router({
         description: list.description,
         isPrivate: list.isPrivate,
         userId: list.user.clerkId,
-        posts: list.listPosts.map(lp => ({
+        posts: list.listPosts.map((lp: any) => ({
           id: lp.post.id,
           userId: lp.post.userId,
           authorClerkId: lp.post.author.clerkId,

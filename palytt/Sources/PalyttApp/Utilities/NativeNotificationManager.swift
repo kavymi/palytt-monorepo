@@ -184,7 +184,7 @@ class NativeNotificationManager: NSObject, ObservableObject {
     }
     
     private func getUnreadCount() async -> Int {
-        return PalyttNotificationService.shared.unreadCount
+        return NotificationService.shared.unreadCount
     }
     
     // MARK: - Notification Management
@@ -334,7 +334,7 @@ extension NativeNotificationManager: @preconcurrency UNUserNotificationCenterDel
             
         case "MARK_READ":
             if let notificationId = userInfo["notificationId"] as? String {
-                await PalyttNotificationService.shared.markAsRead(notificationId: notificationId)
+                await NotificationService.shared.markAsRead(notificationIds: [notificationId])
             }
             
         default:

@@ -3,51 +3,51 @@ import { z } from 'zod';
 import { prisma, ensureUser } from '../db.js';
 import { createPostLikeNotification } from '../services/notificationService.js';
 
-// Location sub-schema
-const LocationSchema = z.object({
-  id: z.string().uuid(),
-  name: z.string().nullable(),
-  latitude: z.number(),
-  longitude: z.number(),
-  address: z.string(),
-  city: z.string(),
-  state: z.string().nullable(),
-  country: z.string(),
-  postalCode: z.string().nullable(),
-});
+// Location sub-schema (for future use)
+// const LocationSchema = z.object({
+//   id: z.string().uuid(),
+//   name: z.string().nullable(),
+//   latitude: z.number(),
+//   longitude: z.number(),
+//   address: z.string(),
+//   city: z.string(),
+//   state: z.string().nullable(),
+//   country: z.string(),
+//   postalCode: z.string().nullable(),
+// });
 
-// Input schemas
-const PostSchema = z.object({
-  id: z.string().uuid(),
-  userId: z.string().uuid(),
-  authorClerkId: z.string(),
-  title: z.string().nullable(),
-  caption: z.string(),
-  mediaUrls: z.array(z.string().url()),
-  location: LocationSchema.nullable(),
-  menuItems: z.array(z.string()),
-  rating: z.number().min(1).max(5).nullable(),
-  createdAt: z.string(),
-  updatedAt: z.string(),
-  likesCount: z.number().int().default(0),
-  commentsCount: z.number().int().default(0),
-  savesCount: z.number().int().default(0),
-  viewsCount: z.number().int().default(0),
-  isLiked: z.boolean().default(false),
-  isSaved: z.boolean().default(false),
-  isPublic: z.boolean().default(true),
-  isDeleted: z.boolean().default(false),
-});
+// Input schemas (for future use)
+// const PostSchema = z.object({
+//   id: z.string().uuid(),
+//   userId: z.string().uuid(),
+//   authorClerkId: z.string(),
+//   title: z.string().nullable(),
+//   caption: z.string(),
+//   mediaUrls: z.array(z.string().url()),
+//   location: LocationSchema.nullable(),
+//   menuItems: z.array(z.string()),
+//   rating: z.number().min(1).max(5).nullable(),
+//   createdAt: z.string(),
+//   updatedAt: z.string(),
+//   likesCount: z.number().int().default(0),
+//   commentsCount: z.number().int().default(0),
+//   savesCount: z.number().int().default(0),
+//   viewsCount: z.number().int().default(0),
+//   isLiked: z.boolean().default(false),
+//   isSaved: z.boolean().default(false),
+//   isPublic: z.boolean().default(true),
+//   isDeleted: z.boolean().default(false),
+// });
 
-const CommentSchema = z.object({
-  id: z.string().uuid(),
-  postId: z.string().uuid(),
-  authorId: z.string().uuid(),
-  authorClerkId: z.string(),
-  content: z.string(),
-  createdAt: z.string(),
-  updatedAt: z.string(),
-});
+// const CommentSchema = z.object({
+//   id: z.string().uuid(),
+//   postId: z.string().uuid(),
+//   authorId: z.string().uuid(),
+//   authorClerkId: z.string(),
+//   content: z.string(),
+//   createdAt: z.string(),
+//   updatedAt: z.string(),
+// });
 
 export const postsRouter = router({
   /**
@@ -793,6 +793,7 @@ export const postsRouter = router({
         posts: transformedPosts,
         hasMore: posts.length === input.limit,
         nextCursor: posts.length === input.limit ? posts[posts.length - 1].id : null,
+        totalCount, // Include total count for pagination
       };
     }),
 

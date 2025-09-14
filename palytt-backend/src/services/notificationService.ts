@@ -9,7 +9,8 @@
 //
 
 import { prisma } from '../db.js';
-import { NotificationType } from '@prisma/client';
+import type pkg from '@prisma/client';
+type NotificationType = pkg.NotificationType;
 
 export interface NotificationData {
   postId?: string;
@@ -77,7 +78,6 @@ export async function createPostLikeNotification(
       select: {
         title: true,
         caption: true,
-        authorClerkId: true,
         author: {
           select: {
             clerkId: true,
@@ -140,7 +140,6 @@ export async function createPostCommentNotification(
       select: {
         title: true,
         caption: true,
-        authorClerkId: true,
         author: {
           select: {
             clerkId: true,
