@@ -9,10 +9,20 @@ const isProduction = process.env.NODE_ENV === 'production';
 const isDevelopment = !isProduction && process.env.NODE_ENV !== 'test';
 const isDocker = process.env.DOCKER === 'true' || process.env.IS_DOCKER === 'true';
 
+// Check if pino-pretty is available (only in dev dependencies)
+const hasPinoPretty = () => {
+  try {
+    require.resolve('pino-pretty');
+    return true;
+  } catch {
+    return false;
+  }
+};
+
 // Create logger configuration with fallback for missing pino-pretty
 const createLoggerConfig = () => {
-  // Use pino-pretty only in local development (not in Docker)
-  if (isDevelopment && !isDocker) {
+  // Use pino-pretty only in local development when it's available
+  if (isDevelopment && !isDocker && hasPinoPretty()) {
     return {
       level: 'debug',
       transport: {
@@ -26,7 +36,7 @@ const createLoggerConfig = () => {
     };
   }
   
-  // For Docker or production, use basic logging
+  // For Docker, production, or when pino-pretty is not available, use basic logging
   return {
     level: isProduction ? 'info' : 'debug',
   };

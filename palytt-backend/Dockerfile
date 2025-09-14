@@ -57,6 +57,10 @@ RUN corepack prepare pnpm@latest --activate
 
 WORKDIR /app
 
+# Set production environment variables
+ENV NODE_ENV=production
+ENV IS_DOCKER=true
+
 # Copy package files and install ALL dependencies (needed for Prisma generation)
 COPY package.json pnpm-lock.yaml* ./
 RUN pnpm install --frozen-lockfile
