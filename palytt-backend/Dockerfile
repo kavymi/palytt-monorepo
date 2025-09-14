@@ -22,6 +22,9 @@ RUN pnpm install --frozen-lockfile
 # Copy source code
 COPY . .
 
+# Generate Prisma client
+RUN pnpm prisma:generate
+
 EXPOSE 4000
 CMD ["pnpm", "dev"]
 
@@ -54,9 +57,16 @@ RUN corepack prepare pnpm@latest --activate
 
 WORKDIR /app
 
-# Copy package files and install production dependencies
+# Copy package files and install ALL dependencies (needed for Prisma generation)
 COPY package.json pnpm-lock.yaml* ./
-RUN pnpm install --frozen-lockfile --prod
+RUN pnpm install --frozen-lockfile
+
+# Copy schema and generate Prisma client
+COPY prisma ./prisma
+RUN pnpm prisma:generate
+
+# Remove dev dependencies to reduce image size
+RUN pnpm prune --prod
 
 # Copy built application
 COPY --from=builder /app/dist ./dist
