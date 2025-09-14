@@ -108,16 +108,14 @@ struct ExploreView: View {
     @State private var showContentPicker = false
     
     enum MapContentType: String, CaseIterable {
-        case myPosts = "My Posts"
-        case friendsPosts = "Friends' Posts"
-        case nearbyPlaces = "Nearby Places"
-        case everything = "Everything"
+        case myPosts = "My Picks"
+        case friendsPosts = "Friends' Picks"
+        case everything = "All Picks"
         
         var icon: String {
             switch self {
             case .myPosts: return "person.crop.circle.fill"
             case .friendsPosts: return "person.2.fill"
-            case .nearbyPlaces: return "location.fill"
             case .everything: return "globe"
             }
         }
@@ -126,17 +124,15 @@ struct ExploreView: View {
             switch self {
             case .myPosts: return .orange
             case .friendsPosts: return .blue
-            case .nearbyPlaces: return .green
             case .everything: return .purple
             }
         }
         
         var description: String {
             switch self {
-            case .myPosts: return "Your food posts"
-            case .friendsPosts: return "Posts from friends"
-            case .nearbyPlaces: return "Restaurants & cafes"
-            case .everything: return "Palytt"
+            case .myPosts: return "Your food picks"
+            case .friendsPosts: return "Picks from friends"
+            case .everything: return "All picks on Palytt"
             }
         }
     }
@@ -717,8 +713,6 @@ struct ExploreView: View {
             return "My Food Map"
         case .friendsPosts:
             return "Friends' Food Map"
-        case .nearbyPlaces:
-            return "Nearby Places"
         case .everything:
             return "Explore"
         }
@@ -740,19 +734,6 @@ struct ExploreView: View {
             Button(action: {
                 Task {
                     await mapViewModel.refreshPosts()
-                }
-            }) {
-                Image(systemName: "arrow.clockwise")
-                    .foregroundColor(.primaryBrand)
-            }
-        case .nearbyPlaces:
-            Button(action: {
-                Task {
-                    if let userLocation = locationManager.currentLocation {
-                        await viewModel.loadNearbyShops(at: userLocation)
-                    } else {
-                        await viewModel.loadNearbyShops()
-                    }
                 }
             }) {
                 Image(systemName: "arrow.clockwise")
@@ -950,13 +931,6 @@ struct ExploreView: View {
             await MainActor.run {
                 clusteredFriendsPosts = PostClusterManager.shared.clusterPosts(mapViewModel.mapPosts)
             }
-        case .nearbyPlaces:
-            print("🗺️ ExploreView: Loading nearby places only")
-            if let userLocation = locationManager.currentLocation {
-                await viewModel.loadNearbyShops(at: userLocation)
-            } else {
-                await viewModel.loadNearbyShops()
-            }
         case .everything:
             print("🗺️ ExploreView: Loading everything - user posts, friends posts and nearby places")
             async let userPosts: Void = loadUserPosts()
@@ -1126,7 +1100,7 @@ struct ContentTypePickerSheet: View {
                     .buttonStyle(.plain)
                 }
             }
-            .navigationTitle("Showing Content")
+            .navigationTitle("Picks")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
@@ -2170,7 +2144,7 @@ struct UnifiedFiltersView: View {
     
     @ViewBuilder
     private var distanceFilterSection: some View {
-        if contentType == .nearbyPlaces || contentType == .everything {
+        if contentType == .everything {
             VStack(alignment: .leading, spacing: 12) {
                 Text("Distance")
                     .font(.headline)
@@ -2193,7 +2167,7 @@ struct UnifiedFiltersView: View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 24) {
-                    // Distance filter (shown for nearbyPlaces and everything)
+                    // Distance filter (shown for everything)
                     distanceFilterSection
                     
                     // Post filters for friendsPosts and myPosts
@@ -2315,7 +2289,7 @@ struct UnifiedFiltersView: View {
                         }
                     }
                     
-                    // Place filters for nearbyPlaces and everything
+                    // Place filters for everything
                     if contentType == .everything {
                         // Drinks filter for places
                         VStack(alignment: .leading, spacing: 12) {
