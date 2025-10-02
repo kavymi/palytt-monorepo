@@ -108,16 +108,14 @@ struct ExploreView: View {
     @State private var showContentPicker = false
     
     enum MapContentType: String, CaseIterable {
-        case myPosts = "My Posts"
-        case friendsPosts = "Friends' Posts"
-        case nearbyPlaces = "Nearby Places"
-        case everything = "Everything"
+        case myPosts = "My Picks"
+        case friendsPosts = "Friends' Picks"
+        case everything = "All Picks"
         
         var icon: String {
             switch self {
             case .myPosts: return "person.crop.circle.fill"
             case .friendsPosts: return "person.2.fill"
-            case .nearbyPlaces: return "location.fill"
             case .everything: return "globe"
             }
         }
@@ -126,17 +124,15 @@ struct ExploreView: View {
             switch self {
             case .myPosts: return .orange
             case .friendsPosts: return .blue
-            case .nearbyPlaces: return .green
             case .everything: return .purple
             }
         }
         
         var description: String {
             switch self {
-            case .myPosts: return "Your food posts"
-            case .friendsPosts: return "Posts from friends"
-            case .nearbyPlaces: return "Restaurants & cafes"
-            case .everything: return "Palytt"
+            case .myPosts: return "Your food picks"
+            case .friendsPosts: return "Picks from friends"
+            case .everything: return "All picks on Palytt"
             }
         }
     }
@@ -155,7 +151,8 @@ struct ExploreView: View {
         .sheet(isPresented: $showContentPicker) {
             ContentTypePickerSheet(
                 selectedType: $contentType,
-                isPresented: $showContentPicker
+                isPresented: $showContentPicker,
+                exploreViewModel: viewModel
             )
         }
         .fullScreenCover(isPresented: $showingPostDetail) {
@@ -552,6 +549,7 @@ struct ExploreView: View {
                     }
                 }
                 
+                
                 // Friends' Posts (Clustered)
                 if contentType == .friendsPosts || contentType == .everything {
                     ForEach(clusteredFriendsPosts, id: \.id) { cluster in
@@ -711,14 +709,13 @@ struct ExploreView: View {
     
     // MARK: - Computed Properties
     
+    
     private var navigationTitle: String {
         switch contentType {
         case .myPosts:
             return "My Food Map"
         case .friendsPosts:
             return "Friends' Food Map"
-        case .nearbyPlaces:
-            return "Nearby Places"
         case .everything:
             return "Explore"
         }
@@ -740,19 +737,6 @@ struct ExploreView: View {
             Button(action: {
                 Task {
                     await mapViewModel.refreshPosts()
-                }
-            }) {
-                Image(systemName: "arrow.clockwise")
-                    .foregroundColor(.primaryBrand)
-            }
-        case .nearbyPlaces:
-            Button(action: {
-                Task {
-                    if let userLocation = locationManager.currentLocation {
-                        await viewModel.loadNearbyShops(at: userLocation)
-                    } else {
-                        await viewModel.loadNearbyShops()
-                    }
                 }
             }) {
                 Image(systemName: "arrow.clockwise")
@@ -950,13 +934,6 @@ struct ExploreView: View {
             await MainActor.run {
                 clusteredFriendsPosts = PostClusterManager.shared.clusterPosts(mapViewModel.mapPosts)
             }
-        case .nearbyPlaces:
-            print("🗺️ ExploreView: Loading nearby places only")
-            if let userLocation = locationManager.currentLocation {
-                await viewModel.loadNearbyShops(at: userLocation)
-            } else {
-                await viewModel.loadNearbyShops()
-            }
         case .everything:
             print("🗺️ ExploreView: Loading everything - user posts, friends posts and nearby places")
             async let userPosts: Void = loadUserPosts()
@@ -1095,40 +1072,87 @@ struct ExploreView: View {
 struct ContentTypePickerSheet: View {
     @Binding var selectedType: ExploreView.MapContentType
     @Binding var isPresented: Bool
+    @ObservedObject var exploreViewModel: ExploreViewModel
     @Environment(\.dismiss) private var dismiss
+    @State private var showingCreateList = false
     
     var body: some View {
         NavigationStack {
             List {
-                ForEach(ExploreView.MapContentType.allCases, id: \.self) { type in
-                    Button(action: {
-                        selectedType = type
-                        HapticManager.shared.impact(.medium)
-                        dismiss()
-                    }) {
-                        HStack(spacing: 12) {
-                            Image(systemName: type.icon)
-                                .foregroundColor(type.color)
-                                .frame(width: 24)
-                            
-                            Text(type.rawValue)
+                // Pick types section
+                Section {
+                    ForEach(ExploreView.MapContentType.allCases, id: \.self) { type in
+                        Button(action: {
+                            selectedType = type
+                            HapticManager.shared.impact(.medium)
+                            dismiss()
+                        }) {
+                            HStack(spacing: 12) {
+                                Image(systemName: type.icon)
+                                    .foregroundColor(type.color)
+                                    .frame(width: 24)
+                                
+                                Text(type.rawValue)
+                                    .foregroundColor(.primaryText)
+                                
+                                Spacer()
+                                
+                                if selectedType == type {
+                                    Image(systemName: "checkmark")
+                                        .foregroundColor(type.color)
+                                }
+                            }
+                            .padding(.vertical, 4)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                
+                // Rating filter section (only for All Picks)
+                if selectedType == .everything {
+                    Section {
+                        VStack(alignment: .leading, spacing: 12) {
+                            Text("Rating")
+                                .font(.headline)
                                 .foregroundColor(.primaryText)
                             
-                            Spacer()
-                            
-                            if selectedType == type {
-                                Image(systemName: "checkmark")
-                                    .foregroundColor(type.color)
+                            HStack(spacing: 12) {
+                                ForEach([1.0, 2.0, 3.0, 4.0, 5.0], id: \.self) { rating in
+                                    RatingFilterChip(
+                                        rating: rating,
+                                        isSelected: exploreViewModel.minRating == rating
+                                    ) {
+                                        if exploreViewModel.minRating == rating {
+                                            exploreViewModel.minRating = 0.0
+                                        } else {
+                                            exploreViewModel.minRating = rating
+                                        }
+                                        HapticManager.shared.impact(.light)
+                                    }
+                                }
                             }
                         }
-                        .padding(.vertical, 4)
+                        .padding(.vertical, 8)
                     }
-                    .buttonStyle(.plain)
                 }
             }
-            .navigationTitle("Showing Content")
+            .navigationTitle("Picks")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button(action: { 
+                        HapticManager.shared.impact(.light)
+                        showingCreateList = true 
+                    }) {
+                        Image(systemName: "plus")
+                            .font(.system(size: 18, weight: .semibold))
+                            .foregroundColor(.white)
+                            .frame(width: 32, height: 32)
+                            .background(Color.primaryBrand)
+                            .clipShape(Circle())
+                    }
+                }
+                
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button("Done") {
                         dismiss()
@@ -1136,6 +1160,12 @@ struct ContentTypePickerSheet: View {
                     .foregroundColor(.primaryBrand)
                 }
             }
+        }
+        .sheet(isPresented: $showingCreateList) {
+            CreateListView(onListCreated: { list in
+                // Handle list creation if needed
+                // For now, just dismiss the sheet
+            })
         }
     }
 }
@@ -2170,7 +2200,7 @@ struct UnifiedFiltersView: View {
     
     @ViewBuilder
     private var distanceFilterSection: some View {
-        if contentType == .nearbyPlaces || contentType == .everything {
+        if contentType == .everything {
             VStack(alignment: .leading, spacing: 12) {
                 Text("Distance")
                     .font(.headline)
@@ -2193,7 +2223,7 @@ struct UnifiedFiltersView: View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 24) {
-                    // Distance filter (shown for nearbyPlaces and everything)
+                    // Distance filter (shown for everything)
                     distanceFilterSection
                     
                     // Post filters for friendsPosts and myPosts
@@ -2315,7 +2345,7 @@ struct UnifiedFiltersView: View {
                         }
                     }
                     
-                    // Place filters for nearbyPlaces and everything
+                    // Place filters for everything
                     if contentType == .everything {
                         // Drinks filter for places
                         VStack(alignment: .leading, spacing: 12) {
@@ -2393,7 +2423,7 @@ struct UnifiedFiltersView: View {
                 .padding()
             }
             .background(Color.background)
-            .navigationTitle("Filters")
+            .navigationTitle("Search")
 #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -2723,6 +2753,7 @@ class ExploreViewModel: ObservableObject {
     @Published var selectedCuisines: Set<CuisineType> = []
     @Published var selectedDesserts: Set<DessertType> = []
     @Published var maxDistance: Double = 25
+    @Published var minRating: Double = 0.0
     @Published var showOnlyFavorites: Bool = false
     
     private var allShops: [Shop] = []
@@ -2947,6 +2978,7 @@ class ExploreViewModel: ObservableObject {
         selectedCuisines.removeAll()
         selectedDesserts.removeAll()
         maxDistance = 25
+        minRating = 0.0
         showOnlyFavorites = false
     }
     
@@ -2981,12 +3013,55 @@ class ExploreViewModel: ObservableObject {
             }
         }
         
+        // Apply rating filter
+        if minRating > 0.0 {
+            filteredShops = filteredShops.filter { shop in
+                let shopRating = Int(shop.rating.rounded())
+                let targetRating = Int(minRating)
+                return shopRating == targetRating
+            }
+        }
+        
         // Distance filter would be applied here in a real app
         // For now, we'll just simulate the filtering delay
         try? await Task.sleep(nanoseconds: 300_000_000)
         
         nearbyShops = filteredShops
         isLoading = false
+    }
+}
+
+// MARK: - Rating Filter Chip
+
+struct RatingFilterChip: View {
+    let rating: Double
+    let isSelected: Bool
+    let action: () -> Void
+    
+    private var displayText: String {
+        let starCount = Int(rating)
+        return "\(starCount) ★"
+    }
+    
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 4) {
+                Text(displayText)
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundColor(isSelected ? .white : .primaryText)
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .background(
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(isSelected ? Color.primaryBrand : Color.surface)
+                    .stroke(
+                        isSelected ? Color.primaryBrand : Color.divider,
+                        lineWidth: 1
+                    )
+            )
+        }
+        .buttonStyle(.plain)
     }
 }
 
