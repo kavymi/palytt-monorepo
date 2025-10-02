@@ -32,6 +32,7 @@ export const notificationsRouter = router({
       });
 
       if (!user) {
+        console.log(`⚠️ User not found in database for clerkId: ${userClerkId}`);
         return {
           notifications: [],
           nextCursor: undefined,
@@ -195,7 +196,8 @@ export const notificationsRouter = router({
       });
 
       if (!user) {
-        return { unreadCount: 0 };
+        // Return consistent response structure that matches iOS app expectations
+        return { count: 0 };
       }
 
       const count = await prisma.notification.count({
@@ -205,7 +207,8 @@ export const notificationsRouter = router({
         },
       });
 
-      return { unreadCount: count };
+      // Return consistent response structure that matches iOS app expectations
+      return { count: count };
     }),
 
   // Delete notifications

@@ -228,8 +228,8 @@ struct MainTabView: View {
             // Custom Tab Bar with visibility control
             if appState.isTabBarVisible {
                 CustomTabBar()
-                    .padding(.horizontal)
-                    .padding(.bottom)
+                    .padding(.horizontal, 16)
+                    .padding(.bottom, 34) // Proper safe area bottom padding
                     .transition(.move(edge: .bottom).combined(with: .opacity))
             } else {
                 // Mini tab bar indicator when hidden - only show on Explore tab
@@ -340,8 +340,9 @@ struct CustomTabBar: View {
                 selectedTab: $appState.selectedTab
             )
         }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 12)
+        .frame(height: 60) // Fixed height for consistency
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
         .background(
             RoundedRectangle(cornerRadius: 30)
                 .fill(Color.cardBackground)
@@ -385,7 +386,7 @@ struct TabBarButton: View {
                             .transition(.scale.combined(with: .opacity))
                     }
                 }
-                .frame(maxWidth: .infinity)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
                 
                 // Notification badge
                 if showBadge {
