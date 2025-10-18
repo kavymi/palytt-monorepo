@@ -12,13 +12,13 @@ alwaysApply: true
 
 - **Validation Process:**
   - **Step 1: Build Validation**
-    - Use `run_terminal_cmd` to execute: `cd palytt && xcodebuild -project Palytt.xcodeproj -scheme Palytt -destination 'platform=iOS Simulator,name=iPhone 16' build`
+    - Use `run_terminal_cmd` to execute: `cd palytt && xcodebuild -project Palytt.xcodeproj -scheme Palytt -destination 'platform=iOS Simulator,name=iPhone 17 Pro' build`
     - Check for any build errors or warnings in the output
     - If errors exist, fix them before proceeding
 
   - **Step 2: Preview Validation (for SwiftUI Views)**
     - For any modified SwiftUI view files, verify preview functionality
-    - Use `run_terminal_cmd` to execute: `cd palytt && xcodebuild -project Palytt.xcodeproj -scheme Palytt -destination 'platform=iOS Simulator,name=iPhone 16' build -showBuildSettings | grep -i preview`
+    - Use `run_terminal_cmd` to execute: `cd palytt && xcodebuild -project Palytt.xcodeproj -scheme Palytt -destination 'platform=iOS Simulator,name=iPhone 17 Pro' build -showBuildSettings | grep -i preview`
     - Check that preview providers are properly configured
 
   - **Step 3: Test Validation (when applicable)**
@@ -27,8 +27,8 @@ alwaysApply: true
 
   - **Step 4: Run App on Simulator (MANDATORY after changes are complete)**
     - After all changes are finished and validated, launch the app on iOS Simulator to verify functionality
-    - Use `run_terminal_cmd` to execute: `cd palytt && xcodebuild -project Palytt.xcodeproj -scheme Palytt -destination 'platform=iOS Simulator,name=iPhone 16' build && xcrun simctl boot "iPhone 16" && xcodebuild -project Palytt.xcodeproj -scheme Palytt -destination 'platform=iOS Simulator,name=iPhone 16' -allowProvisioningUpdates`
-    - Alternatively, use: `cd palytt && xcrun xcodebuild -project Palytt.xcodeproj -scheme Palytt -destination 'platform=iOS Simulator,name=iPhone 16' -allowProvisioningUpdates build-for-testing && xcrun xcodebuild -project Palytt.xcodeproj -scheme Palytt -destination 'platform=iOS Simulator,name=iPhone 16' -allowProvisioningUpdates test-without-building`
+    - Use `run_terminal_cmd` to execute: `cd palytt && xcodebuild -project Palytt.xcodeproj -scheme Palytt -destination 'platform=iOS Simulator,name=iPhone 17 Pro' build && xcrun simctl boot "iPhone 17 Pro" && xcodebuild -project Palytt.xcodeproj -scheme Palytt -destination 'platform=iOS Simulator,name=iPhone 17 Pro' -allowProvisioningUpdates`
+    - Alternatively, use: `cd palytt && xcrun xcodebuild -project Palytt.xcodeproj -scheme Palytt -destination 'platform=iOS Simulator,name=iPhone 17 Pro' -allowProvisioningUpdates build-for-testing && xcrun xcodebuild -project Palytt.xcodeproj -scheme Palytt -destination 'platform=iOS Simulator,name=iPhone 17 Pro' -allowProvisioningUpdates test-without-building`
     - Wait for the app to launch and perform basic smoke testing (navigate through main screens)
     - Verify that the changes work as expected in the running app
 
@@ -58,19 +58,19 @@ alwaysApply: true
 - **Validation Commands:**
   ```bash
   # Build validation
-  cd palytt && xcodebuild -project Palytt.xcodeproj -scheme Palytt -destination 'platform=iOS Simulator,name=iPhone 16' build
+  cd palytt && xcodebuild -project Palytt.xcodeproj -scheme Palytt -destination 'platform=iOS Simulator,name=iPhone 17 Pro' build
   
   # Quick syntax check
-  cd palytt && xcodebuild -project Palytt.xcodeproj -scheme Palytt -destination 'platform=iOS Simulator,name=iPhone 16' build -quiet
+  cd palytt && xcodebuild -project Palytt.xcodeproj -scheme Palytt -destination 'platform=iOS Simulator,name=iPhone 17 Pro' build -quiet
   
   # Test validation (when needed)
   cd palytt && ./Scripts/run_basic_tests.sh
   
   # Launch app on simulator (after changes are complete)
-  cd palytt && xcrun simctl boot "iPhone 16" && xcodebuild -project Palytt.xcodeproj -scheme Palytt -destination 'platform=iOS Simulator,name=iPhone 16' -allowProvisioningUpdates
+  cd palytt && xcrun simctl boot "iPhone 17 Pro" && xcodebuild -project Palytt.xcodeproj -scheme Palytt -destination 'platform=iOS Simulator,name=iPhone 17 Pro' -allowProvisioningUpdates
   
   # Alternative: Build and run with testing
-  cd palytt && xcodebuild -project Palytt.xcodeproj -scheme Palytt -destination 'platform=iOS Simulator,name=iPhone 16' -allowProvisioningUpdates build-for-testing
+  cd palytt && xcodebuild -project Palytt.xcodeproj -scheme Palytt -destination 'platform=iOS Simulator,name=iPhone 17 Pro' -allowProvisioningUpdates build-for-testing
   ```
 
 - **When to Skip Validation:**
@@ -79,10 +79,10 @@ alwaysApply: true
   - Always validate when adding new files, dependencies, or frameworks
 
 - **Simulator Management:**
-  - **Boot Simulator:** `xcrun simctl boot "iPhone 16"` (boots the simulator if not already running)
+  - **Boot Simulator:** `xcrun simctl boot "iPhone 17 Pro"` (boots the simulator if not already running)
   - **List Available Devices:** `xcrun simctl list devices` (shows all available simulator devices)
   - **Install and Launch App:** Use xcodebuild with `-allowProvisioningUpdates` flag to install and launch
-  - **Check Simulator Status:** `xcrun simctl list devices | grep "iPhone 16"` (verify simulator is booted)
+  - **Check Simulator Status:** `xcrun simctl list devices | grep "iPhone 17 Pro"` (verify simulator is booted)
 
 - **Integration with Development Workflow:**
   - This validation should be performed BEFORE marking any task as complete

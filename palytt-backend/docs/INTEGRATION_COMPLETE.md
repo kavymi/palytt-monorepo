@@ -77,7 +77,7 @@ All backend endpoints tested successfully:
    
    # Terminal 3: Build and run iOS app
    cd ..
-   xcodebuild -scheme Palytt -destination 'platform=iOS Simulator,name=iPhone 16 Pro,OS=18.3.1' build
+   xcodebuild -scheme Palytt -destination 'platform=iOS Simulator,name=iPhone 17 Pro' build
    # Then open Xcode and run on simulator
    ```
 

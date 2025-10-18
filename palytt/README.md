@@ -44,8 +44,8 @@ Expected output:
 
 ### iOS App Setup
 ```bash
-# Build for iPhone 16 Pro Simulator
-xcodebuild -scheme Palytt -destination 'platform=iOS Simulator,name=iPhone 16 Pro,OS=18.3.1' clean build
+# Build for iPhone 17 Pro Simulator
+xcodebuild -scheme Palytt -destination 'platform=iOS Simulator,name=iPhone 17 Pro' clean build
 
 # Run the app in Xcode or iOS Simulator
 ```
