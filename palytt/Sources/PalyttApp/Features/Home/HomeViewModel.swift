@@ -43,7 +43,9 @@ class HomeViewModel: ObservableObject {
         loadingStateSubject.value
     }
     
-    private let backendService: BackendService?
+    // ✅ NEW: Use PostsService instead of BackendService
+    private let postsService: PostsServiceProtocol?
+    private let backendService: BackendService? // Keep temporarily for personalized feed
     private let locationManager: LocationManager?
     private var currentPage = 1
     private var nextCursor: String?
@@ -70,18 +72,29 @@ class HomeViewModel: ObservableObject {
         ProcessInfo.processInfo.environment["XCODE_RUNNING_FOR_PREVIEWS"] == "1"
     }
     
-    init() {
+    init(postsService: PostsServiceProtocol? = nil) {
         // Check preview mode directly without accessing self
         let isInPreviewMode = ProcessInfo.processInfo.environment["XCODE_RUNNING_FOR_PREVIEWS"] == "1"
         
         if isInPreviewMode {
             // In preview mode, don't initialize real services
+            self.postsService = nil
             self.backendService = nil
             self.locationManager = nil
             // Load mock data for preview
             self.posts = MockData.generatePreviewPosts()
         } else {
-            // In real app, initialize services normally
+            // ✅ NEW: Use PostsService
+            if let service = postsService {
+                self.postsService = service
+            } else {
+                // Create default service with current API configuration
+                let apiConfig = APIConfigurationManager.shared
+                let baseURL = URL(string: apiConfig.currentBaseURL)!
+                self.postsService = PostsService(baseURL: baseURL)
+            }
+            
+            // Keep BackendService temporarily for personalized feed
             self.backendService = BackendService.shared
             self.locationManager = LocationManager.shared
         }
@@ -261,19 +274,16 @@ class HomeViewModel: ObservableObject {
             
             return newPosts
         } else {
-            // Fallback to regular feed
-            guard let backendService = backendService else { return [] }
+            // ✅ NEW: Use PostsService for regular feed
+            guard let postsService = postsService else { return [] }
             
-            let response = try await backendService.getPosts(
+            let newPosts = try await postsService.getPosts(
                 page: currentPage + 1,
                 limit: pageSize
             )
             
-            let newPosts = response.posts.map { Post.from(backendPost: $0) }
-            
             // Update pagination state
-            hasMorePages = response.hasMore
-            nextCursor = response.nextCursor
+            hasMorePages = newPosts.count >= pageSize
             currentPage += 1
             
             return newPosts
@@ -302,7 +312,8 @@ class HomeViewModel: ObservableObject {
             return
         }
         
-        guard backendService != nil else { return }
+        // ✅ NEW: Check for PostsService
+        guard postsService != nil || backendService != nil else { return }
         
         // Cancel any existing loading task
         loadingTask?.cancel()
@@ -455,17 +466,17 @@ class HomeViewModel: ObservableObject {
     // MARK: - Regular Feed Fallback
     
     private func loadRegularFeed() async {
-        guard let backendService = backendService else { return }
+        // ✅ NEW: Use PostsService
+        guard let postsService = postsService else { return }
         
         do {
-            let response = try await backendService.getPosts(page: currentPage, limit: pageSize)
+            let newPosts = try await postsService.getPosts(page: currentPage, limit: pageSize)
             
-            self.posts = response.posts.map { Post.from(backendPost: $0) }
-            self.hasMorePages = response.hasMore
-            self.nextCursor = response.nextCursor
+            self.posts = newPosts
+            self.hasMorePages = newPosts.count >= pageSize
             self.isUsingPersonalizedFeed = false
             self.feedStats = FeedStats(
-                totalPosts: response.posts.count,
+                totalPosts: newPosts.count,
                 fromFollowed: 0,
                 fromNearby: 0,
                 hasLocation: false,
@@ -484,19 +495,17 @@ class HomeViewModel: ObservableObject {
     }
     
     private func loadMoreRegularFeed() async {
-        guard let backendService = backendService else { return }
+        // ✅ NEW: Use PostsService
+        guard let postsService = postsService else { return }
         
         do {
-            let response = try await backendService.getPosts(
+            let newPosts = try await postsService.getPosts(
                 page: currentPage + 1, 
                 limit: pageSize
             )
             
-            let newPosts = response.posts.map { Post.from(backendPost: $0) }
-            
             self.posts.append(contentsOf: newPosts)
-            self.hasMorePages = response.hasMore
-            self.nextCursor = response.nextCursor
+            self.hasMorePages = newPosts.count >= pageSize
             self.currentPage += 1
             self.isLoadingMore = false
             
