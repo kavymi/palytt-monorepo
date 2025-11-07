@@ -11,7 +11,7 @@
 import Foundation
 
 /// HTTP methods supported by the API client
-enum HTTPMethod: String {
+enum APIHTTPMethod: String {
     case get = "GET"
     case post = "POST"
     case put = "PUT"
@@ -24,12 +24,12 @@ protocol APIClientProtocol {
     func call<T: Encodable, R: Decodable>(
         procedure: String,
         input: T,
-        method: HTTPMethod
+        method: APIHTTPMethod
     ) async throws -> R
     
     func call<R: Decodable>(
         procedure: String,
-        method: HTTPMethod
+        method: APIHTTPMethod
     ) async throws -> R
 }
 
@@ -76,7 +76,7 @@ final class APIClient: APIClientProtocol {
     func call<T: Encodable, R: Decodable>(
         procedure: String,
         input: T,
-        method: HTTPMethod
+        method: APIHTTPMethod
     ) async throws -> R {
         // Build request
         let request = try await buildRequest(
@@ -97,7 +97,7 @@ final class APIClient: APIClientProtocol {
     /// - Throws: APIError if request fails
     func call<R: Decodable>(
         procedure: String,
-        method: HTTPMethod
+        method: APIHTTPMethod
     ) async throws -> R {
         // Use empty input
         let emptyInput: [String: String] = [:]
@@ -114,7 +114,7 @@ final class APIClient: APIClientProtocol {
     private func buildRequest<T: Encodable>(
         procedure: String,
         input: T,
-        method: HTTPMethod
+        method: APIHTTPMethod
     ) async throws -> URLRequest {
         // Build URL
         let procedureURL = baseURL
@@ -310,7 +310,7 @@ final class MockAPIClient: APIClientProtocol {
     func call<T: Encodable, R: Decodable>(
         procedure: String,
         input: T,
-        method: HTTPMethod
+        method: APIHTTPMethod
     ) async throws -> R {
         if shouldFail {
             throw mockError ?? APIError.unknown(NSError(domain: "MockAPIClient", code: -1))
@@ -325,7 +325,7 @@ final class MockAPIClient: APIClientProtocol {
     
     func call<R: Decodable>(
         procedure: String,
-        method: HTTPMethod
+        method: APIHTTPMethod
     ) async throws -> R {
         return try await call(
             procedure: procedure,

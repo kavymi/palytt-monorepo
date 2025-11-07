@@ -2574,22 +2574,22 @@ class BackendService: ObservableObject {
 
 // MARK: - tRPC Response Models
 
-struct TRPCResponse<T: Codable>: Codable {
+private struct TRPCResponse<T: Codable>: Codable {
     let result: TRPCResult<T>
     let error: TRPCError?
 }
 
-struct TRPCResult<T: Codable>: Codable {
+private struct TRPCResult<T: Codable>: Codable {
     let data: T?
 }
 
-struct TRPCError: Codable {
+private struct TRPCError: Codable {
     let message: String
     let code: Int
     let data: TRPCErrorData?
 }
 
-struct TRPCErrorData: Codable {
+private struct TRPCErrorData: Codable {
     let code: String
     let httpStatus: Int
 }

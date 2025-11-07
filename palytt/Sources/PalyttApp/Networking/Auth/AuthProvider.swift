@@ -53,13 +53,17 @@ final class AuthProvider: AuthProviderProtocol {
         }
         
         // Get fresh token from Clerk
-        guard let user = clerk.user else {
+        guard let session = clerk.session else {
             throw APIError.authenticationRequired
         }
         
         do {
             // ✅ Use real JWT token from Clerk
-            let token = try await user.getToken()
+            let tokenResource = try await session.getToken()
+            
+            guard let token = tokenResource?.jwt else {
+                throw APIError.authenticationRequired
+            }
             
             // Cache token with buffer before expiry
             cachedToken = token

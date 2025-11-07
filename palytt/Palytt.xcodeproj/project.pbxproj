@@ -51,6 +51,11 @@
 		BE7DB8B42E052DBA006BCCDB /* BunnyNetService.swift in Sources */ = {isa = PBXBuildFile; fileRef = BE7DB8B32E052DBA006BCCDB /* BunnyNetService.swift */; };
 		BE7DB8B62E052E38006BCCDB /* LocationPickerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BE7DB8B52E052E38006BCCDB /* LocationPickerView.swift */; };
 		BE9345712E08398200FC869F /* NotificationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = BE9345702E08398200FC869F /* NotificationService.swift */; };
+		POSTSRVC123456789ABCDEF0 /* PostsService.swift in Sources */ = {isa = PBXBuildFile; fileRef = POSTSRVC123456789ABCDEF /* PostsService.swift */; };
+		POSTDTO123456789ABCDEF0 /* PostDTO.swift in Sources */ = {isa = PBXBuildFile; fileRef = POSTDTO123456789ABCDEF /* PostDTO.swift */; };
+		APICLIENT123456789ABCDEF0 /* APIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = APICLIENT123456789ABCDEF /* APIClient.swift */; };
+		APIERROR123456789ABCDEF0 /* APIError.swift in Sources */ = {isa = PBXBuildFile; fileRef = APIERROR123456789ABCDEF /* APIError.swift */; };
+		AUTHPROV123456789ABCDEF0 /* AuthProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = AUTHPROV123456789ABCDEF /* AuthProvider.swift */; };
 		BEA897542E064CC0003D5B56 /* Location.swift in Sources */ = {isa = PBXBuildFile; fileRef = BEA897532E064CC0003D5B56 /* Location.swift */; };
 		BED97A672E4928D300E1B16D /* PostHog in Frameworks */ = {isa = PBXBuildFile; productRef = BED97A662E4928D300E1B16D /* PostHog */; };
 		C158FCF50D0B8007D534D006 /* palytt-logo.png in Resources */ = {isa = PBXBuildFile; fileRef = 5C3F7A75D238479CE653FB13 /* palytt-logo.png */; };
@@ -130,6 +135,11 @@
 		BE7DB8B32E052DBA006BCCDB /* BunnyNetService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BunnyNetService.swift; sourceTree = "<group>"; };
 		BE7DB8B52E052E38006BCCDB /* LocationPickerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocationPickerView.swift; sourceTree = "<group>"; };
 		BE9345702E08398200FC869F /* NotificationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationService.swift; sourceTree = "<group>"; };
+		POSTSRVC123456789ABCDEF /* PostsService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PostsService.swift; path = Sources/PalyttApp/Networking/Services/PostsService.swift; sourceTree = SOURCE_ROOT; };
+		POSTDTO123456789ABCDEF /* PostDTO.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PostDTO.swift; path = Sources/PalyttApp/Networking/DTOs/PostDTO.swift; sourceTree = SOURCE_ROOT; };
+		APICLIENT123456789ABCDEF /* APIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = APIClient.swift; path = Sources/PalyttApp/Networking/APIClient.swift; sourceTree = SOURCE_ROOT; };
+		APIERROR123456789ABCDEF /* APIError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = APIError.swift; path = Sources/PalyttApp/Networking/Errors/APIError.swift; sourceTree = SOURCE_ROOT; };
+		AUTHPROV123456789ABCDEF /* AuthProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AuthProvider.swift; path = Sources/PalyttApp/Networking/Auth/AuthProvider.swift; sourceTree = SOURCE_ROOT; };
 		BEA897532E064CC0003D5B56 /* Location.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Location.swift; sourceTree = "<group>"; };
 		C238499F1008F111C1175FB1 /* Palytt.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Palytt.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		C7B1B855B69C07B70B1FAF97 /* ExploreView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExploreView.swift; sourceTree = "<group>"; };
@@ -318,6 +328,11 @@
 				BE7DB8B32E052DBA006BCCDB /* BunnyNetService.swift */,
 				UI1234567890ABCDEF123456 /* UIComponents.swift */,
 				BE9345702E08398200FC869F /* NotificationService.swift */,
+				POSTSRVC123456789ABCDEF /* PostsService.swift */,
+				POSTDTO123456789ABCDEF /* PostDTO.swift */,
+				APICLIENT123456789ABCDEF /* APIClient.swift */,
+				APIERROR123456789ABCDEF /* APIError.swift */,
+				AUTHPROV123456789ABCDEF /* AuthProvider.swift */,
 				NATIVEMGR123456789ABCDEF /* NativeNotificationManager.swift */,
 				WEBSOCKETREF123456789AB /* WebSocketManager.swift */,
 				MSGCACHEREF123456789ABC /* MessageCacheManager.swift */,
@@ -636,6 +651,11 @@
 				4878C03C0963E92683D73E44 /* Post.swift in Sources */,
 				72D3C98DE55D0D4A40F397B9 /* PostCard.swift in Sources */,
 				BE9345712E08398200FC869F /* NotificationService.swift in Sources */,
+				POSTSRVC123456789ABCDEF0 /* PostsService.swift in Sources */,
+				POSTDTO123456789ABCDEF0 /* PostDTO.swift in Sources */,
+				APICLIENT123456789ABCDEF0 /* APIClient.swift in Sources */,
+				APIERROR123456789ABCDEF0 /* APIError.swift in Sources */,
+				AUTHPROV123456789ABCDEF0 /* AuthProvider.swift in Sources */,
 				NATIVEMGR123456789ABCDEF1 /* NativeNotificationManager.swift in Sources */,
 				GROUPGATHER123456789ABCDE0 /* GroupGathering.swift in Sources */,
 				GROUPGATHERV12456789ABCDE0 /* GroupGatheringView.swift in Sources */,
