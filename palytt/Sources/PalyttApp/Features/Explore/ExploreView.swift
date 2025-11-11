@@ -107,6 +107,12 @@ struct ExploreView: View {
     @State private var contentType: MapContentType = .everything
     @State private var showContentPicker = false
     
+    // Search this area feature
+    @State private var showSearchAreaButton = false
+    @State private var isSearchingArea = false
+    @State private var visibleRegion: MKCoordinateRegion?
+    @State private var lastSearchedRegion: MKCoordinateRegion?
+    
     enum MapContentType: String, CaseIterable {
         case myPosts = "My Picks"
         case friendsPosts = "Friends' Picks"
@@ -613,6 +619,40 @@ struct ExploreView: View {
                 MapCompass()
                 MapScaleView()
             }
+            .onMapCameraChange { context in
+                // Track the visible region when map moves
+                visibleRegion = context.region
+                
+                // Show the "Search this area" button if the map has moved significantly
+                if let lastSearched = lastSearchedRegion {
+                    let hasMovedSignificantly = hasRegionChangedSignificantly(
+                        from: lastSearched,
+                        to: context.region
+                    )
+                    withAnimation(.spring(response: 0.3)) {
+                        showSearchAreaButton = hasMovedSignificantly
+                    }
+                } else {
+                    // First time - show button after any movement
+                    withAnimation(.spring(response: 0.3)) {
+                        showSearchAreaButton = true
+                    }
+                }
+            }
+            
+            // Search this area button (top center)
+            VStack {
+                if showSearchAreaButton {
+                    SearchAreaButton(isLoading: isSearchingArea) {
+                        Task {
+                            await searchThisArea()
+                        }
+                    }
+                    .padding(.top, 8)
+                    .transition(.move(edge: .top).combined(with: .opacity))
+                }
+                Spacer()
+            }
             
             // Location Focus Button (moved to bottom-right only)
             VStack {
@@ -1064,6 +1104,146 @@ struct ExploreView: View {
         let previewCardPadding: CGFloat = hasPreviewCards ? 80 : 0
         
         return baseTabBarPadding + previewCardPadding
+    }
+    
+    // MARK: - Search This Area Feature
+    
+    private func hasRegionChangedSignificantly(from oldRegion: MKCoordinateRegion, to newRegion: MKCoordinateRegion) -> Bool {
+        // Consider the region changed if center has moved by more than 20% of the span
+        // or if the zoom level has changed by more than 30%
+        
+        let centerLatDiff = abs(oldRegion.center.latitude - newRegion.center.latitude)
+        let centerLonDiff = abs(oldRegion.center.longitude - newRegion.center.longitude)
+        
+        let latThreshold = oldRegion.span.latitudeDelta * 0.2
+        let lonThreshold = oldRegion.span.longitudeDelta * 0.2
+        
+        let centerMoved = centerLatDiff > latThreshold || centerLonDiff > lonThreshold
+        
+        let spanLatDiff = abs(oldRegion.span.latitudeDelta - newRegion.span.latitudeDelta)
+        let spanLonDiff = abs(oldRegion.span.longitudeDelta - newRegion.span.longitudeDelta)
+        
+        let spanLatThreshold = oldRegion.span.latitudeDelta * 0.3
+        let spanLonThreshold = oldRegion.span.longitudeDelta * 0.3
+        
+        let zoomChanged = spanLatDiff > spanLatThreshold || spanLonDiff > spanLonThreshold
+        
+        return centerMoved || zoomChanged
+    }
+    
+    private func searchThisArea() async {
+        guard let region = visibleRegion else {
+            print("🔍 ExploreView: No visible region available")
+            return
+        }
+        
+        await MainActor.run {
+            isSearchingArea = true
+        }
+        
+        print("🔍 ExploreView: Searching in area - Center: \(region.center.latitude), \(region.center.longitude)")
+        print("🔍 ExploreView: Span: \(region.span.latitudeDelta), \(region.span.longitudeDelta)")
+        
+        // Calculate bounding box from the region
+        let minLat = region.center.latitude - (region.span.latitudeDelta / 2)
+        let maxLat = region.center.latitude + (region.span.latitudeDelta / 2)
+        let minLon = region.center.longitude - (region.span.longitudeDelta / 2)
+        let maxLon = region.center.longitude + (region.span.longitudeDelta / 2)
+        
+        // Search for restaurants, cafes, and food places in the visible area
+        await searchPlacesInBounds(
+            minLat: minLat,
+            maxLat: maxLat,
+            minLon: minLon,
+            maxLon: maxLon,
+            center: region.center
+        )
+        
+        // Update last searched region
+        await MainActor.run {
+            lastSearchedRegion = region
+            showSearchAreaButton = false
+            isSearchingArea = false
+        }
+        
+        HapticManager.shared.impact(.medium)
+    }
+    
+    private func searchPlacesInBounds(minLat: Double, maxLat: Double, minLon: Double, maxLon: Double, center: CLLocationCoordinate2D) async {
+        do {
+            // Use Apple Maps local search for now
+            // In the future, this could be enhanced with Mapbox API
+            let request = MKLocalSearch.Request()
+            request.naturalLanguageQuery = "restaurant food cafe"
+            request.region = MKCoordinateRegion(
+                center: center,
+                span: MKCoordinateSpan(
+                    latitudeDelta: maxLat - minLat,
+                    longitudeDelta: maxLon - minLon
+                )
+            )
+            
+            let search = MKLocalSearch(request: request)
+            let response = try await search.start()
+            
+            // Convert to Shop objects
+            let newShops = response.mapItems.compactMap { mapItem -> Shop? in
+                guard let name = mapItem.name,
+                      let location = mapItem.placemark.location else { return nil }
+                
+                // Check if within bounds
+                let lat = location.coordinate.latitude
+                let lon = location.coordinate.longitude
+                guard lat >= minLat && lat <= maxLat && lon >= minLon && lon <= maxLon else {
+                    return nil
+                }
+                
+                return Shop(
+                    id: UUID(),
+                    name: name,
+                    description: mapItem.placemark.title,
+                    location: Location(
+                        latitude: lat,
+                        longitude: lon,
+                        address: mapItem.placemark.title ?? "",
+                        city: mapItem.placemark.locality ?? "",
+                        state: mapItem.placemark.administrativeArea ?? "",
+                        country: mapItem.placemark.country ?? "USA",
+                        postalCode: mapItem.placemark.postalCode ?? ""
+                    ),
+                    hours: BusinessHours(
+                        monday: nil,
+                        tuesday: nil,
+                        wednesday: nil,
+                        thursday: nil,
+                        friday: nil,
+                        saturday: nil,
+                        sunday: nil
+                    ),
+                    cuisineTypes: [.american],
+                    drinkTypes: [],
+                    priceRange: .moderate,
+                    rating: 4.0,
+                    reviewsCount: 0,
+                    photosCount: 0,
+                    isVerified: false,
+                    featuredImageURL: nil,
+                    isFavorite: false
+                )
+            }
+            
+            await MainActor.run {
+                // Replace existing shops with new search results
+                viewModel.nearbyShops = newShops
+                print("✅ ExploreView: Found \(newShops.count) places in this area")
+            }
+            
+        } catch {
+            print("❌ ExploreView: Error searching area: \(error)")
+            await MainActor.run {
+                // Show error to user if needed
+            }
+        }
     }
 }
 
@@ -3100,6 +3280,63 @@ struct UserLocationIndicator: View {
     }
 }
 
+// MARK: - Search Area Button
+
+struct SearchAreaButton: View {
+    let isLoading: Bool
+    let onTap: () -> Void
+    @State private var isPressed = false
+    
+    var body: some View {
+        Button(action: handleTap) {
+            HStack(spacing: 8) {
+                if isLoading {
+                    ProgressView()
+                        .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                        .scaleEffect(0.8)
+                } else {
+                    Image(systemName: "magnifyingglass")
+                        .font(.system(size: 14, weight: .semibold))
+                }
+                
+                Text(isLoading ? "Searching..." : "Search this area")
+                    .font(.system(size: 14, weight: .semibold))
+            }
+            .foregroundColor(.white)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 10)
+            .background(
+                Capsule()
+                    .fill(Color.primaryBrand)
+                    .shadow(
+                        color: .black.opacity(0.2),
+                        radius: isPressed ? 4 : 8,
+                        x: 0,
+                        y: isPressed ? 2 : 4
+                    )
+            )
+        }
+        .scaleEffect(isPressed ? 0.95 : 1.0)
+        .animation(.spring(response: 0.3, dampingFraction: 0.6), value: isPressed)
+        .disabled(isLoading)
+    }
+    
+    private func handleTap() {
+        withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
+            isPressed = true
+        }
+        
+        HapticManager.shared.impact(.medium)
+        onTap()
+        
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
+                isPressed = false
+            }
+        }
+    }
+}
+
 // MARK: - Location Focus Button
 
 struct LocationFocusButton: View {
@@ -3123,7 +3360,7 @@ struct LocationFocusButton: View {
                 
                 Image(systemName: locationManager.currentLocation != nil ? "location.fill" : "location")
                     .font(.system(size: 18, weight: .semibold))
-                    .foregroundColor(locationManager.currentLocation != nil ? .success : .secondaryText)
+                    .foregroundColor(locationManager.currentLocation != nil ? .primaryBrand : .secondaryText)
             }
         }
         .scaleEffect(isPressed ? 0.95 : 1.0)

@@ -228,8 +228,8 @@ struct MainTabView: View {
             // Custom Tab Bar with visibility control
             if appState.isTabBarVisible {
                 CustomTabBar()
-                    .padding(.horizontal, 16)
-                    .padding(.bottom, 34) // Proper safe area bottom padding
+                    .padding(.horizontal, 20)
+                    .padding(.bottom, 20) // Reduced padding for smaller bar
                     .transition(.move(edge: .bottom).combined(with: .opacity))
             } else {
                 // Mini tab bar indicator when hidden - only show on Explore tab
@@ -307,7 +307,7 @@ struct CustomTabBar: View {
     @EnvironmentObject var appState: AppState
     
     var body: some View {
-        HStack(spacing: 0) {
+        HStack(spacing: 8) {
             TabBarButton(
                 icon: "house.fill",
                 tab: .home,
@@ -340,14 +340,18 @@ struct CustomTabBar: View {
                 selectedTab: $appState.selectedTab
             )
         }
-        .frame(height: 60) // Fixed height for consistency
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
+        .frame(height: 50)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 6)
         .background(
-            RoundedRectangle(cornerRadius: 30)
-                .fill(Color.cardBackground)
-                .shadow(color: .black.opacity(0.15), radius: 20, x: 0, y: 10)
+            .ultraThinMaterial,
+            in: RoundedRectangle(cornerRadius: 25, style: .continuous)
         )
+        .overlay(
+            RoundedRectangle(cornerRadius: 25, style: .continuous)
+                .strokeBorder(Color.white.opacity(0.2), lineWidth: 0.5)
+        )
+        .shadow(color: .black.opacity(0.1), radius: 10, x: 0, y: 5)
     }
 }
 
@@ -371,18 +375,18 @@ struct TabBarButton: View {
             }
         }) {
             ZStack {
-                VStack(spacing: 4) {
+                VStack(spacing: 2) {
                     Image(systemName: icon)
-                        .font(.system(size: isSpecial ? 28 : 24))
+                        .font(.system(size: isSpecial ? 24 : 20))
                         .foregroundColor(isSelected ? .primaryBrand : .tertiaryText)
-                        .scaleEffect(isSelected ? 1.15 : 1.0)
-                        .rotationEffect(.degrees(isSelected && !isSpecial ? 10 : 0))
+                        .scaleEffect(isSelected ? 1.1 : 1.0)
+                        .rotationEffect(.degrees(isSelected && !isSpecial ? 8 : 0))
                         .animation(.spring(response: 0.3, dampingFraction: 0.5), value: isSelected)
                     
                     if isSelected && !isSpecial {
                         Circle()
                             .fill(Color.primaryBrand)
-                            .frame(width: 5, height: 5)
+                            .frame(width: 4, height: 4)
                             .transition(.scale.combined(with: .opacity))
                     }
                 }
@@ -394,14 +398,14 @@ struct TabBarButton: View {
                         HStack {
                             Spacer()
                             TabBarNotificationBadge()
-                                .offset(x: -8, y: 8)
+                                .offset(x: -6, y: 6)
                         }
                         Spacer()
                     }
                 }
             }
         }
-        .scaleEffect(isSpecial ? 1.2 : 1.0)
+        .scaleEffect(isSpecial ? 1.15 : 1.0)
     }
 }
 
