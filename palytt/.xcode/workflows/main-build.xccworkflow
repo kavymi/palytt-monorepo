@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>Name</key>
+	<string>Main Branch Build</string>
+	<key>Description</key>
+	<string>Build and test on every push to main branch</string>
+	<key>BranchFilters</key>
+	<array>
+		<string>main</string>
+	</array>
+	<key>Actions</key>
+	<array>
+		<dict>
+			<key>ActionType</key>
+			<string>BUILD</string>
+			<key>Platform</key>
+			<string>iOS</string>
+			<key>Scheme</key>
+			<string>Palytt</string>
+			<key>Configuration</key>
+			<string>Debug</string>
+			<key>Destination</key>
+			<dict>
+				<key>deviceType</key>
+				<string>iPhone 16 Pro</string>
+				<key>platform</key>
+				<string>iOS Simulator</string>
+			</dict>
+		</dict>
+		<dict>
+			<key>ActionType</key>
+			<string>TEST</string>
+			<key>Platform</key>
+			<string>iOS</string>
+			<key>Scheme</key>
+			<string>Palytt</string>
+			<key>Configuration</key>
+			<string>Debug</string>
+			<key>Destination</key>
+			<dict>
+				<key>deviceType</key>
+				<string>iPhone 16 Pro</string>
+				<key>platform</key>
+				<string>iOS Simulator</string>
+			</dict>
+		</dict>
+	</array>
+	<key>StartConditions</key>
+	<dict>
+		<key>SourceControl</key>
+		<dict>
+			<key>PullRequestStartCondition</key>
+			<dict>
+				<key>Enabled</key>
+				<false/>
+			</dict>
+			<key>BranchStartCondition</key>
+			<dict>
+				<key>Enabled</key>
+				<true/>
+				<key>Patterns</key>
+				<array>
+					<dict>
+						<key>Type</key>
+						<string>BRANCH</string>
+						<key>Pattern</key>
+						<string>main</string>
+					</dict>
+				</array>
+			</dict>
+			<key>TagStartCondition</key>
+			<dict>
+				<key>Enabled</key>
+				<false/>
+			</dict>
+		</dict>
+		<key>Schedule</key>
+		<dict>
+			<key>Enabled</key>
+			<false/>
+		</dict>
+	</dict>
+	<key>MacOSVersion</key>
+	<string>14.0</string>
+	<key>XcodeVersion</key>
+	<string>15.0</string>
+	<key>EnvironmentVariables</key>
+	<array/>
+</dict>
+</plist>
+
