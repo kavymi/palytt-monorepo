@@ -75,5 +75,9 @@ RUN pnpm prune --prod
 # Copy built application
 COPY --from=builder /app/dist ./dist
 
+# Copy startup script
+COPY start.sh ./start.sh
+RUN chmod +x ./start.sh
+
 EXPOSE 4000
-CMD ["pnpm", "start"] 
+CMD ["./start.sh"] 
