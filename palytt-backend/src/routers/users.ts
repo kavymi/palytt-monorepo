@@ -158,6 +158,7 @@ export const usersRouter = router({
 
   /**
    * Create or update user (upsert by Clerk ID)
+   * Also aliased as upsertByClerkId for iOS compatibility
    */
   upsert: publicProcedure
     .input(CreateUserSchema)
@@ -274,6 +275,171 @@ export const usersRouter = router({
         bookmarksCount: user._count.bookmarks,
         followerCount: user.followerCount,
         followingCount: user.followingCount,
+      };
+    }),
+
+  /**
+   * Get user's posting streak information
+   */
+  getStreakInfo: publicProcedure
+    .input(z.object({ clerkId: z.string().min(1) }))
+    .query(async ({ input }) => {
+      const user = await prisma.user.findUnique({
+        where: { clerkId: input.clerkId },
+        select: {
+          currentStreak: true,
+          longestStreak: true,
+          lastPostDate: true,
+          streakFreezeCount: true,
+        },
+      });
+      
+      if (!user) {
+        throw new Error('User not found');
+      }
+      
+      // Check if streak is still active (posted within last 2 days)
+      const now = new Date();
+      let isStreakActive = false;
+      let daysSinceLastPost = 0;
+      
+      if (user.lastPostDate) {
+        const lastPost = new Date(user.lastPostDate);
+        const diffTime = now.getTime() - lastPost.getTime();
+        daysSinceLastPost = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+        isStreakActive = daysSinceLastPost <= 1;
+      }
+      
+      // If streak is broken, return 0 for current streak
+      const effectiveStreak = isStreakActive ? user.currentStreak : 0;
+      
+      // Calculate streak milestones
+      const milestones = [7, 14, 30, 60, 100, 365];
+      const nextMilestone = milestones.find(m => m > effectiveStreak) || null;
+      const achievedMilestones = milestones.filter(m => m <= user.longestStreak);
+      
+      return {
+        currentStreak: effectiveStreak,
+        longestStreak: user.longestStreak || 0,
+        lastPostDate: user.lastPostDate?.toISOString() || null,
+        isStreakActive,
+        daysSinceLastPost,
+        streakFreezeCount: user.streakFreezeCount || 0,
+        nextMilestone,
+        achievedMilestones,
+      };
+    }),
+
+  /**
+   * Find users by hashed phone numbers (for contacts sync)
+   * This endpoint receives SHA256 hashes of normalized phone numbers
+   * and returns matching users who have those phone hashes stored.
+   * 
+   * Privacy: We never store or receive actual phone numbers - only hashes.
+   */
+  findByPhoneHashes: publicProcedure
+    .input(z.object({
+      phoneHashes: z.array(z.string()).max(500), // Limit to 500 hashes per request
+    }))
+    .query(async ({ input }) => {
+      const { phoneHashes } = input;
+      
+      if (phoneHashes.length === 0) {
+        return {
+          users: [],
+          matchedHashes: [],
+        };
+      }
+      
+      // Find users with matching phone hashes
+      const users = await prisma.user.findMany({
+        where: {
+          phoneHash: {
+            in: phoneHashes,
+          },
+        },
+        select: {
+          id: true,
+          clerkId: true,
+          username: true,
+          name: true,
+          profileImage: true,
+          bio: true,
+          phoneHash: true,
+          followerCount: true,
+          followingCount: true,
+          postsCount: true,
+          isVerified: true,
+          isActive: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+      });
+      
+      // Get the matched hashes
+      const matchedHashes = users.map((u: any) => u.phoneHash).filter(Boolean);
+      
+      // Transform users for response
+      const transformedUsers = users.map((user: any) => ({
+        id: user.id,
+        clerkId: user.clerkId,
+        username: user.username,
+        name: user.name,
+        profileImage: user.profileImage,
+        bio: user.bio,
+        phoneHash: user.phoneHash,
+        followerCount: user.followerCount,
+        followingCount: user.followingCount,
+        postsCount: user.postsCount,
+        isVerified: user.isVerified || false,
+        isActive: user.isActive || true,
+        createdAt: user.createdAt.toISOString(),
+        updatedAt: user.updatedAt.toISOString(),
+      }));
+      
+      return {
+        users: transformedUsers,
+        matchedHashes,
+      };
+    }),
+
+  /**
+   * Alias for upsert - iOS app calls this endpoint name
+   */
+  upsertByClerkId: publicProcedure
+    .input(CreateUserSchema)
+    .mutation(async ({ input }) => {
+      const user = await prisma.user.upsert({
+        where: { clerkId: input.clerkId },
+        update: {
+          email: input.email,
+          username: input.username,
+          name: input.name,
+          bio: input.bio,
+          profileImage: input.profileImage,
+          website: input.website,
+        },
+        create: {
+          email: input.email,
+          username: input.username,
+          name: input.name,
+          bio: input.bio,
+          profileImage: input.profileImage,
+          website: input.website,
+          clerkId: input.clerkId,
+        },
+      });
+      
+      const isNew = user.createdAt.getTime() === user.updatedAt.getTime();
+      
+      return {
+        success: true,
+        user: {
+          ...user,
+          createdAt: user.createdAt.toISOString(),
+          updatedAt: user.updatedAt.toISOString(),
+        },
+        created: isNew,
       };
     }),
 });

@@ -1,39 +1,53 @@
 import { z } from 'zod';
 import { router, publicProcedure, protectedProcedure } from '../trpc.js';
-import { prisma } from '../db.js';
+import { prisma, ensureUser } from '../db.js';
 import { createFriendRequestNotification, createFriendRequestAcceptedNotification } from '../services/notificationService.js';
+
+// Helper function to get user UUID from clerkId
+async function getUserIdFromClerkId(clerkId: string): Promise<string> {
+  const user = await prisma.user.findUnique({
+    where: { clerkId },
+    select: { id: true },
+  });
+  if (!user) {
+    throw new Error('User not found');
+  }
+  return user.id;
+}
+
+// Helper function to get user UUID, creating user if needed
+async function ensureUserIdFromClerkId(clerkId: string): Promise<string> {
+  const user = await ensureUser(clerkId, `${clerkId}@clerk.local`);
+  return user.id;
+}
 
 export const friendsRouter = router({
   // Send a friend request
   sendRequest: protectedProcedure
     .input(z.object({
-      receiverId: z.string(),
+      receiverId: z.string(), // This is the clerkId of the receiver
     }))
     .mutation(async ({ input, ctx }) => {
-      const { receiverId } = input;
-      const senderId = ctx.user.clerkId;
+      const { receiverId: receiverClerkId } = input;
+      const senderClerkId = ctx.user.clerkId;
 
       // Check if user is trying to send request to themselves
-      if (senderId === receiverId) {
+      if (senderClerkId === receiverClerkId) {
         throw new Error('Cannot send friend request to yourself');
       }
 
-      // Check if receiver exists
-      const receiver = await prisma.user.findUnique({
-        where: { clerkId: receiverId },
-        select: { id: true },
-      });
+      // Get sender UUID (ensure user exists in DB)
+      const senderUUID = await ensureUserIdFromClerkId(senderClerkId);
 
-      if (!receiver) {
-        throw new Error('User not found');
-      }
+      // Get receiver UUID
+      const receiverUUID = await getUserIdFromClerkId(receiverClerkId);
 
       // Check if there's already a friend relationship
       const existingFriend = await prisma.friend.findFirst({
         where: {
           OR: [
-            { senderId, receiverId },
-            { senderId: receiverId, receiverId: senderId },
+            { senderId: senderUUID, receiverId: receiverUUID },
+            { senderId: receiverUUID, receiverId: senderUUID },
           ],
         },
       });
@@ -48,11 +62,11 @@ export const friendsRouter = router({
         }
       }
 
-      // Create friend request
+      // Create friend request using UUIDs
       const friendRequest = await prisma.friend.create({
         data: {
-          senderId,
-          receiverId,
+          senderId: senderUUID,
+          receiverId: receiverUUID,
           status: 'PENDING',
         },
         include: {
@@ -77,8 +91,8 @@ export const friendsRouter = router({
         },
       });
 
-      // Create notification for friend request
-      await createFriendRequestNotification(receiverId, senderId, friendRequest.id);
+      // Create notification for friend request (using clerkIds for notification service)
+      await createFriendRequestNotification(receiverClerkId, senderClerkId, friendRequest.id);
 
       return friendRequest;
     }),
@@ -90,7 +104,10 @@ export const friendsRouter = router({
     }))
     .mutation(async ({ input, ctx }) => {
       const { requestId } = input;
-      const userId = ctx.user.clerkId;
+      const userClerkId = ctx.user.clerkId;
+
+      // Get current user's UUID
+      const userUUID = await ensureUserIdFromClerkId(userClerkId);
 
       // Find the friend request
       const friendRequest = await prisma.friend.findUnique({
@@ -121,8 +138,8 @@ export const friendsRouter = router({
         throw new Error('Friend request not found');
       }
 
-      // Check if the current user is the receiver
-      if (friendRequest.receiverId !== userId) {
+      // Check if the current user is the receiver (compare UUIDs)
+      if (friendRequest.receiverId !== userUUID) {
         throw new Error('You can only accept requests sent to you');
       }
 
@@ -157,8 +174,8 @@ export const friendsRouter = router({
         },
       });
 
-      // Create notification for friend request acceptance
-      await createFriendRequestAcceptedNotification(friendRequest.senderId, userId);
+      // Create notification for friend request acceptance (using clerkIds)
+      await createFriendRequestAcceptedNotification(friendRequest.sender.clerkId, userClerkId);
 
       return updatedFriend;
     }),
@@ -170,7 +187,10 @@ export const friendsRouter = router({
     }))
     .mutation(async ({ input, ctx }) => {
       const { requestId } = input;
-      const userId = ctx.user.clerkId;
+      const userClerkId = ctx.user.clerkId;
+
+      // Get current user's UUID
+      const userUUID = await ensureUserIdFromClerkId(userClerkId);
 
       // Find the friend request
       const friendRequest = await prisma.friend.findUnique({
@@ -181,8 +201,8 @@ export const friendsRouter = router({
         throw new Error('Friend request not found');
       }
 
-      // Check if the current user is the receiver
-      if (friendRequest.receiverId !== userId) {
+      // Check if the current user is the receiver (compare UUIDs)
+      if (friendRequest.receiverId !== userUUID) {
         throw new Error('You can only reject requests sent to you');
       }
 
@@ -197,23 +217,26 @@ export const friendsRouter = router({
   // Get all friends for a user
   getFriends: publicProcedure
     .input(z.object({
-      userId: z.string().optional(), // If not provided, get current user's friends
+      userId: z.string().optional(), // clerkId - If not provided, get current user's friends
       limit: z.number().min(1).max(100).default(50),
       cursor: z.string().optional(),
     }))
     .query(async ({ input, ctx }) => {
-      const { userId, limit, cursor } = input;
-      const targetUserId = userId || ctx.user?.clerkId;
+      const { userId: userClerkId, limit, cursor } = input;
+      const targetClerkId = userClerkId || ctx.user?.clerkId;
 
-      if (!targetUserId) {
+      if (!targetClerkId) {
         throw new Error('User ID required');
       }
+
+      // Get target user's UUID
+      const targetUUID = await getUserIdFromClerkId(targetClerkId);
 
       const friends = await prisma.friend.findMany({
         where: {
           OR: [
-            { senderId: targetUserId, status: 'ACCEPTED' },
-            { receiverId: targetUserId, status: 'ACCEPTED' },
+            { senderId: targetUUID, status: 'ACCEPTED' },
+            { receiverId: targetUUID, status: 'ACCEPTED' },
           ],
         },
         take: limit + 1,
@@ -253,7 +276,7 @@ export const friendsRouter = router({
 
       // Transform the results to return the friend user data
       const friendUsers = friends.map((friendship: any) => {
-        const friendUser = friendship.senderId === targetUserId 
+        const friendUser = friendship.senderId === targetUUID 
           ? friendship.receiver 
           : friendship.sender;
         
@@ -279,20 +302,23 @@ export const friendsRouter = router({
     }))
     .query(async ({ input, ctx }) => {
       const { type, limit, cursor } = input;
-      const userId = ctx.user.clerkId;
+      const userClerkId = ctx.user.clerkId;
+
+      // Get current user's UUID
+      const userUUID = await ensureUserIdFromClerkId(userClerkId);
 
       let whereClause: any = {
         status: 'PENDING',
       };
 
       if (type === 'sent') {
-        whereClause.senderId = userId;
+        whereClause.senderId = userUUID;
       } else if (type === 'received') {
-        whereClause.receiverId = userId;
+        whereClause.receiverId = userUUID;
       } else {
         whereClause.OR = [
-          { senderId: userId },
-          { receiverId: userId },
+          { senderId: userUUID },
+          { receiverId: userUUID },
         ];
       }
 
@@ -340,17 +366,29 @@ export const friendsRouter = router({
   // Check if two users are friends
   areFriends: publicProcedure
     .input(z.object({
-      userId1: z.string(),
-      userId2: z.string(),
+      userId1: z.string(), // clerkId
+      userId2: z.string(), // clerkId
     }))
     .query(async ({ input }) => {
-      const { userId1, userId2 } = input;
+      const { userId1: clerkId1, userId2: clerkId2 } = input;
+
+      // Get UUIDs for both users
+      let uuid1: string, uuid2: string;
+      try {
+        [uuid1, uuid2] = await Promise.all([
+          getUserIdFromClerkId(clerkId1),
+          getUserIdFromClerkId(clerkId2),
+        ]);
+      } catch {
+        // If either user doesn't exist, they can't be friends
+        return { areFriends: false };
+      }
 
       const friendship = await prisma.friend.findFirst({
         where: {
           OR: [
-            { senderId: userId1, receiverId: userId2, status: 'ACCEPTED' },
-            { senderId: userId2, receiverId: userId1, status: 'ACCEPTED' },
+            { senderId: uuid1, receiverId: uuid2, status: 'ACCEPTED' },
+            { senderId: uuid2, receiverId: uuid1, status: 'ACCEPTED' },
           ],
         },
       });
@@ -364,15 +402,19 @@ export const friendsRouter = router({
       friendId: z.string(), // The clerkId of the friend to remove
     }))
     .mutation(async ({ input, ctx }) => {
-      const { friendId } = input;
-      const userId = ctx.user.clerkId;
+      const { friendId: friendClerkId } = input;
+      const userClerkId = ctx.user.clerkId;
+
+      // Get UUIDs
+      const userUUID = await ensureUserIdFromClerkId(userClerkId);
+      const friendUUID = await getUserIdFromClerkId(friendClerkId);
 
       // Find the friendship
       const friendship = await prisma.friend.findFirst({
         where: {
           OR: [
-            { senderId: userId, receiverId: friendId, status: 'ACCEPTED' },
-            { senderId: friendId, receiverId: userId, status: 'ACCEPTED' },
+            { senderId: userUUID, receiverId: friendUUID, status: 'ACCEPTED' },
+            { senderId: friendUUID, receiverId: userUUID, status: 'ACCEPTED' },
           ],
         },
       });
@@ -392,22 +434,26 @@ export const friendsRouter = router({
   // Block a user
   blockUser: protectedProcedure
     .input(z.object({
-      userId: z.string(),
+      userId: z.string(), // clerkId of user to block
     }))
     .mutation(async ({ input, ctx }) => {
-      const { userId } = input;
-      const blockerId = ctx.user.clerkId;
+      const { userId: targetClerkId } = input;
+      const blockerClerkId = ctx.user.clerkId;
 
-      if (blockerId === userId) {
+      if (blockerClerkId === targetClerkId) {
         throw new Error('Cannot block yourself');
       }
+
+      // Get UUIDs
+      const blockerUUID = await ensureUserIdFromClerkId(blockerClerkId);
+      const targetUUID = await getUserIdFromClerkId(targetClerkId);
 
       // Check if there's an existing friendship/request
       const existingRelation = await prisma.friend.findFirst({
         where: {
           OR: [
-            { senderId: blockerId, receiverId: userId },
-            { senderId: userId, receiverId: blockerId },
+            { senderId: blockerUUID, receiverId: targetUUID },
+            { senderId: targetUUID, receiverId: blockerUUID },
           ],
         },
       });
@@ -422,8 +468,8 @@ export const friendsRouter = router({
         // Create new blocked relation
         await prisma.friend.create({
           data: {
-            senderId: blockerId,
-            receiverId: userId,
+            senderId: blockerUUID,
+            receiverId: targetUUID,
             status: 'BLOCKED',
           },
         });
@@ -435,20 +481,32 @@ export const friendsRouter = router({
   // Get mutual friends between two users
   getMutualFriends: publicProcedure
     .input(z.object({
-      userId1: z.string(),
-      userId2: z.string(),
+      userId1: z.string(), // clerkId
+      userId2: z.string(), // clerkId
       limit: z.number().min(1).max(50).default(10),
     }))
     .query(async ({ input }) => {
-      const { userId1, userId2, limit } = input;
+      const { userId1: clerkId1, userId2: clerkId2, limit } = input;
+
+      // Get UUIDs for both users
+      let uuid1: string, uuid2: string;
+      try {
+        [uuid1, uuid2] = await Promise.all([
+          getUserIdFromClerkId(clerkId1),
+          getUserIdFromClerkId(clerkId2),
+        ]);
+      } catch {
+        // If either user doesn't exist, they have no mutual friends
+        return { mutualFriends: [], totalCount: 0 };
+      }
 
       // Get friends of both users
       const [user1Friends, user2Friends] = await Promise.all([
         prisma.friend.findMany({
           where: {
             OR: [
-              { senderId: userId1, status: 'ACCEPTED' },
-              { receiverId: userId1, status: 'ACCEPTED' },
+              { senderId: uuid1, status: 'ACCEPTED' },
+              { receiverId: uuid1, status: 'ACCEPTED' },
             ],
           },
           include: {
@@ -475,8 +533,8 @@ export const friendsRouter = router({
         prisma.friend.findMany({
           where: {
             OR: [
-              { senderId: userId2, status: 'ACCEPTED' },
-              { receiverId: userId2, status: 'ACCEPTED' },
+              { senderId: uuid2, status: 'ACCEPTED' },
+              { receiverId: uuid2, status: 'ACCEPTED' },
             ],
           },
           include: {
@@ -502,22 +560,22 @@ export const friendsRouter = router({
         })
       ]);
 
-      // Extract friend user IDs
+      // Extract friend user IDs (UUIDs)
       const user1FriendIds = new Set(
-        user1Friends.map((f: any) => f.senderId === userId1 ? f.receiverId : f.senderId)
+        user1Friends.map((f: any) => f.senderId === uuid1 ? f.receiverId : f.senderId)
       );
       const user2FriendIds = new Set(
-        user2Friends.map((f: any) => f.senderId === userId2 ? f.receiverId : f.senderId)
+        user2Friends.map((f: any) => f.senderId === uuid2 ? f.receiverId : f.senderId)
       );
 
-      // Find mutual friend IDs
+      // Find mutual friend IDs (UUIDs)
       const mutualFriendIds = Array.from(user1FriendIds).filter(id => user2FriendIds.has(id));
 
       // Get mutual friend details
       const mutualFriends = await prisma.user.findMany({
         where: {
-          clerkId: {
-            in: mutualFriendIds.slice(0, limit),
+          id: {
+            in: mutualFriendIds.slice(0, limit) as string[],
           },
         },
         select: {
@@ -545,28 +603,31 @@ export const friendsRouter = router({
     }))
     .query(async ({ input, ctx }) => {
       const { limit, excludeRequested } = input;
-      const userId = ctx.user.clerkId;
+      const userClerkId = ctx.user.clerkId;
+
+      // Get current user's UUID
+      const userUUID = await ensureUserIdFromClerkId(userClerkId);
 
       // Get current user's friends
       const userFriends = await prisma.friend.findMany({
         where: {
           OR: [
-            { senderId: userId, status: 'ACCEPTED' },
-            { receiverId: userId, status: 'ACCEPTED' },
+            { senderId: userUUID, status: 'ACCEPTED' },
+            { receiverId: userUUID, status: 'ACCEPTED' },
           ],
         },
       });
 
       const userFriendIds = userFriends.map((f: any) => 
-        f.senderId === userId ? f.receiverId : f.senderId
+        f.senderId === userUUID ? f.receiverId : f.senderId
       );
 
       if (userFriendIds.length === 0) {
         // If user has no friends, return random suggested users
         const randomUsers = await prisma.user.findMany({
           where: {
-            clerkId: {
-              not: userId,
+            id: {
+              not: userUUID,
             },
           },
           take: limit,
@@ -602,10 +663,8 @@ export const friendsRouter = router({
           ],
           NOT: {
             OR: [
-              { senderId: userId },
-              { receiverId: userId },
-              { senderId: { in: userFriendIds } },
-              { receiverId: { in: userFriendIds } },
+              { senderId: userUUID },
+              { receiverId: userUUID },
             ],
           },
         },
@@ -647,16 +706,21 @@ export const friendsRouter = router({
           ? friendship.receiver 
           : friendship.sender;
         
+        // Skip if this is one of the user's existing friends
+        if (userFriendIds.includes(suggestedUser.id)) {
+          continue;
+        }
+
         const mutualFriendId = userFriendIds.includes(friendship.senderId)
           ? friendship.senderId
           : friendship.receiverId;
 
-        if (suggestionMap.has(suggestedUser.clerkId)) {
-          const existing = suggestionMap.get(suggestedUser.clerkId)!;
+        if (suggestionMap.has(suggestedUser.id)) {
+          const existing = suggestionMap.get(suggestedUser.id)!;
           existing.mutualFriendsCount++;
           existing.mutualFriends.push(mutualFriendId);
         } else {
-          suggestionMap.set(suggestedUser.clerkId, {
+          suggestionMap.set(suggestedUser.id, {
             user: suggestedUser,
             mutualFriendsCount: 1,
             mutualFriends: [mutualFriendId],
@@ -671,20 +735,20 @@ export const friendsRouter = router({
         const existingRequests = await prisma.friend.findMany({
           where: {
             OR: [
-              { senderId: userId, status: { in: ['PENDING', 'ACCEPTED'] } },
-              { receiverId: userId, status: { in: ['PENDING', 'ACCEPTED'] } },
+              { senderId: userUUID, status: { in: ['PENDING', 'ACCEPTED'] } },
+              { receiverId: userUUID, status: { in: ['PENDING', 'ACCEPTED'] } },
             ],
           },
         });
 
         const requestedUserIds = new Set(
           existingRequests.map((req: any) => 
-            req.senderId === userId ? req.receiverId : req.senderId
+            req.senderId === userUUID ? req.receiverId : req.senderId
           )
         );
 
         finalSuggestions = finalSuggestions.filter(
-          suggestion => !requestedUserIds.has(suggestion.user.clerkId)
+          suggestion => !requestedUserIds.has(suggestion.user.id)
         );
       }
 

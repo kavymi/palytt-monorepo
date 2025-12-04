@@ -16,6 +16,7 @@
 		14DF34D5BA1853D82D38FBFB /* Factory in Frameworks */ = {isa = PBXBuildFile; productRef = 73552D86A5D3AA63D73398BF /* Factory */; };
 		18B814E598841332D1B51110 /* PalyttApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C7DCFF1508D69D4ABA82A6A /* PalyttApp.swift */; };
 		1AF60673CA3C372AC3AC2A0E /* FriendsListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9DB85D98D798FDE76CD2932 /* FriendsListView.swift */; };
+		FRIENDSVIEWBLD123456789AB /* FriendsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FRIENDSVIEW123456789ABCDE /* FriendsView.swift */; };
 		20A7B81D94105D1222A92695 /* User.swift in Sources */ = {isa = PBXBuildFile; fileRef = 02C242FEA257BA231293F69D /* User.swift */; };
 		A1B2C3D4E5F6789012345678 /* Notification.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2C3D4E5F6789012345678A1 /* Notification.swift */; };
 		NOTIFBADGE123456789ABCDEF /* NotificationBadge.swift in Sources */ = {isa = PBXBuildFile; fileRef = NOTIFBADGE123456789ABCD /* NotificationBadge.swift */; };
@@ -40,8 +41,13 @@
 		A35F8F34F464799CDAA61495 /* UserSearchView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B6CFF5D856CB756D51EB40F /* UserSearchView.swift */; };
 		A9912FEE965639C7F10E9EDD /* MockData.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0262593EBB39908D4A8F779A /* MockData.swift */; };
 		ADDFRIENDS123456789ABCDEF /* AddFriendsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = ADDFRIENDS123456789ABCD /* AddFriendsView.swift */; };
+		CONTACTSSYNC1234567890AB /* ContactsSyncView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CONTACTSSYNC1234567890A /* ContactsSyncView.swift */; };
+		REFERRALSVIEW123456789AB /* ReferralsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = REFERRALSVIEW123456789A /* ReferralsView.swift */; };
+		SHAREPOSTVIEW123456789AB0 /* SharePostView.swift in Sources */ = {isa = PBXBuildFile; fileRef = SHAREPOSTVIEW123456789ABC /* SharePostView.swift */; };
+		SHARESERVICE123456789ABCD0 /* ShareService.swift in Sources */ = {isa = PBXBuildFile; fileRef = SHARESERVICE123456789ABCD /* ShareService.swift */; };
 		ADMINSETT123456789ABCDEF0 /* AdminSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = ADMINSETT123456789ABCDEF /* AdminSettingsView.swift */; };
 		AE0957B07DA5367349FF599D /* ProfileView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 758A7924E0DC8D477486AF4F /* ProfileView.swift */; };
+		STREAKVIEW1234567890ABCD /* StreakView.swift in Sources */ = {isa = PBXBuildFile; fileRef = STREAKVIEW1234567890ABC /* StreakView.swift */; };
 		APICONFIG123456789ABCDEF0 /* APIConfiguration.swift in Sources */ = {isa = PBXBuildFile; fileRef = APICONFIG123456789ABCDEF /* APIConfiguration.swift */; };
 		B65260DBD21542A5F13614EA /* playstore.png in Resources */ = {isa = PBXBuildFile; fileRef = 42E2C81C4F3AB5148A7E3FA6 /* playstore.png */; };
 		B9141B5EBEE7383BC2D8318D /* AuthenticationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3534A1B378EAB9EB2A949000 /* AuthenticationView.swift */; };
@@ -71,6 +77,7 @@
 		FE807D5C9DA14BA99D52CCEE /* ProfileViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C57B9E173994897A15E963C /* ProfileViewModel.swift */; };
 		GROUPGATHER123456789ABCDE0 /* GroupGathering.swift in Sources */ = {isa = PBXBuildFile; fileRef = GROUPGATHER123456789ABCDE /* GroupGathering.swift */; };
 		GROUPGATHERV12456789ABCDE0 /* GroupGatheringView.swift in Sources */ = {isa = PBXBuildFile; fileRef = GROUPGATHERV12456789ABCDE /* GroupGatheringView.swift */; };
+		GATHERINGINVITE1234567890 /* GatheringInviteView.swift in Sources */ = {isa = PBXBuildFile; fileRef = GATHERINGINVITE123456789 /* GatheringInviteView.swift */; };
 		GROUPGATHERVM3456789ABCDE0 /* GroupGatheringViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = GROUPGATHERVM3456789ABCDE /* GroupGatheringViewModel.swift */; };
 		LEGALVIEWS123456789ABCDEF /* LegalViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = LEGALVIEWS123456789ABCD /* LegalViews.swift */; };
 		MAPFILTERS123456789ABCD /* MapFiltersView.swift in Sources */ = {isa = PBXBuildFile; fileRef = MAPFILTERS123456789ABC /* MapFiltersView.swift */; };
@@ -111,6 +118,7 @@
 		6EC11A5FAFD9A666A40D6A4F /* SavedView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SavedView.swift; sourceTree = "<group>"; };
 		74EB30CF86317ED047312012 /* CreatePostView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CreatePostView.swift; sourceTree = "<group>"; };
 		758A7924E0DC8D477486AF4F /* ProfileView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileView.swift; sourceTree = "<group>"; };
+		STREAKVIEW1234567890ABC /* StreakView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StreakView.swift; sourceTree = "<group>"; };
 		77C1CBE613F2853260447D93 /* Shop.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Shop.swift; sourceTree = "<group>"; };
 		7A476F10694F4F2CDB7E1654 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		7B7FE5076F6C6DFBE480B0D6 /* SocialListViews.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = SocialListViews.swift; sourceTree = "<group>"; };
@@ -125,11 +133,16 @@
 		9D33A53F7A63EEA2725753DC /* UserProfileView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserProfileView.swift; sourceTree = "<group>"; };
 		ADD0508842B853997D589AE1 /* HapticManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HapticManager.swift; sourceTree = "<group>"; };
 		ADDFRIENDS123456789ABCD /* AddFriendsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddFriendsView.swift; sourceTree = "<group>"; };
+		CONTACTSSYNC1234567890A /* ContactsSyncView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContactsSyncView.swift; sourceTree = "<group>"; };
+		REFERRALSVIEW123456789A /* ReferralsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReferralsView.swift; sourceTree = "<group>"; };
+		SHAREPOSTVIEW123456789ABC /* SharePostView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharePostView.swift; sourceTree = "<group>"; };
+		SHARESERVICE123456789ABCD /* ShareService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareService.swift; sourceTree = "<group>"; };
 		ADMINSETT123456789ABCDEF /* AdminSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdminSettingsView.swift; sourceTree = "<group>"; };
 		APICONFIG123456789ABCDEF /* APIConfiguration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIConfiguration.swift; sourceTree = "<group>"; };
 		B036694D391F5D856B4D5B1C /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
 		B3E6B84F0951D2B6BB0AE577 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		B9DB85D98D798FDE76CD2932 /* FriendsListView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = FriendsListView.swift; sourceTree = "<group>"; };
+		FRIENDSVIEW123456789ABCDE /* FriendsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = FriendsView.swift; path = Sources/PalyttApp/Features/Social/FriendsView.swift; sourceTree = SOURCE_ROOT; };
 		BE63BBBA2E015C2000FDA1D4 /* Palytt.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Palytt.entitlements; sourceTree = "<group>"; };
 		BE7DB8B12E052B38006BCCDB /* LocationManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocationManager.swift; sourceTree = "<group>"; };
 		BE7DB8B32E052DBA006BCCDB /* BunnyNetService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BunnyNetService.swift; sourceTree = "<group>"; };
@@ -155,6 +168,7 @@
 		FCD48A105EA06D59E5F68177 /* SaveOptionsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SaveOptionsView.swift; sourceTree = "<group>"; };
 		GROUPGATHER123456789ABCDE /* GroupGathering.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GroupGathering.swift; sourceTree = "<group>"; };
 		GROUPGATHERV12456789ABCDE /* GroupGatheringView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GroupGatheringView.swift; sourceTree = "<group>"; };
+		GATHERINGINVITE123456789 /* GatheringInviteView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GatheringInviteView.swift; sourceTree = "<group>"; };
 		GROUPGATHERVM3456789ABCDE /* GroupGatheringViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GroupGatheringViewModel.swift; sourceTree = "<group>"; };
 		LEGALVIEWS123456789ABCD /* LegalViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LegalViews.swift; sourceTree = "<group>"; };
 		LISTSKELETON123456789ABCD /* ListCardSkeleton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ListCardSkeleton.swift; sourceTree = "<group>"; };
@@ -275,6 +289,7 @@
 			isa = PBXGroup;
 			children = (
 				758A7924E0DC8D477486AF4F /* ProfileView.swift */,
+				STREAKVIEW1234567890ABC /* StreakView.swift */,
 				9C57B9E173994897A15E963C /* ProfileViewModel.swift */,
 				831F0129CB3E4863A7C82072 /* EditProfileView.swift */,
 				LEGALVIEWS123456789ABCD /* LegalViews.swift */,
@@ -360,12 +375,21 @@
 				MAPGROUP123456789ABCDEF /* Map */,
 				MESSAGESGROUP123456789AB /* Messages */,
 				NOTIFSGROUP123456789ABCDEF /* Notifications */,
+				POSTSGROUP123456789ABCDEF /* Posts */,
 				5A8664BF9EE73B0455F519A4 /* Profile */,
 				E9484EAB0F55159B1FFC3B30 /* Saved */,
 				SHOPSGROUP123456789ABCDEF /* Shops */,
 				C196BEC4E6EA0D3DBF5579AA /* Social */,
 			);
 			path = Features;
+			sourceTree = "<group>";
+		};
+		POSTSGROUP123456789ABCDEF /* Posts */ = {
+			isa = PBXGroup;
+			children = (
+				SHAREPOSTVIEW123456789ABC /* SharePostView.swift */,
+			);
+			path = Posts;
 			sourceTree = "<group>";
 		};
 		B0932C52DDB559A1B2048394 /* Sources */ = {
@@ -397,6 +421,8 @@
 			children = (
 				5B6CFF5D856CB756D51EB40F /* UserSearchView.swift */,
 				ADDFRIENDS123456789ABCD /* AddFriendsView.swift */,
+				CONTACTSSYNC1234567890A /* ContactsSyncView.swift */,
+				REFERRALSVIEW123456789A /* ReferralsView.swift */,
 				DDB106E9A367E653C8F44547 /* FollowersListView.swift */,
 				0D31ADE69D1778DDD8E41A93 /* FriendRequestsView.swift */,
 				B9DB85D98D798FDE76CD2932 /* FriendsListView.swift */,
@@ -458,10 +484,19 @@
 				AB69A07912DE6C40920E90C3 /* Features */,
 				6A5A0F60EF5F533100C4D126 /* Models */,
 				0E50959D899B71331CBDDCFD /* Resources */,
+				SERVICESGROUP123456789ABC /* Services */,
 				A570A820DC2D84503D0F6408 /* Utilities */,
 				D1CAF007B50F0EC4ED3331B1 /* Views */,
 			);
 			path = PalyttApp;
+			sourceTree = "<group>";
+		};
+		SERVICESGROUP123456789ABC /* Services */ = {
+			isa = PBXGroup;
+			children = (
+				SHARESERVICE123456789ABCD /* ShareService.swift */,
+			);
+			path = Services;
 			sourceTree = "<group>";
 		};
 		FCCCB599D643B3B446C6FFCD /* Explore */ = {
@@ -476,6 +511,7 @@
 			isa = PBXGroup;
 			children = (
 				GROUPGATHERV12456789ABCDE /* GroupGatheringView.swift */,
+				GATHERINGINVITE123456789 /* GatheringInviteView.swift */,
 				GROUPGATHERVM3456789ABCDE /* GroupGatheringViewModel.swift */,
 			);
 			path = GroupGatherings;
@@ -659,8 +695,10 @@
 				NATIVEMGR123456789ABCDEF1 /* NativeNotificationManager.swift in Sources */,
 				GROUPGATHER123456789ABCDE0 /* GroupGathering.swift in Sources */,
 				GROUPGATHERV12456789ABCDE0 /* GroupGatheringView.swift in Sources */,
+				GATHERINGINVITE1234567890 /* GatheringInviteView.swift in Sources */,
 				GROUPGATHERVM3456789ABCDE0 /* GroupGatheringViewModel.swift in Sources */,
 				AE0957B07DA5367349FF599D /* ProfileView.swift in Sources */,
+				STREAKVIEW1234567890ABCD /* StreakView.swift in Sources */,
 				QUICKTHEME123456789ABCDEF /* QuickThemeToggle.swift in Sources */,
 				FE807D5C9DA14BA99D52CCEE /* ProfileViewModel.swift in Sources */,
 				4C05B426B4044DBAB2DCD77C /* EditProfileView.swift in Sources */,
@@ -681,10 +719,15 @@
 				272665F37CB9BF015A84D844 /* FollowersListView.swift in Sources */,
 				FE3830A1DE3BF5D02AA910F0 /* FriendRequestsView.swift in Sources */,
 				ADDFRIENDS123456789ABCDEF /* AddFriendsView.swift in Sources */,
+				CONTACTSSYNC1234567890AB /* ContactsSyncView.swift in Sources */,
+				REFERRALSVIEW123456789AB /* ReferralsView.swift in Sources */,
+				SHAREPOSTVIEW123456789AB0 /* SharePostView.swift in Sources */,
+				SHARESERVICE123456789ABCD0 /* ShareService.swift in Sources */,
 				EMPTYSTATE123456789ABCDEFG /* EmptyStateView.swift in Sources */,
 				NOTIFS123456789ABCDEFGHI /* NotificationsView.swift in Sources */,
 				NOTIFBADGE123456789ABCDEF /* NotificationBadge.swift in Sources */,
 				1AF60673CA3C372AC3AC2A0E /* FriendsListView.swift in Sources */,
+				FRIENDSVIEWBLD123456789AB /* FriendsView.swift in Sources */,
 				E9F4368B88D3EB8BE6DAD996 /* SocialListViews.swift in Sources */,
 				USERAVATAR123456789ABCDEF /* UserAvatar.swift in Sources */,
 				CREATELIST123456789ABCDEF0 /* CreateListView.swift in Sources */,

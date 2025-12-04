@@ -173,19 +173,20 @@ class BackendService: ObservableObject {
     // MARK: - Authentication Helper
     
     private func getAuthHeaders() async -> [String: String] {
-        // For now, use the user's Clerk ID as authentication
-        // In production, this should be replaced with proper JWT token from Clerk
         let baseHeaders = ["Content-Type": "application/json"]
         
-        guard let user = Clerk.shared.user else {
+        // Use AuthProvider to get proper JWT token from Clerk
+        do {
+            let headers = try await AuthProvider.shared.getHeadersWithUserId()
+            print("✅ BackendService: Got auth headers with token")
+            return headers
+        } catch {
+            print("⚠️ BackendService: Failed to get auth headers: \(error.localizedDescription)")
+            print("⚠️ BackendService: Clerk user exists: \(Clerk.shared.user != nil)")
+            print("⚠️ BackendService: Clerk session exists: \(Clerk.shared.session != nil)")
+            // Return base headers if authentication fails - let the backend handle unauthorized requests
             return baseHeaders
         }
-        
-        return [
-            "Content-Type": "application/json",
-            "Authorization": "Bearer clerk_\(user.id)",
-            "x-clerk-user-id": user.id
-        ]
     }
     
     // MARK: - Production Configuration (duplicate removed - see end of file for main implementation)
@@ -2565,6 +2566,295 @@ class BackendService: ObservableObject {
                         }
                     case .failure(let error):
                         print("❌ BackendService: Failed to get personalized feed: \(error)")
+                        continuation.resume(throwing: error)
+                    }
+                }
+        }
+    }
+    
+    // MARK: - Friends Feed
+    
+    /// Response model for friends feed
+    struct FriendsFeedResponse: Codable {
+        let posts: [FriendsFeedPost]
+        let hasMore: Bool
+        let nextCursor: String?
+        let friendsCount: Int
+    }
+    
+    /// Post model for friends feed
+    struct FriendsFeedPost: Codable {
+        let id: String
+        let authorId: String
+        let authorClerkId: String
+        let authorDisplayName: String?
+        let authorUsername: String?
+        let authorAvatarUrl: String?
+        let shopName: String
+        let foodItem: String
+        let description: String?
+        let rating: Double?
+        let imageUrl: String?
+        let imageUrls: [String]
+        let tags: [String]
+        let location: FriendsFeedLocation?
+        let isPublic: Bool
+        let likesCount: Int
+        let commentsCount: Int
+        let isLiked: Bool
+        let isBookmarked: Bool
+        let createdAt: String
+        let updatedAt: String
+    }
+    
+    struct FriendsFeedLocation: Codable {
+        let latitude: Double
+        let longitude: Double
+        let address: String
+        let name: String?
+    }
+    
+    // MARK: - Streaks
+    
+    /// Response model for streak info
+    struct StreakInfoResponse: Codable {
+        let currentStreak: Int
+        let longestStreak: Int
+        let lastPostDate: String?
+        let isStreakActive: Bool
+        let daysSinceLastPost: Int
+        let streakFreezeCount: Int
+        let nextMilestone: Int?
+        let achievedMilestones: [Int]
+    }
+    
+    /// Get user's posting streak information
+    func getStreakInfo(clerkId: String) async throws -> StreakInfoResponse {
+        print("🔥 BackendService: Getting streak info for \(clerkId)")
+        
+        struct GetStreakInput: Codable {
+            let clerkId: String
+        }
+        
+        let response: StreakInfoResponse = try await performTRPCQuery(
+            procedure: "users.getStreakInfo",
+            input: GetStreakInput(clerkId: clerkId)
+        )
+        
+        print("✅ BackendService: Got streak info - \(response.currentStreak) day streak")
+        return response
+    }
+    
+    // MARK: - Referrals
+    
+    /// Response model for getting referral code
+    struct ReferralCodeResponse: Codable {
+        let code: String
+        let rewardsCount: Int
+    }
+    
+    /// Response model for referral stats
+    struct ReferralStatsResponse: Codable {
+        let totalInvitesSent: Int
+        let pendingInvites: Int
+        let friendsJoined: Int
+        let rewardsEarned: Int
+        let friends: [ReferredFriend]
+    }
+    
+    /// Get the current user's referral code
+    func getReferralCode() async throws -> ReferralCodeResponse {
+        print("🎟️ BackendService: Getting referral code")
+        
+        struct EmptyInput: Codable {}
+        
+        let response: ReferralCodeResponse = try await performTRPCQuery(
+            procedure: "referrals.getMyReferralCode",
+            input: EmptyInput()
+        )
+        
+        print("✅ BackendService: Got referral code: \(response.code)")
+        return response
+    }
+    
+    /// Get referral statistics for the current user
+    func getReferralStats() async throws -> ReferralStatsResponse {
+        print("📊 BackendService: Getting referral stats")
+        
+        struct EmptyInput: Codable {}
+        
+        let response: ReferralStatsResponse = try await performTRPCQuery(
+            procedure: "referrals.getMyReferralStats",
+            input: EmptyInput()
+        )
+        
+        print("✅ BackendService: Got referral stats - \(response.friendsJoined) friends joined")
+        return response
+    }
+    
+    /// Apply a referral code during signup
+    func applyReferralCode(_ code: String) async throws -> (success: Bool, message: String) {
+        print("🎟️ BackendService: Applying referral code: \(code)")
+        
+        struct ApplyCodeInput: Codable {
+            let code: String
+        }
+        
+        struct ApplyCodeResponse: Codable {
+            let success: Bool
+            let message: String
+        }
+        
+        let response: ApplyCodeResponse = try await performTRPCMutation(
+            procedure: "referrals.applyReferralCode",
+            input: ApplyCodeInput(code: code)
+        )
+        
+        print("✅ BackendService: Apply referral code result: \(response.message)")
+        return (response.success, response.message)
+    }
+    
+    // MARK: - Contacts Sync
+    
+    /// Response model for finding users by phone hashes
+    struct FindUsersByPhoneHashesResponse: Codable {
+        let users: [PhoneMatchedUser]
+        let matchedHashes: [String]
+    }
+    
+    /// User model for phone hash matching
+    struct PhoneMatchedUser: Codable {
+        let id: String
+        let clerkId: String
+        let username: String?
+        let name: String?
+        let profileImage: String?
+        let bio: String?
+        let phoneHash: String?
+        let followerCount: Int
+        let followingCount: Int
+        let postsCount: Int
+        let isVerified: Bool
+        let isActive: Bool
+        let createdAt: String
+        let updatedAt: String
+    }
+    
+    // MARK: - Gathering Invites
+    
+    /// Response model for sending gathering invite
+    struct GatheringInviteResponse: Codable {
+        let success: Bool
+        let invite: GatheringInviteData?
+        let message: String?
+    }
+    
+    struct GatheringInviteData: Codable {
+        let id: String
+        let gatheringId: String
+        let inviterId: String
+        let inviteeId: String
+        let status: String
+        let createdAt: String
+    }
+    
+    /// Send a gathering invite to a friend
+    func sendGatheringInvite(gatheringId: String, inviterId: String, inviteeId: String) async throws -> GatheringInviteResponse {
+        print("📨 BackendService: Sending gathering invite to \(inviteeId)")
+        
+        struct SendInviteInput: Codable {
+            let gatheringId: String
+            let inviteeId: String
+        }
+        
+        let input = SendInviteInput(gatheringId: gatheringId, inviteeId: inviteeId)
+        
+        let response: GatheringInviteResponse = try await performTRPCMutation(
+            procedure: "gatherings.sendInvite",
+            input: input
+        )
+        
+        print("✅ BackendService: Gathering invite sent successfully")
+        return response
+    }
+    
+    /// Find users by hashed phone numbers (for contacts sync)
+    func findUsersByPhoneHashes(phoneHashes: [String]) async throws -> FindUsersByPhoneHashesResponse {
+        print("📱 BackendService: Finding users by \(phoneHashes.count) phone hashes")
+        
+        struct FindByPhoneHashesInput: Codable {
+            let phoneHashes: [String]
+        }
+        
+        let input = FindByPhoneHashesInput(phoneHashes: phoneHashes)
+        
+        let response: FindUsersByPhoneHashesResponse = try await performTRPCQuery(
+            procedure: "users.findByPhoneHashes",
+            input: input
+        )
+        
+        print("✅ BackendService: Found \(response.users.count) matching users")
+        return response
+    }
+    
+    // MARK: - Friends Feed
+    
+    /// Get posts from friends only - the primary feed for home view
+    func getFriendsPosts(
+        limit: Int = 20,
+        cursor: String? = nil
+    ) async throws -> FriendsFeedResponse {
+        print("👥 BackendService: Getting friends feed")
+        
+        var input: [String: Any] = ["limit": limit]
+        if let cursor = cursor {
+            input["cursor"] = cursor
+        }
+        
+        let inputData = try JSONSerialization.data(withJSONObject: input)
+        let inputString = String(data: inputData, encoding: .utf8) ?? "{}"
+        let encodedInput = inputString.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
+        
+        let urlString = "\(baseURL)/trpc/posts.getFriendsPosts?input=\(encodedInput)"
+        print("🌐 BackendService: Calling friends feed URL: \(urlString)")
+        
+        // Get auth token
+        guard let token = try? await Clerk.shared.session?.getToken()?.jwt else {
+            throw BackendError.trpcError("User not authenticated", 401)
+        }
+        
+        let headers: HTTPHeaders = [
+            "Authorization": "Bearer \(token)",
+            "Content-Type": "application/json"
+        ]
+        
+        return try await withCheckedThrowingContinuation { continuation in
+            AF.request(urlString, method: .get, headers: headers)
+                .validate()
+                .responseData { response in
+                    switch response.result {
+                    case .success(let data):
+                        do {
+                            // Parse the tRPC response structure
+                            let jsonData = try JSONSerialization.jsonObject(with: data)
+                            guard let responseDict = jsonData as? [String: Any],
+                                  let result = responseDict["result"] as? [String: Any],
+                                  let resultData = result["data"] as? [String: Any] else {
+                                throw BackendError.trpcError("Invalid response structure", 422)
+                            }
+                            
+                            let responseData = try JSONSerialization.data(withJSONObject: resultData)
+                            let friendsFeedResponse = try JSONDecoder().decode(FriendsFeedResponse.self, from: responseData)
+                            
+                            print("✅ BackendService: Successfully loaded friends feed: \(friendsFeedResponse.posts.count) posts from \(friendsFeedResponse.friendsCount) friends")
+                            continuation.resume(returning: friendsFeedResponse)
+                            
+                        } catch {
+                            print("❌ BackendService: Failed to parse friends feed response: \(error)")
+                            continuation.resume(throwing: error)
+                        }
+                    case .failure(let error):
+                        print("❌ BackendService: Failed to get friends feed: \(error)")
                         continuation.resume(throwing: error)
                     }
                 }

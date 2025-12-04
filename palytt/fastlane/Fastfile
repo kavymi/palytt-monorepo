@@ -52,7 +52,7 @@ platform :ios do
     )
   end
   
-  desc "Deploy to TestFlight"
+  desc "Deploy to TestFlight (Full - with all tests)"
   lane :deploy_testflight do
     # Ensure clean build
     clean
@@ -83,6 +83,111 @@ platform :ios do
     
     # Clean up
     clean_build_artifacts
+  end
+  
+  desc "Quick build and deploy to TestFlight for Internal Testing"
+  lane :internal_testing do |options|
+    UI.header("🚀 Building for Internal Testing")
+    
+    # Ensure clean build
+    clean
+    
+    # Increment build number automatically
+    increment_build_number(
+      build_number: latest_testflight_build_number + 1
+    )
+    
+    # Get changelog from options or use default
+    changelog = options[:changelog] || "Internal testing build - #{Time.now.strftime('%Y-%m-%d %H:%M')}"
+    
+    # Build for release
+    build_app(
+      scheme: "Palytt",
+      export_method: "app-store",
+      export_options: "ExportOptions.plist",
+      clean: true,
+      output_directory: "./build",
+      output_name: "Palytt.ipa",
+      include_bitcode: false,
+      include_symbols: true
+    )
+    
+    # Upload to TestFlight for internal testing only
+    upload_to_testflight(
+      skip_waiting_for_build_processing: true,
+      distribute_external: false, # Internal testing only
+      notify_external_testers: false,
+      changelog: changelog,
+      groups: ["Internal Testers"], # Distribute to internal testing group
+      demo_account_required: false,
+      beta_app_review_info: {
+        contact_email: ENV["CONTACT_EMAIL"] || "support@palytt.com",
+        contact_first_name: ENV["CONTACT_FIRST_NAME"] || "Palytt",
+        contact_last_name: ENV["CONTACT_LAST_NAME"] || "Team",
+        contact_phone: ENV["CONTACT_PHONE"] || "+1234567890"
+      }
+    )
+    
+    # Clean up
+    clean_build_artifacts
+    
+    UI.success("✅ Successfully uploaded to TestFlight for Internal Testing!")
+    UI.success("📱 Build will be available to internal testers shortly")
+  end
+  
+  desc "Build only for Internal Testing (no upload)"
+  lane :build_internal do
+    UI.header("🔨 Building for Internal Testing")
+    
+    # Clean environment
+    clean
+    
+    # Increment build number
+    increment_build_number(
+      build_number: latest_testflight_build_number + 1
+    )
+    
+    # Build for App Store
+    build_app(
+      scheme: "Palytt",
+      export_method: "app-store",
+      export_options: "ExportOptions.plist",
+      clean: true,
+      output_directory: "./build",
+      output_name: "Palytt.ipa",
+      include_bitcode: false,
+      include_symbols: true
+    )
+    
+    UI.success("✅ Build ready for internal testing!")
+    UI.message("📦 Build location: ./build/Palytt.ipa")
+    UI.message("🚀 Run 'fastlane internal_testing' to upload to TestFlight")
+  end
+  
+  desc "Upload existing build to TestFlight for Internal Testing"
+  lane :upload_internal do |options|
+    UI.header("📤 Uploading to TestFlight for Internal Testing")
+    
+    ipa_path = options[:ipa] || "./build/Palytt.ipa"
+    
+    unless File.exist?(ipa_path)
+      UI.user_error!("❌ IPA file not found at #{ipa_path}")
+    end
+    
+    changelog = options[:changelog] || "Internal testing build - #{Time.now.strftime('%Y-%m-%d %H:%M')}"
+    
+    # Upload to TestFlight
+    upload_to_testflight(
+      ipa: ipa_path,
+      skip_waiting_for_build_processing: true,
+      distribute_external: false,
+      notify_external_testers: false,
+      changelog: changelog,
+      groups: ["Internal Testers"],
+      demo_account_required: false
+    )
+    
+    UI.success("✅ Successfully uploaded to TestFlight for Internal Testing!")
   end
   
   desc "Deploy to App Store"

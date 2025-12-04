@@ -3,6 +3,18 @@ import { z } from 'zod';
 import { prisma, ensureUser } from '../db.js';
 import { createPostLikeNotification } from '../services/notificationService.js';
 
+// Helper function to get user UUID from clerkId
+async function getUserIdFromClerkId(clerkId: string): Promise<string> {
+  const user = await prisma.user.findUnique({
+    where: { clerkId },
+    select: { id: true },
+  });
+  if (!user) {
+    throw new Error('User not found');
+  }
+  return user.id;
+}
+
 // Location sub-schema (for future use)
 // const LocationSchema = z.object({
 //   id: z.string().uuid(),
@@ -111,13 +123,52 @@ export const postsRouter = router({
         },
       });
       
-      // Update user's post count
+      // Update user's post count and streak
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      
+      const userStreak = await prisma.user.findUnique({
+        where: { id: dbUser.id },
+        select: {
+          currentStreak: true,
+          longestStreak: true,
+          lastPostDate: true,
+        },
+      });
+      
+      let newStreak = 1;
+      let newLongestStreak = userStreak?.longestStreak || 0;
+      
+      if (userStreak?.lastPostDate) {
+        const lastPost = new Date(userStreak.lastPostDate);
+        lastPost.setHours(0, 0, 0, 0);
+        
+        const daysDiff = Math.floor((today.getTime() - lastPost.getTime()) / (1000 * 60 * 60 * 24));
+        
+        if (daysDiff === 0) {
+          // Same day - keep current streak
+          newStreak = userStreak.currentStreak || 1;
+        } else if (daysDiff === 1) {
+          // Consecutive day - increment streak
+          newStreak = (userStreak.currentStreak || 0) + 1;
+        }
+        // If daysDiff > 1, streak resets to 1
+      }
+      
+      // Update longest streak if current is higher
+      if (newStreak > newLongestStreak) {
+        newLongestStreak = newStreak;
+      }
+      
       await prisma.user.update({
         where: { id: dbUser.id },
         data: {
           postsCount: {
             increment: 1,
           },
+          currentStreak: newStreak,
+          longestStreak: newLongestStreak,
+          lastPostDate: new Date(),
         },
       });
       
@@ -612,6 +663,121 @@ export const postsRouter = router({
     }),
 
   /**
+   * Get posts by a specific user (by clerkId)
+   */
+  getByUser: publicProcedure
+    .input(
+      z.object({
+        userId: z.string(), // clerkId
+        limit: z.number().int().positive().max(100).default(20),
+        cursor: z.string().optional(),
+      })
+    )
+    .query(async ({ input, ctx }) => {
+      const { userId: clerkId, limit, cursor } = input;
+      
+      // Get user's UUID from clerk ID
+      const user = await prisma.user.findUnique({
+        where: { clerkId },
+        select: { id: true },
+      });
+      
+      if (!user) {
+        return [];
+      }
+      
+      // Get current user's UUID for checking likes/bookmarks
+      let currentUserUUID: string | null = null;
+      if (ctx.user?.clerkId) {
+        const currentUser = await prisma.user.findUnique({
+          where: { clerkId: ctx.user.clerkId },
+          select: { id: true },
+        });
+        currentUserUUID = currentUser?.id || null;
+      }
+      
+      const posts = await prisma.post.findMany({
+        where: {
+          userId: user.id,
+          isDeleted: false,
+          OR: [
+            { isPublic: true },
+            // Include private posts if viewing own profile
+            ...(ctx.user?.clerkId === clerkId ? [{ isPublic: false }] : []),
+          ],
+        },
+        include: {
+          author: {
+            select: {
+              id: true,
+              clerkId: true,
+              username: true,
+              name: true,
+              profileImage: true,
+            },
+          },
+          likes: currentUserUUID
+            ? {
+                where: {
+                  userId: currentUserUUID,
+                },
+              }
+            : false,
+          bookmarks: currentUserUUID
+            ? {
+                where: {
+                  userId: currentUserUUID,
+                },
+              }
+            : false,
+        },
+        orderBy: {
+          createdAt: 'desc',
+        },
+        take: limit + 1,
+        cursor: cursor ? { id: cursor } : undefined,
+      });
+      
+      // Remove extra posts if we fetched more than limit (for pagination check)
+      if (posts.length > limit) {
+        posts.pop();
+      }
+      
+      // Transform posts to match frontend schema
+      return posts.map((post: any) => ({
+        id: post.id,
+        authorId: post.userId,
+        authorClerkId: post.author.clerkId,
+        authorDisplayName: post.author.name || post.author.username,
+        authorUsername: post.author.username,
+        authorAvatarUrl: post.author.profileImage,
+        shopId: null,
+        shopName: post.title || '',
+        foodItem: post.menuItems?.[0] || '',
+        description: post.caption,
+        rating: post.rating || null,
+        imageUrl: post.mediaUrls?.[0] || null,
+        imageUrls: post.mediaUrls || [],
+        tags: [],
+        location: post.locationName && post.locationLatitude && post.locationLongitude
+          ? {
+              latitude: post.locationLatitude,
+              longitude: post.locationLongitude,
+              address: post.locationAddress || '',
+              name: post.locationName,
+            }
+          : null,
+        isPublic: post.isPublic,
+        likesCount: post.likesCount,
+        commentsCount: post.commentsCount,
+        isLiked: Array.isArray(post.likes) && post.likes.length > 0,
+        isBookmarked: Array.isArray(post.bookmarks) && post.bookmarks.length > 0,
+        createdAt: post.createdAt.toISOString(),
+        updatedAt: post.updatedAt.toISOString(),
+      }));
+    }),
+
+  /**
    * Get recent posts (alias for list - for iOS app compatibility)
    */
   getRecentPosts: publicProcedure
@@ -794,6 +960,135 @@ export const postsRouter = router({
         hasMore: posts.length === input.limit,
         nextCursor: posts.length === input.limit ? posts[posts.length - 1].id : null,
         totalCount, // Include total count for pagination
+      };
+    }),
+
+  /**
+   * Get posts from friends only
+   * This is the primary feed for the home view - shows only posts from accepted friends
+   */
+  getFriendsPosts: protectedProcedure
+    .input(
+      z.object({
+        limit: z.number().int().positive().max(50).default(20),
+        cursor: z.string().optional(),
+      })
+    )
+    .query(async ({ input, ctx }) => {
+      const { limit, cursor } = input;
+      
+      // Get user's UUID from clerk ID
+      const userUUID = await getUserIdFromClerkId(ctx.user.clerkId);
+      
+      // Get accepted friends (from both directions of friendship)
+      const friendships = await prisma.friend.findMany({
+        where: {
+          OR: [
+            { senderId: userUUID, status: 'ACCEPTED' },
+            { receiverId: userUUID, status: 'ACCEPTED' },
+          ],
+        },
+        select: {
+          senderId: true,
+          receiverId: true,
+        },
+      });
+      
+      // Extract friend IDs (the other person in each friendship)
+      const friendIds = friendships.map((f) =>
+        f.senderId === userUUID ? f.receiverId : f.senderId
+      );
+      
+      // If user has no friends, return empty result
+      if (friendIds.length === 0) {
+        return {
+          posts: [],
+          hasMore: false,
+          nextCursor: null,
+          friendsCount: 0,
+        };
+      }
+      
+      // Get posts from friends only
+      const posts = await prisma.post.findMany({
+        where: {
+          userId: { in: friendIds },
+          isPublic: true,
+          isDeleted: false,
+        },
+        include: {
+          author: {
+            select: {
+              id: true,
+              clerkId: true,
+              username: true,
+              name: true,
+              profileImage: true,
+            },
+          },
+          likes: {
+            where: {
+              userId: userUUID,
+            },
+          },
+          bookmarks: {
+            where: {
+              userId: userUUID,
+            },
+          },
+        },
+        orderBy: {
+          createdAt: 'desc',
+        },
+        take: limit + 1,
+        cursor: cursor ? { id: cursor } : undefined,
+      });
+      
+      // Check if there are more posts
+      let nextCursor: string | null = null;
+      if (posts.length > limit) {
+        const nextItem = posts.pop();
+        nextCursor = nextItem!.id;
+      }
+      
+      // Transform posts to match frontend schema
+      const transformedPosts = posts.map((post: any) => ({
+        id: post.id,
+        authorId: post.userId,
+        authorClerkId: post.author.clerkId,
+        authorDisplayName: post.author.name || post.author.username,
+        authorUsername: post.author.username,
+        authorAvatarUrl: post.author.profileImage,
+        shopId: null,
+        shopName: post.title || '',
+        foodItem: post.menuItems?.[0] || '',
+        description: post.caption,
+        rating: post.rating || null,
+        imageUrl: post.mediaUrls?.[0] || null,
+        imageUrls: post.mediaUrls || [],
+        tags: [],
+        location: post.locationName && post.locationLatitude && post.locationLongitude
+          ? {
+              latitude: post.locationLatitude,
+              longitude: post.locationLongitude,
+              address: post.locationAddress || '',
+              name: post.locationName,
+            }
+          : null,
+        isPublic: post.isPublic,
+        likesCount: post.likesCount,
+        commentsCount: post.commentsCount,
+        isLiked: post.likes.length > 0,
+        isBookmarked: post.bookmarks.length > 0,
+        createdAt: post.createdAt.toISOString(),
+        updatedAt: post.updatedAt.toISOString(),
+      }));
+      
+      return {
+        posts: transformedPosts,
+        hasMore: nextCursor !== null,
+        nextCursor,
+        friendsCount: friendIds.length,
       };
     }),
 

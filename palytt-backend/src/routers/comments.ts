@@ -1,7 +1,25 @@
 import { z } from 'zod';
 import { router, publicProcedure, protectedProcedure, type Context } from '../trpc.js';
-import { prisma } from '../db.js';
+import { prisma, ensureUser } from '../db.js';
 import { createPostCommentNotification } from '../services/notificationService.js';
+
+// Helper function to get user UUID from clerkId
+async function getUserIdFromClerkId(clerkId: string): Promise<string> {
+  const user = await prisma.user.findUnique({
+    where: { clerkId },
+    select: { id: true },
+  });
+  if (!user) {
+    throw new Error('User not found');
+  }
+  return user.id;
+}
+
+// Helper function to get user UUID, creating user if needed
+async function ensureUserIdFromClerkId(clerkId: string): Promise<string> {
+  const user = await ensureUser(clerkId, `${clerkId}@clerk.local`);
+  return user.id;
+}
 
 export const commentsRouter = router({
   // Get comments for a specific post
@@ -27,6 +45,7 @@ export const commentsRouter = router({
           author: {
             select: {
               id: true,
+              clerkId: true,
               username: true,
               name: true,
               profileImage: true,
@@ -55,7 +74,10 @@ export const commentsRouter = router({
     }))
     .mutation(async ({ input, ctx }: { input: { postId: string; content: string }; ctx: Context & { user: NonNullable<Context['user']> } }) => {
       const { postId, content } = input;
-      const userId = ctx.user.clerkId;
+      const userClerkId = ctx.user.clerkId;
+
+      // Get current user's UUID
+      const userUUID = await ensureUserIdFromClerkId(userClerkId);
 
       // First, verify the post exists
       const post = await prisma.post.findUnique({
@@ -67,17 +89,18 @@ export const commentsRouter = router({
         throw new Error('Post not found');
       }
 
-      // Create the comment
+      // Create the comment using UUID
       const comment = await prisma.comment.create({
         data: {
           postId,
-          authorId: userId,
+          authorId: userUUID,
           content,
         },
         include: {
           author: {
             select: {
               id: true,
+              clerkId: true,
               username: true,
               name: true,
               profileImage: true,
@@ -96,8 +119,8 @@ export const commentsRouter = router({
         },
       });
 
-      // Create notification for post comment
-      await createPostCommentNotification(postId, userId, content);
+      // Create notification for post comment (using clerkId for notification service)
+      await createPostCommentNotification(postId, userClerkId, content);
 
       return comment;
     }),
@@ -109,7 +132,10 @@ export const commentsRouter = router({
     }))
     .mutation(async ({ input, ctx }: { input: { commentId: string }; ctx: Context & { user: NonNullable<Context['user']> } }) => {
       const { commentId } = input;
-      const userId = ctx.user.clerkId;
+      const userClerkId = ctx.user.clerkId;
+
+      // Get current user's UUID
+      const userUUID = await ensureUserIdFromClerkId(userClerkId);
 
       // Find the comment and verify ownership
       const comment = await prisma.comment.findUnique({
@@ -121,7 +147,8 @@ export const commentsRouter = router({
         throw new Error('Comment not found');
       }
 
-      if (comment.authorId !== userId) {
+      // Compare UUIDs for ownership check
+      if (comment.authorId !== userUUID) {
         throw new Error('You can only delete your own comments');
       }
 
@@ -173,16 +200,28 @@ export const commentsRouter = router({
   // Get comments by a specific user
   getCommentsByUser: publicProcedure
     .input(z.object({
-      userId: z.string(),
+      userId: z.string(), // clerkId
       limit: z.number().min(1).max(50).default(20),
       cursor: z.string().optional(),
     }))
     .query(async ({ input }: { input: { userId: string; limit: number; cursor?: string } }) => {
-      const { userId, limit, cursor } = input;
+      const { userId: userClerkId, limit, cursor } = input;
       
+      // Get user's UUID from clerkId
+      let userUUID: string;
+      try {
+        userUUID = await getUserIdFromClerkId(userClerkId);
+      } catch {
+        // If user doesn't exist, return empty results
+        return {
+          comments: [],
+          nextCursor: undefined,
+        };
+      }
+
       const comments = await prisma.comment.findMany({
         where: {
-          authorId: userId,
+          authorId: userUUID,
         },
         take: limit + 1,
         cursor: cursor ? { id: cursor } : undefined,
@@ -193,6 +232,7 @@ export const commentsRouter = router({
           author: {
             select: {
               id: true,
+              clerkId: true,
               username: true,
               name: true,
               profileImage: true,

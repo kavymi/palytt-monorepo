@@ -9,6 +9,8 @@ import { messagesRouter } from './messages.js';
 import { notificationsRouter } from './notifications.js';
 import { placesRouter } from './places.js';
 import { listsRouter } from './lists.js';
+import { gatheringsRouter } from './gatherings.js';
+import { referralsRouter } from './referrals.js';
 
 /**
  * Main app router
@@ -26,6 +28,8 @@ export const appRouter = router({
   notifications: notificationsRouter,
   places: placesRouter,
   lists: listsRouter,
+  gatherings: gatheringsRouter,
+  referrals: referralsRouter,
   // Add more routers here:
   // auth: authRouter,
   // shops: shopsRouter,

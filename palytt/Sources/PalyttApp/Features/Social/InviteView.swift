@@ -18,11 +18,17 @@ struct InviteView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var showingShareSheet = false
     @State private var selectedInviteOption: InviteOption = .general
+    @State private var showingReferrals = false
+    @State private var referralCode: String = ""
+    @State private var codeCopied = false
     
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 24) {
+                    // Referral Code Section (NEW)
+                    referralCodeSection
+                    
                     // Header Section
                     headerSection
                     
@@ -36,6 +42,9 @@ struct InviteView: View {
                     
                     // Share Buttons
                     shareButtonsSection
+                    
+                    // View All Referrals Link
+                    viewReferralsLink
                 }
                 .padding(.horizontal, 20)
                 .padding(.vertical, 16)
@@ -54,6 +63,9 @@ struct InviteView: View {
             }
             .sheet(isPresented: $showingShareSheet) {
                 ShareSheet(activityItems: viewModel.getShareContent(for: selectedInviteOption))
+            }
+            .sheet(isPresented: $showingReferrals) {
+                ReferralsView()
             }
             .sheet(isPresented: $viewModel.showNativeMessagesComposer) {
                 if let delegate = viewModel.messageComposeDelegate {
@@ -90,6 +102,94 @@ struct InviteView: View {
                     await viewModel.loadInviteStats()
                 }
             }
+        }
+    }
+    
+    // MARK: - Referral Code Section
+    
+    @ViewBuilder
+    private var referralCodeSection: some View {
+        VStack(spacing: 16) {
+            HStack {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Your Referral Code")
+                        .font(.caption)
+                        .foregroundColor(.secondaryText)
+                    
+                    Text(referralCode.isEmpty ? "Loading..." : referralCode)
+                        .font(.system(size: 24, weight: .bold, design: .monospaced))
+                        .foregroundColor(.primaryBrand)
+                }
+                
+                Spacer()
+                
+                Button(action: {
+                    HapticManager.shared.impact(.light)
+                    if !referralCode.isEmpty {
+                        UIPasteboard.general.string = referralCode
+                        codeCopied = true
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+                            codeCopied = false
+                        }
+                    }
+                }) {
+                    HStack(spacing: 4) {
+                        Image(systemName: codeCopied ? "checkmark" : "doc.on.doc")
+                        Text(codeCopied ? "Copied" : "Copy")
+                    }
+                    .font(.caption)
+                    .fontWeight(.medium)
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+                    .background(codeCopied ? Color.green : Color.primaryBrand)
+                    .cornerRadius(8)
+                }
+            }
+            .padding(16)
+            .background(
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(Color.cardBackground)
+            )
+        }
+        .task {
+            do {
+                let response = try await BackendService.shared.getReferralCode()
+                referralCode = response.code
+            } catch {
+                print("❌ Failed to load referral code: \(error)")
+            }
+        }
+    }
+    
+    // MARK: - View Referrals Link
+    
+    @ViewBuilder
+    private var viewReferralsLink: some View {
+        Button(action: {
+            HapticManager.shared.impact(.light)
+            showingReferrals = true
+        }) {
+            HStack {
+                Image(systemName: "chart.bar.fill")
+                    .foregroundColor(.primaryBrand)
+                
+                Text("View Referral Statistics")
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+                    .foregroundColor(.primaryText)
+                
+                Spacer()
+                
+                Image(systemName: "chevron.right")
+                    .font(.caption)
+                    .foregroundColor(.secondaryText)
+            }
+            .padding(16)
+            .background(
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(Color.cardBackground)
+            )
         }
     }
     

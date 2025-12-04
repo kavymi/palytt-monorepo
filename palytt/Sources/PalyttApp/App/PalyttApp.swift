@@ -230,8 +230,12 @@ struct PalyttApp: App {
     private func configureAppForProduction() async {
         print("🚀 PalyttApp: Configuring app for production")
         
-        // Configure backend service for production
+        // Only configure backend for production in release builds
+        #if !DEBUG
         BackendService.shared.configureForProduction()
+        #else
+        print("🔧 PalyttApp: DEBUG mode - keeping local backend configuration")
+        #endif
         
         // Initialize native notification system
         await setupNativeNotifications()

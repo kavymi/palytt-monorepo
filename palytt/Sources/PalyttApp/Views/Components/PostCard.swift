@@ -27,6 +27,7 @@ struct PostCard: View {
     @State private var isDragging: Bool = false
     @State private var showHeartAnimation: Bool = false
     @State private var showSaveOptions: Bool = false
+    @State private var showShareSheet: Bool = false
     @State private var currentCommentsCount: Int = 0
     @State private var showPostLikes: Bool = false
     @State private var recentComments: [Comment] = []
@@ -340,6 +341,7 @@ struct PostCard: View {
             likeButton
             commentButton
             saveButton
+            shareButton
         }
         .font(.system(size: 20))
         .padding(.top, 8)
@@ -455,6 +457,20 @@ struct PostCard: View {
                     onBookmark?(post.id)
                 }
             )
+        }
+    }
+    
+    private var shareButton: some View {
+        Button(action: {
+            HapticManager.shared.impact(.light)
+            showShareSheet = true
+        }) {
+            Image(systemName: "square.and.arrow.up")
+                .font(.system(size: 20))
+                .foregroundColor(.primaryText)
+        }
+        .sheet(isPresented: $showShareSheet) {
+            SharePostView(post: post)
         }
     }
     

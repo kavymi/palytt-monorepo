@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { router, protectedProcedure } from '../trpc.js';
-import { prisma } from '../db.js';
+import { prisma, ensureUser } from '../db.js';
 
 // Type for notification data JSON field
 interface NotificationData {
@@ -12,6 +12,21 @@ interface NotificationData {
   [key: string]: any;
 }
 
+// Helper function to get user UUID from clerkId
+async function getUserIdFromClerkId(clerkId: string): Promise<string | null> {
+  const user = await prisma.user.findUnique({
+    where: { clerkId },
+    select: { id: true },
+  });
+  return user?.id || null;
+}
+
+// Helper function to get user UUID, creating user if needed
+async function ensureUserIdFromClerkId(clerkId: string): Promise<string> {
+  const user = await ensureUser(clerkId, `${clerkId}@clerk.local`);
+  return user.id;
+}
+
 export const notificationsRouter = router({
   // Get notifications for the current user
   getNotifications: protectedProcedure
@@ -19,19 +34,17 @@ export const notificationsRouter = router({
       limit: z.number().min(1).max(50).default(20),
       cursor: z.string().optional(),
       type: z.enum(['POST_LIKE', 'COMMENT', 'COMMENT_LIKE', 'FOLLOW', 'FRIEND_REQUEST', 'FRIEND_ACCEPTED', 'FRIEND_POST', 'MESSAGE', 'POST_MENTION', 'GENERAL']).optional(),
+      types: z.array(z.enum(['POST_LIKE', 'COMMENT', 'COMMENT_LIKE', 'FOLLOW', 'FRIEND_REQUEST', 'FRIEND_ACCEPTED', 'FRIEND_POST', 'MESSAGE', 'POST_MENTION', 'GENERAL'])).optional(),
       unreadOnly: z.boolean().default(false),
     }))
     .query(async ({ input, ctx }) => {
-      const { limit, cursor, type, unreadOnly } = input;
+      const { limit, cursor, type, types, unreadOnly } = input;
       const userClerkId = ctx.user.clerkId;
 
-      // Find user by clerkId to get their database ID
-      const user = await prisma.user.findUnique({
-        where: { clerkId: userClerkId },
-        select: { id: true }
-      });
+      // Get user UUID
+      const userUUID = await getUserIdFromClerkId(userClerkId);
 
-      if (!user) {
+      if (!userUUID) {
         console.log(`⚠️ User not found in database for clerkId: ${userClerkId}`);
         return {
           notifications: [],
@@ -40,10 +53,13 @@ export const notificationsRouter = router({
       }
 
       const whereClause: any = {
-        userId: user.id,
+        userId: userUUID,
       };
 
-      if (type) {
+      // Support both single type and multiple types filtering
+      if (types && types.length > 0) {
+        whereClause.type = { in: types };
+      } else if (type) {
         whereClause.type = type;
       }
 
@@ -130,18 +146,15 @@ export const notificationsRouter = router({
       const { notificationIds } = input;
       const userClerkId = ctx.user.clerkId;
 
-      // Find user by clerkId to get their database ID
-      const user = await prisma.user.findUnique({
-        where: { clerkId: userClerkId },
-        select: { id: true }
-      });
+      // Get user UUID
+      const userUUID = await getUserIdFromClerkId(userClerkId);
 
-      if (!user) {
+      if (!userUUID) {
         throw new Error('User not found');
       }
 
       const whereClause: any = {
-        userId: user.id,
+        userId: userUUID,
         read: false,
       };
 
@@ -162,7 +175,7 @@ export const notificationsRouter = router({
   // Create a new notification (typically called by other services)
   createNotification: protectedProcedure
     .input(z.object({
-      userId: z.string(),
+      userId: z.string(), // This is the UUID of the user to notify
       type: z.enum(['POST_LIKE', 'COMMENT', 'COMMENT_LIKE', 'FOLLOW', 'FRIEND_REQUEST', 'FRIEND_ACCEPTED', 'FRIEND_POST', 'MESSAGE', 'POST_MENTION', 'GENERAL']),
       title: z.string(),
       message: z.string(),
@@ -189,20 +202,17 @@ export const notificationsRouter = router({
     .query(async ({ ctx }) => {
       const userClerkId = ctx.user.clerkId;
 
-      // Find user by clerkId to get their database ID
-      const user = await prisma.user.findUnique({
-        where: { clerkId: userClerkId },
-        select: { id: true }
-      });
+      // Get user UUID
+      const userUUID = await getUserIdFromClerkId(userClerkId);
 
-      if (!user) {
+      if (!userUUID) {
         // Return consistent response structure that matches iOS app expectations
         return { count: 0 };
       }
 
       const count = await prisma.notification.count({
         where: {
-          userId: user.id,
+          userId: userUUID,
           read: false,
         },
       });
@@ -218,12 +228,15 @@ export const notificationsRouter = router({
     }))
     .mutation(async ({ input, ctx }) => {
       const { notificationIds } = input;
-      const userId = ctx.user.clerkId;
+      const userClerkId = ctx.user.clerkId;
+
+      // Get user UUID
+      const userUUID = await ensureUserIdFromClerkId(userClerkId);
 
       const deleted = await prisma.notification.deleteMany({
         where: {
           id: { in: notificationIds },
-          userId, // Ensure user can only delete their own notifications
+          userId: userUUID, // Ensure user can only delete their own notifications
         },
       });
 
@@ -233,11 +246,14 @@ export const notificationsRouter = router({
   // Clear all notifications for user
   clearAll: protectedProcedure
     .mutation(async ({ ctx }) => {
-      const userId = ctx.user.clerkId;
+      const userClerkId = ctx.user.clerkId;
+
+      // Get user UUID
+      const userUUID = await ensureUserIdFromClerkId(userClerkId);
 
       const deleted = await prisma.notification.deleteMany({
         where: {
-          userId,
+          userId: userUUID,
         },
       });
 
@@ -284,11 +300,14 @@ export const notificationsRouter = router({
   // Mark all notifications as read
   markAllAsRead: protectedProcedure
     .mutation(async ({ ctx }) => {
-      const userId = ctx.user.clerkId;
+      const userClerkId = ctx.user.clerkId;
+
+      // Get user UUID
+      const userUUID = await ensureUserIdFromClerkId(userClerkId);
 
       const updated = await prisma.notification.updateMany({
         where: {
-          userId,
+          userId: userUUID,
           read: false,
         },
         data: {
@@ -306,14 +325,17 @@ export const notificationsRouter = router({
     }))
     .query(async ({ input, ctx }) => {
       const { days } = input;
-      const userId = ctx.user.clerkId;
+      const userClerkId = ctx.user.clerkId;
+
+      // Get user UUID
+      const userUUID = await ensureUserIdFromClerkId(userClerkId);
       
       const since = new Date();
       since.setDate(since.getDate() - days);
 
       const notifications = await prisma.notification.findMany({
         where: {
-          userId,
+          userId: userUUID,
           createdAt: {
             gte: since,
           },

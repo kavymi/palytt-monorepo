@@ -21,22 +21,22 @@ struct AddFriendsView: View {
     @FocusState private var isSearchFocused: Bool
     @State private var searchDebounceTask: Task<Void, Never>?
     
-    enum FriendsTab {
-        case suggested, search, nearby
+    enum FriendsTab: CaseIterable {
+        case suggested, contacts, search
         
         var title: String {
             switch self {
             case .suggested: return "Suggested"
+            case .contacts: return "Contacts"
             case .search: return "Search"
-            case .nearby: return "Nearby"
             }
         }
         
         var icon: String {
             switch self {
             case .suggested: return "person.2"
+            case .contacts: return "person.crop.rectangle.stack"
             case .search: return "magnifyingglass"
-            case .nearby: return "location"
             }
         }
     }
@@ -116,122 +116,48 @@ struct AddFriendsView: View {
                 }
                 
                 // Tab Picker
-                HStack(spacing: 20) {
-                    Button("Suggested") {
-                        currentTab = .suggested
-                        HapticManager.shared.impact(.light)
-                        if viewModel.suggestedUsers.isEmpty {
-                            Task {
-                                await viewModel.loadSuggestedUsers()
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 12) {
+                        ForEach(FriendsTab.allCases, id: \.self) { tab in
+                            Button(action: {
+                                HapticManager.shared.impact(.light)
+                                currentTab = tab
+                                if tab == .suggested && viewModel.suggestedUsers.isEmpty {
+                                    Task {
+                                        await viewModel.loadSuggestedUsers()
+                                    }
+                                }
+                            }) {
+                                HStack(spacing: 6) {
+                                    Image(systemName: tab.icon)
+                                        .font(.system(size: 14))
+                                    Text(tab.title)
+                                        .font(.system(size: 14, weight: .semibold))
+                                }
+                                .foregroundColor(currentTab == tab ? .white : .secondaryText)
+                                .padding(.horizontal, 16)
+                                .padding(.vertical, 8)
+                                .background(
+                                    Capsule()
+                                        .fill(currentTab == tab ? Color.primaryBrand : Color.cardBackground)
+                                )
                             }
                         }
                     }
-                    .foregroundColor(currentTab == .suggested ? .primaryText : .secondaryText)
-                    .font(.system(size: 16, weight: .semibold))
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 8)
-                    .background(currentTab == .suggested ? Color.cardBackground : Color.clear)
-                    .cornerRadius(20)
-                    
-                    Button("Search") {
-                        currentTab = .search
-                        HapticManager.shared.impact(.light)
-                    }
-                    .foregroundColor(currentTab == .search ? .primaryText : .secondaryText)
-                    .font(.system(size: 16, weight: .semibold))
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 8)
-                    .background(currentTab == .search ? Color.cardBackground : Color.clear)
-                    .cornerRadius(20)
-                    
-                    Spacer()
+                    .padding(.horizontal)
                 }
-                .padding(.horizontal)
                 
                 Divider()
                     .padding(.vertical, 8)
                 
-                // Content
-                ScrollView {
-                    LazyVStack(spacing: 12) {
-                        if currentTab == .suggested {
-                            if viewModel.isLoadingSuggested {
-                                ForEach(0..<5, id: \.self) { _ in
-                                    UserRowSkeleton()
-                                }
-                            } else if viewModel.suggestedUsers.isEmpty {
-                                EmptyStateView(
-                                    icon: "person.2",
-                                    title: "No Suggestions",
-                                    message: "Check back later for friend suggestions"
-                                )
-                                .padding(.top, 60)
-                            } else {
-                                                            ForEach(viewModel.suggestedUsers, id: \.user.userId) { suggestion in
-                                EnhancedAddFriendUserRowView(
-                                    suggestion: suggestion,
-                                    buttonText: "Add Friend",
-                                    buttonAction: {
-                                        Task {
-                                            await viewModel.sendFriendRequest(to: suggestion.user)
-                                        }
-                                    }
-                                )
-                                }
-                            }
-                        } else {
-                            if viewModel.isSearching {
-                                ForEach(0..<3, id: \.self) { _ in
-                                    UserRowSkeleton()
-                                }
-                            } else if searchText.isEmpty {
-                                VStack(spacing: 16) {
-                                    Image(systemName: "magnifyingglass")
-                                        .font(.system(size: 40))
-                                        .foregroundColor(.milkTea)
-                                    
-                                    Text("Search for users")
-                                        .font(.headline)
-                                        .foregroundColor(.secondaryText)
-                                    
-                                    Text("Enter a username or display name to find users")
-                                        .font(.subheadline)
-                                        .foregroundColor(.tertiaryText)
-                                        .multilineTextAlignment(.center)
-                                }
-                                .padding(.top, 60)
-                            } else if viewModel.searchResults.isEmpty {
-                                VStack(spacing: 16) {
-                                    Image(systemName: "person.fill.questionmark")
-                                        .font(.system(size: 40))
-                                        .foregroundColor(.milkTea)
-                                    
-                                    Text("No users found")
-                                        .font(.headline)
-                                        .foregroundColor(.secondaryText)
-                                    
-                                    Text("Try searching with a different username")
-                                        .font(.subheadline)
-                                        .foregroundColor(.tertiaryText)
-                                        .multilineTextAlignment(.center)
-                                }
-                                .padding(.top, 60)
-                            } else {
-                                ForEach(viewModel.searchResults, id: \.userId) { user in
-                                    AddFriendUserRowView(
-                                        user: user,
-                                        buttonText: "Add Friend",
-                                        buttonAction: {
-                                            Task {
-                                                await viewModel.sendFriendRequest(to: user)
-                                            }
-                                        }
-                                    )
-                                }
-                            }
-                        }
-                    }
-                    .padding()
+                // Content based on selected tab
+                switch currentTab {
+                case .suggested:
+                    suggestedContent
+                case .contacts:
+                    ContactsSyncView()
+                case .search:
+                    searchContent
                 }
             }
             .navigationTitle("Add Friends")
@@ -270,6 +196,99 @@ struct AddFriendsView: View {
                     await viewModel.loadSuggestedUsers()
                 }
             }
+        }
+    }
+    
+    // MARK: - Tab Content Views
+    
+    @ViewBuilder
+    private var suggestedContent: some View {
+        ScrollView {
+            LazyVStack(spacing: 12) {
+                if viewModel.isLoadingSuggested {
+                    ForEach(0..<5, id: \.self) { _ in
+                        UserRowSkeleton()
+                    }
+                } else if viewModel.suggestedUsers.isEmpty {
+                    EmptyStateView(
+                        icon: "person.2",
+                        title: "No Suggestions",
+                        message: "Check back later for friend suggestions"
+                    )
+                    .padding(.top, 60)
+                } else {
+                    ForEach(viewModel.suggestedUsers, id: \.user.userId) { suggestion in
+                        EnhancedAddFriendUserRowView(
+                            suggestion: suggestion,
+                            buttonText: "Add Friend",
+                            buttonAction: {
+                                Task {
+                                    await viewModel.sendFriendRequest(to: suggestion.user)
+                                }
+                            }
+                        )
+                    }
+                }
+            }
+            .padding()
+        }
+    }
+    
+    @ViewBuilder
+    private var searchContent: some View {
+        ScrollView {
+            LazyVStack(spacing: 12) {
+                if viewModel.isSearching {
+                    ForEach(0..<3, id: \.self) { _ in
+                        UserRowSkeleton()
+                    }
+                } else if searchText.isEmpty {
+                    VStack(spacing: 16) {
+                        Image(systemName: "magnifyingglass")
+                            .font(.system(size: 40))
+                            .foregroundColor(.milkTea)
+                        
+                        Text("Search for users")
+                            .font(.headline)
+                            .foregroundColor(.secondaryText)
+                        
+                        Text("Enter a username or display name to find users")
+                            .font(.subheadline)
+                            .foregroundColor(.tertiaryText)
+                            .multilineTextAlignment(.center)
+                    }
+                    .padding(.top, 60)
+                } else if viewModel.searchResults.isEmpty {
+                    VStack(spacing: 16) {
+                        Image(systemName: "person.fill.questionmark")
+                            .font(.system(size: 40))
+                            .foregroundColor(.milkTea)
+                        
+                        Text("No users found")
+                            .font(.headline)
+                            .foregroundColor(.secondaryText)
+                        
+                        Text("Try searching with a different username")
+                            .font(.subheadline)
+                            .foregroundColor(.tertiaryText)
+                            .multilineTextAlignment(.center)
+                    }
+                    .padding(.top, 60)
+                } else {
+                    ForEach(viewModel.searchResults, id: \.userId) { user in
+                        AddFriendUserRowView(
+                            user: user,
+                            buttonText: "Add Friend",
+                            buttonAction: {
+                                Task {
+                                    await viewModel.sendFriendRequest(to: user)
+                                }
+                            }
+                        )
+                    }
+                }
+            }
+            .padding()
         }
     }
     

@@ -10,7 +10,7 @@
 
 import Foundation
 
-// MARK: - Notification DTOs
+// MARK: - Notification DTOs (Legacy - kept for compatibility)
 
 struct NotificationDTO: Codable {
     let id: String
@@ -35,7 +35,40 @@ struct NotificationDTO: Codable {
     let metadata: [String: String]?
 }
 
-// MARK: - Request DTOs
+// MARK: - tRPC Request DTOs
+
+/// Request input for getNotifications
+struct TRPCGetNotificationsInput: Codable {
+    let limit: Int?
+    let cursor: String?
+    let type: String?
+    let types: [String]?
+    let unreadOnly: Bool?
+    
+    init(limit: Int = 20, cursor: String? = nil, type: NotificationType? = nil, types: [NotificationType]? = nil, unreadOnly: Bool = false) {
+        self.limit = limit
+        self.cursor = cursor
+        self.type = type?.rawValue
+        self.types = types?.map { $0.rawValue }
+        self.unreadOnly = unreadOnly
+    }
+}
+
+/// Request input for markAsRead
+struct TRPCMarkNotificationsAsReadInput: Codable {
+    let notificationIds: [String]?
+    
+    init(notificationIds: [String]? = nil) {
+        self.notificationIds = notificationIds
+    }
+}
+
+/// Request input for deleteNotifications
+struct TRPCDeleteNotificationsInput: Codable {
+    let notificationIds: [String]
+}
+
+// MARK: - Legacy Request DTOs (kept for compatibility)
 
 struct GetNotificationsRequest: Codable {
     let userId: String

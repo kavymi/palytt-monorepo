@@ -18,6 +18,7 @@ struct GroupGatheringView: View {
     @State private var showingCreatePost = false
     @State private var showingAddManualVenue = false
     @State private var showingArchiveConfirmation = false
+    @State private var showingInviteFriends = false
     
     enum GatheringTab: String, CaseIterable {
         case overview = "Overview"
@@ -63,35 +64,58 @@ struct GroupGatheringView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Menu {
-                        if viewModel.canCurrentUserArchive {
-                            Button(role: .destructive) {
-                                showingArchiveConfirmation = true
-                            } label: {
-                                Label("Archive Gathering", systemImage: "archivebox.fill")
-                            }
-                        }
-                        
+                    HStack(spacing: 16) {
+                        // Invite Friends Button
                         Button {
-                            viewModel.shareGathering()
+                            showingInviteFriends = true
                         } label: {
-                            Label("Share Gathering", systemImage: "square.and.arrow.up")
+                            Image(systemName: "person.badge.plus")
+                                .foregroundColor(.primaryBrand)
                         }
                         
-                        if viewModel.gathering.calendarSyncEnabled {
+                        // Menu
+                        Menu {
                             Button {
-                                viewModel.syncToCalendar()
+                                showingInviteFriends = true
                             } label: {
-                                Label("Sync to Calendar", systemImage: "calendar.badge.plus")
+                                Label("Invite Friends", systemImage: "person.badge.plus")
                             }
+                            
+                            if viewModel.canCurrentUserArchive {
+                                Button(role: .destructive) {
+                                    showingArchiveConfirmation = true
+                                } label: {
+                                    Label("Archive Gathering", systemImage: "archivebox.fill")
+                                }
+                            }
+                            
+                            Button {
+                                viewModel.shareGathering()
+                            } label: {
+                                Label("Share Gathering", systemImage: "square.and.arrow.up")
+                            }
+                            
+                            if viewModel.gathering.calendarSyncEnabled {
+                                Button {
+                                    viewModel.syncToCalendar()
+                                } label: {
+                                    Label("Sync to Calendar", systemImage: "calendar.badge.plus")
+                                }
+                            }
+                        } label: {
+                            Image(systemName: "ellipsis.circle")
                         }
-                    } label: {
-                        Image(systemName: "ellipsis.circle")
                     }
                 }
             }
         }
-        .alert("Archive Gathering", isPresented: $showingArchiveConfirmation) {
+            .sheet(isPresented: $showingInviteFriends) {
+                GatheringInviteView(gathering: viewModel.gathering) { [viewModel] invitedFriendIds in
+                    // Refresh gathering data after invites sent
+                    viewModel.loadGatheringDetails()
+                }
+            }
+            .alert("Archive Gathering", isPresented: $showingArchiveConfirmation) {
             Button("Cancel", role: .cancel) { }
             Button("Archive", role: .destructive) {
                 viewModel.archiveGathering()

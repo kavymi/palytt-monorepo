@@ -11,13 +11,11 @@ import Foundation
 import SwiftUI
 import Clerk
 import Combine
-import CoreLocation
 
 // MARK: - Supporting Types for Enhanced Combine Implementation
 
 enum FeedType {
-    case regular
-    case personalized(userId: String, location: CLLocation)
+    case friends
 }
 
 enum LoadingState {
@@ -35,18 +33,15 @@ class HomeViewModel: ObservableObject {
     @Published var isLoadingMore = false
     @Published var errorMessage: String?
     @Published var hasMorePages = true
-    @Published var isUsingPersonalizedFeed = false
-    @Published var feedStats: FeedStats?
+    @Published var friendsCount: Int = 0  // Track number of friends for empty state
     
     // Computed reactive loading state for enhanced state management
     var loadingState: LoadingState {
         loadingStateSubject.value
     }
     
-    // ✅ NEW: Use PostsService instead of BackendService
-    private let postsService: PostsServiceProtocol?
-    private let backendService: BackendService? // Keep temporarily for personalized feed
-    private let locationManager: LocationManager?
+    // BackendService for friends feed
+    private let backendService: BackendService?
     private var currentPage = 1
     private var nextCursor: String?
     private let pageSize = 20
@@ -61,7 +56,7 @@ class HomeViewModel: ObservableObject {
     private var refreshCancellable: AnyCancellable?
     
     // Publishers for reactive state management
-    private let feedTypeSubject = CurrentValueSubject<FeedType, Never>(.regular)
+    private let feedTypeSubject = CurrentValueSubject<FeedType, Never>(.friends)
     private let loadingStateSubject = CurrentValueSubject<LoadingState, Never>(.idle)
     
     // Debounced scroll trigger for optimal performance
@@ -72,31 +67,18 @@ class HomeViewModel: ObservableObject {
         ProcessInfo.processInfo.environment["XCODE_RUNNING_FOR_PREVIEWS"] == "1"
     }
     
-    init(postsService: PostsServiceProtocol? = nil) {
+    init() {
         // Check preview mode directly without accessing self
         let isInPreviewMode = ProcessInfo.processInfo.environment["XCODE_RUNNING_FOR_PREVIEWS"] == "1"
         
         if isInPreviewMode {
             // In preview mode, don't initialize real services
-            self.postsService = nil
             self.backendService = nil
-            self.locationManager = nil
             // Load mock data for preview
             self.posts = MockData.generatePreviewPosts()
         } else {
-            // ✅ NEW: Use PostsService
-            if let service = postsService {
-                self.postsService = service
-            } else {
-                // Create default service with current API configuration
-                let apiConfig = APIConfigurationManager.shared
-                let baseURL = URL(string: apiConfig.currentBaseURL)!
-                self.postsService = PostsService(baseURL: baseURL)
-            }
-            
-            // Keep BackendService temporarily for personalized feed
+            // BackendService for friends feed
             self.backendService = BackendService.shared
-            self.locationManager = LocationManager.shared
         }
         
         // Set up reactive scroll handling with debouncing
@@ -116,14 +98,6 @@ class HomeViewModel: ObservableObject {
         return Date().timeIntervalSince(lastFetchedAt) > staleDataThreshold
     }
     
-    // MARK: - Feed Stats
-    struct FeedStats {
-        let totalPosts: Int
-        let fromFollowed: Int
-        let fromNearby: Int
-        let hasLocation: Bool
-        let hasFollows: Bool
-    }
     
     // MARK: - Enhanced Combine Setup Methods
     
@@ -184,12 +158,8 @@ class HomeViewModel: ObservableObject {
     
     /// Handle feed type changes with appropriate data loading strategy
     private func handleFeedTypeChange(_ feedType: FeedType) {
-        switch feedType {
-        case .regular:
-            isUsingPersonalizedFeed = false
-        case .personalized:
-            isUsingPersonalizedFeed = true
-        }
+        // Feed type changes no longer needed - we only have friends feed
+        // Keeping method for future extensibility
     }
     
     /// Perform scroll-triggered loading with enhanced logic
@@ -250,44 +220,23 @@ class HomeViewModel: ObservableObject {
     
     /// Async method for loading more posts (extracted for publisher use)
     private func loadMorePostsAsync() async throws -> [Post] {
-        // Try personalized feed first, fallback to regular
-        if let userId = await getCurrentUserId(),
-           let userLocation = await getUserLocation(),
-           let backendService = backendService {
-            
-            let response = try await backendService.getPersonalizedFeed(
-                userId: userId,
-                userLatitude: userLocation.coordinate.latitude,
-                userLongitude: userLocation.coordinate.longitude,
-                limit: pageSize,
-                cursor: nextCursor
-            )
-            
-            let newPosts = response.posts.compactMap { tRPCPost -> Post? in
-                return Post.from(tRPCPost: tRPCPost)
-            }
-            
-            // Update pagination state
-            hasMorePages = response.hasMore
-            nextCursor = response.nextCursor
-            currentPage += 1
-            
-            return newPosts
-        } else {
-            // ✅ NEW: Use PostsService for regular feed
-            guard let postsService = postsService else { return [] }
-            
-            let newPosts = try await postsService.getPosts(
-                page: currentPage + 1,
-                limit: pageSize
-            )
-            
-            // Update pagination state
-            hasMorePages = newPosts.count >= pageSize
-            currentPage += 1
-            
-            return newPosts
+        guard let backendService = backendService else { return [] }
+        
+        let response = try await backendService.getFriendsPosts(
+            limit: pageSize,
+            cursor: nextCursor
+        )
+        
+        let newPosts = response.posts.compactMap { friendPost -> Post? in
+            return Post.from(friendsFeedPost: friendPost)
         }
+        
+        // Update pagination state
+        hasMorePages = response.hasMore
+        nextCursor = response.nextCursor
+        currentPage += 1
+        
+        return newPosts
     }
     
     /// Append new posts to the feed with proper state management
@@ -298,6 +247,17 @@ class HomeViewModel: ObservableObject {
     
     // ✅ Smart fetch that only loads if needed
     func fetchPostsIfNeeded() {
+        // In preview mode, data is already loaded
+        if isPreviewMode {
+            return
+        }
+        
+        // Don't attempt to fetch if not authenticated yet - wait for auth state change
+        guard Clerk.shared.session != nil else {
+            print("⏳ HomeViewModel: Waiting for authentication before fetching posts")
+            return
+        }
+        
         // Fetch if we have no posts or if data is stale
         if posts.isEmpty || isDataStale {
             fetchPosts()
@@ -312,8 +272,8 @@ class HomeViewModel: ObservableObject {
             return
         }
         
-        // ✅ NEW: Check for PostsService
-        guard postsService != nil || backendService != nil else { return }
+        // Check for BackendService (required for friends feed)
+        guard backendService != nil else { return }
         
         // Cancel any existing loading task
         loadingTask?.cancel()
@@ -327,7 +287,7 @@ class HomeViewModel: ObservableObject {
         errorMessage = nil
         
         loadingTask = Task {
-            await loadPersonalizedFeed()
+            await loadFriendsFeed()
         }
     }
     
@@ -339,7 +299,7 @@ class HomeViewModel: ObservableObject {
         
         // Use separate task for pagination to avoid interfering with main loading
         Task {
-            await loadMorePersonalizedFeed()
+            await loadMoreFriendsFeed()
         }
     }
     
@@ -360,93 +320,62 @@ class HomeViewModel: ObservableObject {
         errorMessage = nil
         
         Task {
-            await loadPersonalizedFeed()
+            await loadFriendsFeed()
         }
     }
     
-    // MARK: - Personalized Feed Logic
+    // MARK: - Friends Feed Logic
     
-    private func loadPersonalizedFeed() async {
+    private func loadFriendsFeed() async {
         do {
-            // Try to get current user ID
-            guard let userId = await getCurrentUserId() else {
-                print("📱 HomeViewModel: No user ID available, falling back to regular feed")
-                await loadRegularFeed()
-                return
-            }
-            
-            // Try to get user location
-            guard let userLocation = await getUserLocation() else {
-                print("📱 HomeViewModel: No location available, falling back to regular feed")
-                await loadRegularFeed()
-                return
-            }
-            
-            print("🎯 HomeViewModel: Loading personalized feed for user: \(userId) at location: (\(userLocation.coordinate.latitude), \(userLocation.coordinate.longitude))")
-            
             guard let backendService = backendService else {
-                await loadRegularFeed()
+                self.isLoading = false
+                self.errorMessage = "Backend service not available"
                 return
             }
             
-            let response = try await backendService.getPersonalizedFeed(
-                userId: userId,
-                userLatitude: userLocation.coordinate.latitude,
-                userLongitude: userLocation.coordinate.longitude,
+            print("👥 HomeViewModel: Loading friends feed")
+            
+            let response = try await backendService.getFriendsPosts(
                 limit: pageSize,
-                cursor: nextCursor
+                cursor: nil
             )
             
             // Convert to Post objects
-            let newPosts = response.posts.compactMap { tRPCPost -> Post? in
-                return Post.from(tRPCPost: tRPCPost)
+            let newPosts = response.posts.compactMap { friendPost -> Post? in
+                return Post.from(friendsFeedPost: friendPost)
             }
             
             self.posts = newPosts
             self.hasMorePages = response.hasMore
             self.nextCursor = response.nextCursor
-            self.isUsingPersonalizedFeed = true
-            self.feedStats = FeedStats(
-                totalPosts: response.totalReturned,
-                fromFollowed: response.fromFollowed,
-                fromNearby: response.fromNearby,
-                hasLocation: true,
-                hasFollows: response.fromFollowed > 0
-            )
+            self.friendsCount = response.friendsCount
             self.isLoading = false
             self.lastFetchedAt = Date()
             
-            print("✅ HomeViewModel: Loaded personalized feed with \(newPosts.count) posts (\(response.fromFollowed) from followed, \(response.fromNearby) nearby)")
+            print("✅ HomeViewModel: Loaded friends feed with \(newPosts.count) posts from \(response.friendsCount) friends")
             
         } catch {
-            print("❌ HomeViewModel: Failed to load personalized feed, falling back to regular feed: \(error)")
-            await loadRegularFeed()
+            print("❌ HomeViewModel: Failed to load friends feed: \(error)")
+            self.isLoading = false
+            self.errorMessage = "Failed to load friends feed: \(error.localizedDescription)"
         }
     }
     
-    private func loadMorePersonalizedFeed() async {
+    private func loadMoreFriendsFeed() async {
         do {
-            guard let userId = await getCurrentUserId(),
-                  let userLocation = await getUserLocation() else {
-                await loadMoreRegularFeed()
-                return
-            }
-            
             guard let backendService = backendService else {
-                await loadMoreRegularFeed()
+                self.isLoadingMore = false
                 return
             }
             
-            let response = try await backendService.getPersonalizedFeed(
-                userId: userId,
-                userLatitude: userLocation.coordinate.latitude,
-                userLongitude: userLocation.coordinate.longitude,
+            let response = try await backendService.getFriendsPosts(
                 limit: pageSize,
                 cursor: nextCursor
             )
             
-            let newPosts = response.posts.compactMap { tRPCPost -> Post? in
-                return Post.from(tRPCPost: tRPCPost)
+            let newPosts = response.posts.compactMap { friendPost -> Post? in
+                return Post.from(friendsFeedPost: friendPost)
             }
             
             self.posts.append(contentsOf: newPosts)
@@ -455,104 +384,15 @@ class HomeViewModel: ObservableObject {
             self.currentPage += 1
             self.isLoadingMore = false
             
-            print("✅ HomeViewModel: Loaded \(newPosts.count) more posts via personalized feed, total: \(self.posts.count)")
+            print("✅ HomeViewModel: Loaded \(newPosts.count) more friends posts, total: \(self.posts.count)")
             
         } catch {
-            print("❌ HomeViewModel: Failed to load more personalized feed posts: \(error)")
-            await loadMoreRegularFeed()
-        }
-    }
-    
-    // MARK: - Regular Feed Fallback
-    
-    private func loadRegularFeed() async {
-        // ✅ NEW: Use PostsService
-        guard let postsService = postsService else { return }
-        
-        do {
-            let newPosts = try await postsService.getPosts(page: currentPage, limit: pageSize)
-            
-            self.posts = newPosts
-            self.hasMorePages = newPosts.count >= pageSize
-            self.isUsingPersonalizedFeed = false
-            self.feedStats = FeedStats(
-                totalPosts: newPosts.count,
-                fromFollowed: 0,
-                fromNearby: 0,
-                hasLocation: false,
-                hasFollows: false
-            )
-            self.isLoading = false
-            self.lastFetchedAt = Date()
-            
-            print("✅ HomeViewModel: Loaded regular feed with \(self.posts.count) posts")
-            
-        } catch {
-            self.isLoading = false
-            self.errorMessage = "Failed to load posts: \(error.localizedDescription)"
-            print("❌ HomeViewModel: Failed to fetch regular feed: \(error)")
-        }
-    }
-    
-    private func loadMoreRegularFeed() async {
-        // ✅ NEW: Use PostsService
-        guard let postsService = postsService else { return }
-        
-        do {
-            let newPosts = try await postsService.getPosts(
-                page: currentPage + 1, 
-                limit: pageSize
-            )
-            
-            self.posts.append(contentsOf: newPosts)
-            self.hasMorePages = newPosts.count >= pageSize
-            self.currentPage += 1
+            print("❌ HomeViewModel: Failed to load more friends posts: \(error)")
             self.isLoadingMore = false
-            
-            print("✅ HomeViewModel: Loaded \(newPosts.count) more posts via regular feed, total: \(self.posts.count)")
-            
-        } catch {
-            self.isLoadingMore = false
-            self.errorMessage = "Failed to load more posts: \(error.localizedDescription)"
-            print("❌ HomeViewModel: Failed to load more regular feed posts: \(error)")
         }
     }
     
     // MARK: - Helper Methods
-    
-    private func getCurrentUserId() async -> String? {
-        // Try to get current user from Clerk
-        guard let user = Clerk.shared.user else {
-            print("⚠️ HomeViewModel: No authenticated user found")
-            return nil
-        }
-        
-        return user.id
-    }
-    
-    private func getUserLocation() async -> CLLocation? {
-        guard let locationManager = locationManager else { return nil }
-        
-        // Check if location manager has current location
-        if let location = locationManager.currentLocation {
-            return location
-        }
-        
-        // Request location if not available
-        locationManager.requestLocationPermission()
-        
-        // Wait a bit for location to become available
-        for attempt in 1...3 {
-            try? await Task.sleep(nanoseconds: 500_000_000) // Wait 0.5 seconds
-            if let location = locationManager.currentLocation {
-                print("✅ HomeViewModel: Got location on attempt \(attempt)")
-                return location
-            }
-        }
-        
-        print("⚠️ HomeViewModel: Unable to get user location after 3 attempts")
-        return nil
-    }
 
     /// Toggle like for a post with optimistic updates
     func toggleLike(for postId: UUID) async {
@@ -674,7 +514,7 @@ class HomeViewModel: ObservableObject {
         
         // Reset reactive state
         loadingStateSubject.send(.idle)
-        feedTypeSubject.send(.regular)
+        feedTypeSubject.send(.friends)
         
         // Re-setup reactive handling after reset
         setupReactiveScrollHandling()
