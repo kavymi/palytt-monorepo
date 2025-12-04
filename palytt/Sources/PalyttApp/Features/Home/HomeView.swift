@@ -159,13 +159,15 @@ struct HomeView: View {
                 // AnalyticsManager.shared.trackFeatureUsed("home_refresh", context: ["trigger": "pull_to_refresh"])
             }
             .onAppear {
-                // ✅ Smart refresh: fetch posts if empty or if data is stale (5+ minutes old)
-                // This will check for auth state and wait if not authenticated yet
-                viewModel.fetchPostsIfNeeded()
-                
-                // If not authenticated yet but we have no posts, show loading state
-                // The onChange handler below will trigger fetch when auth is ready
-                if !appState.isAuthenticated && viewModel.posts.isEmpty {
+                // ✅ Always attempt to fetch posts on first appear
+                // If authenticated, fetch immediately
+                // If not authenticated yet, show loading and wait for auth
+                if appState.isAuthenticated {
+                    // User is already authenticated - fetch posts if needed
+                    viewModel.fetchPostsIfNeeded()
+                } else if viewModel.posts.isEmpty {
+                    // Not authenticated yet - show loading state
+                    // The onChange handler will trigger fetch when auth is ready
                     viewModel.isLoading = true
                 }
             }

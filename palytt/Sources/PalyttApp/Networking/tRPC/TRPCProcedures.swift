@@ -1141,3 +1141,4 @@ enum PlacesProcedures {
 
 /// Empty input for procedures that don't require input
 struct EmptyInput: Encodable {}
+

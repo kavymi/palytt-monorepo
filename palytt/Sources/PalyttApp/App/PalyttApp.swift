@@ -24,7 +24,7 @@ enum AppTab: Hashable {
     case home
     case explore
     case create
-    case notifications
+    case friends
     case profile
 }
 

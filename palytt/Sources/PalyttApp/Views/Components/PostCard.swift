@@ -83,6 +83,9 @@ struct PostCard: View {
                 .font(.subheadline)
                 .foregroundColor(.secondary)
         }
+        .sheet(isPresented: $showShareSheet) {
+            SharePostView(post: post)
+        }
     }
     
     // MARK: - View Components
@@ -111,6 +114,16 @@ struct PostCard: View {
             }
             
             Spacer()
+            
+            // Share button in header for better accessibility
+            Button(action: {
+                HapticManager.shared.impact(.light)
+                showShareSheet = true
+            }) {
+                Image(systemName: "paperplane")
+                    .font(.system(size: 18))
+                    .foregroundColor(.secondaryText)
+            }
         }
     }
     
@@ -341,7 +354,6 @@ struct PostCard: View {
             likeButton
             commentButton
             saveButton
-            shareButton
         }
         .font(.system(size: 20))
         .padding(.top, 8)
@@ -372,7 +384,7 @@ struct PostCard: View {
     }
     
     private var likeButton: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: 4) {
             // Heart icon button
             Button(action: { 
                 HapticManager.shared.impact(.medium)
@@ -390,13 +402,13 @@ struct PostCard: View {
             .scaleEffect(isLiked ? 1.1 : 1.0)
             .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isLiked)
             
-            // Clickable likes count
+            // Clickable likes count (number only, no "likes" text)
             if post.likesCount > 0 {
                 Button(action: {
                     HapticManager.shared.impact(.light)
                     showPostLikes = true
                 }) {
-                    Text("\(post.likesCount) likes")
+                    Text("\(post.likesCount)")
                         .font(.caption)
                         .foregroundColor(.primaryText)
                         .fontWeight(.medium)
@@ -460,19 +472,6 @@ struct PostCard: View {
         }
     }
     
-    private var shareButton: some View {
-        Button(action: {
-            HapticManager.shared.impact(.light)
-            showShareSheet = true
-        }) {
-            Image(systemName: "square.and.arrow.up")
-                .font(.system(size: 20))
-                .foregroundColor(.primaryText)
-        }
-        .sheet(isPresented: $showShareSheet) {
-            SharePostView(post: post)
-        }
-    }
     
     private var titleSection: some View {
         Group {

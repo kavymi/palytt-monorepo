@@ -40,6 +40,12 @@ class NotificationService: ObservableObject {
     
     /// Load notifications with pagination support
     func loadNotifications(refresh: Bool = false) async {
+        // Check if user is authenticated before making API calls
+        guard AuthProvider.shared.isAuthenticated() else {
+            print("⏳ NotificationService: Skipping load - not authenticated")
+            return
+        }
+        
         guard !isLoading else { return }
         
         if refresh {
@@ -78,6 +84,12 @@ class NotificationService: ObservableObject {
     
     /// Load only unread notifications
     func loadUnreadNotifications() async {
+        // Check if user is authenticated before making API calls
+        guard AuthProvider.shared.isAuthenticated() else {
+            print("⏳ NotificationService: Skipping unread load - not authenticated")
+            return
+        }
+        
         isLoading = true
         
         do {
@@ -101,6 +113,12 @@ class NotificationService: ObservableObject {
     
     /// Get unread notification count
     func refreshUnreadCount() async {
+        // Check if user is authenticated before making API calls
+        guard AuthProvider.shared.isAuthenticated() else {
+            print("⏳ NotificationService: Skipping refresh - not authenticated")
+            return
+        }
+        
         do {
             let count = try await fetchUnreadCount()
             unreadCount = count
@@ -245,6 +263,12 @@ class NotificationService: ObservableObject {
     
     /// Load notifications filtered by types
     func loadNotifications(filterTypes: [NotificationType]?, refresh: Bool = false) async {
+        // Check if user is authenticated before making API calls
+        guard AuthProvider.shared.isAuthenticated() else {
+            print("⏳ NotificationService: Skipping filtered load - not authenticated")
+            return
+        }
+        
         guard !isLoading else { return }
         
         if refresh {

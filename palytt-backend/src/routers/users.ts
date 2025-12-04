@@ -21,12 +21,18 @@ const UserSchema = z.object({
 
 const CreateUserSchema = z.object({
   email: z.string().email(),
-  username: z.string().min(1).max(50).nullable(),
-  name: z.string().min(1).max(200).nullable(),
-  bio: z.string().max(500).nullable(),
-  profileImage: z.string().url().nullable(),
-  website: z.string().url().nullable(),
+  username: z.string().min(1).max(50).nullable().optional(),
+  name: z.string().min(1).max(200).nullable().optional(),
+  bio: z.string().max(500).nullable().optional(),
+  profileImage: z.string().url().nullable().optional(),
+  website: z.string().url().nullable().optional(),
   clerkId: z.string().min(1),
+  // iOS app may send these additional fields - accept but ignore
+  firstName: z.string().nullable().optional(),
+  lastName: z.string().nullable().optional(),
+  avatarUrl: z.string().nullable().optional(),
+  appleId: z.string().nullable().optional(),
+  googleId: z.string().nullable().optional(),
 });
 
 const UpdateUserSchema = z.object({
@@ -163,22 +169,30 @@ export const usersRouter = router({
   upsert: publicProcedure
     .input(CreateUserSchema)
     .mutation(async ({ input }) => {
+      // Map iOS field names to backend field names
+      // iOS sends: firstName, lastName, avatarUrl
+      // Backend expects: name, profileImage
+      const name = input.name ?? (input.firstName && input.lastName 
+        ? `${input.firstName} ${input.lastName}`.trim()
+        : input.firstName ?? input.lastName ?? null);
+      const profileImage = input.profileImage ?? input.avatarUrl ?? null;
+      
       const user = await prisma.user.upsert({
         where: { clerkId: input.clerkId },
         update: {
           email: input.email,
-          username: input.username,
-          name: input.name,
-          bio: input.bio,
-          profileImage: input.profileImage,
-          website: input.website,
+          username: input.username ?? undefined,
+          name: name ?? undefined,
+          bio: input.bio ?? undefined,
+          profileImage: profileImage ?? undefined,
+          website: input.website ?? undefined,
         },
         create: {
           email: input.email,
           username: input.username,
-          name: input.name,
+          name: name,
           bio: input.bio,
-          profileImage: input.profileImage,
+          profileImage: profileImage,
           website: input.website,
           clerkId: input.clerkId,
         },
@@ -409,22 +423,30 @@ export const usersRouter = router({
   upsertByClerkId: publicProcedure
     .input(CreateUserSchema)
     .mutation(async ({ input }) => {
+      // Map iOS field names to backend field names
+      // iOS sends: firstName, lastName, avatarUrl
+      // Backend expects: name, profileImage
+      const name = input.name ?? (input.firstName && input.lastName 
+        ? `${input.firstName} ${input.lastName}`.trim()
+        : input.firstName ?? input.lastName ?? null);
+      const profileImage = input.profileImage ?? input.avatarUrl ?? null;
+      
       const user = await prisma.user.upsert({
         where: { clerkId: input.clerkId },
         update: {
           email: input.email,
-          username: input.username,
-          name: input.name,
-          bio: input.bio,
-          profileImage: input.profileImage,
-          website: input.website,
+          username: input.username ?? undefined,
+          name: name ?? undefined,
+          bio: input.bio ?? undefined,
+          profileImage: profileImage ?? undefined,
+          website: input.website ?? undefined,
         },
         create: {
           email: input.email,
           username: input.username,
-          name: input.name,
+          name: name,
           bio: input.bio,
-          profileImage: input.profileImage,
+          profileImage: profileImage,
           website: input.website,
           clerkId: input.clerkId,
         },

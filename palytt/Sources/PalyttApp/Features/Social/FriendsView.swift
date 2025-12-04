@@ -965,3 +965,4 @@ struct FriendsSearchFiltersView: View {
         .environmentObject(MockAppState())
 }
 
+

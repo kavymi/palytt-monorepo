@@ -252,15 +252,20 @@ class HomeViewModel: ObservableObject {
             return
         }
         
-        // Don't attempt to fetch if not authenticated yet - wait for auth state change
-        guard Clerk.shared.session != nil else {
+        // Check if we have an active session
+        let hasSession = Clerk.shared.session != nil
+        
+        if !hasSession {
             print("⏳ HomeViewModel: Waiting for authentication before fetching posts")
             return
         }
         
         // Fetch if we have no posts or if data is stale
         if posts.isEmpty || isDataStale {
+            print("📱 HomeViewModel: Fetching posts (isEmpty: \(posts.isEmpty), isStale: \(isDataStale))")
             fetchPosts()
+        } else {
+            print("✅ HomeViewModel: Posts already loaded and fresh, skipping fetch")
         }
     }
     

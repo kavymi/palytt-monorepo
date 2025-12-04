@@ -306,15 +306,6 @@ struct ProfileView: View {
             // Only show these buttons for own profile
             if targetUser == nil {
                 Button(action: { 
-                    showFriendsView = true
-                    HapticManager.shared.impact(.light)
-                    // analyticsService.trackUserAction(.profileView, properties: ["section": "friends"])
-                }) {
-                    Image(systemName: "person.2.fill")
-                        .foregroundColor(.primaryBrand)
-                }
-                
-                Button(action: { 
                     showInviteView = true
                     // analyticsService.trackUserAction(.profileView, properties: ["section": "invite"])
                 }) {
@@ -332,8 +323,6 @@ struct ProfileView: View {
                         .foregroundColor(.error)
                 }
             }
-            
-
             
             Button(action: { 
                 showSettings = true

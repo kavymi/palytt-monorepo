@@ -453,3 +453,4 @@ struct TRPCNotificationSettings: Decodable {
     let friendRequests: Bool
     let messages: Bool
 }
+
