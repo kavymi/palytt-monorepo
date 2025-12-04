@@ -21,6 +21,14 @@ export async function createContext({ req }: CreateFastifyContextOptions) {
   const authHeader = req.headers.authorization;
   const clerkUserId = req.headers['x-clerk-user-id'];
   
+  // Debug logging for authentication
+  console.log('🔐 Auth Debug:', {
+    hasAuthHeader: !!authHeader,
+    authHeaderPrefix: authHeader?.substring(0, 20),
+    hasClerkUserId: !!clerkUserId,
+    clerkUserId: clerkUserId,
+  });
+  
   if (authHeader?.startsWith('Bearer ')) {
     const token = authHeader.slice(7); // Remove 'Bearer ' prefix
     
@@ -34,12 +42,20 @@ export async function createContext({ req }: CreateFastifyContextOptions) {
     } else {
       try {
         // Production mode: Use Clerk's proper JWT verification
+        console.log('🔑 Attempting to validate Clerk JWT token...');
         user = await validateClerkToken(token);
+        if (user) {
+          console.log('✅ Token validated successfully for user:', user.clerkId);
+        } else {
+          console.log('❌ Token validation returned null');
+        }
       } catch (error) {
         console.error('Token verification failed:', error);
         // Don't throw here - let procedures handle authentication as needed
       }
     }
+  } else {
+    console.log('⚠️ No Bearer token found in Authorization header');
   }
   
   return {

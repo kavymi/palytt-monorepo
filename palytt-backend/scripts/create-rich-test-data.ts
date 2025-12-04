@@ -160,28 +160,46 @@ async function main() {
   // ============================================
   console.log('📝 Step 2: Creating friend relationships...\n');
 
-  const friendships = [
-    // Your friendships
-    { sender: yourUser.clerkId, receiver: 'user_test_001', status: 'ACCEPTED' }, // alice
-    { sender: yourUser.clerkId, receiver: 'user_test_002', status: 'ACCEPTED' }, // bob
-    { sender: yourUser.clerkId, receiver: 'user_test_003', status: 'PENDING' },  // carol (pending)
-    { sender: 'user_test_004', receiver: yourUser.clerkId, status: 'PENDING' },  // david sent you request
+  // Helper to get user by clerkId prefix
+  const getUserByClerkPrefix = (prefix: string) => testUsers.find(u => u.clerkId === prefix);
+
+  const friendshipDefs: Array<{
+    senderId?: string;
+    receiverId?: string;
+    senderClerk?: string;
+    receiverClerk?: string;
+    status: string;
+  }> = [
+    // Your friendships (using user IDs, not clerkIds)
+    { senderId: yourUser.id, receiverClerk: 'user_test_001', status: 'ACCEPTED' }, // alice
+    { senderId: yourUser.id, receiverClerk: 'user_test_002', status: 'ACCEPTED' }, // bob
+    { senderId: yourUser.id, receiverClerk: 'user_test_003', status: 'PENDING' },  // carol (pending)
+    { senderClerk: 'user_test_004', receiverId: yourUser.id, status: 'PENDING' },  // david sent you request
     
     // Between test users
-    { sender: 'user_test_001', receiver: 'user_test_002', status: 'ACCEPTED' }, // alice <-> bob
-    { sender: 'user_test_001', receiver: 'user_test_003', status: 'ACCEPTED' }, // alice <-> carol
-    { sender: 'user_test_002', receiver: 'user_test_004', status: 'ACCEPTED' }, // bob <-> david
-    { sender: 'user_test_003', receiver: 'user_test_005', status: 'ACCEPTED' }, // carol <-> emma
+    { senderClerk: 'user_test_001', receiverClerk: 'user_test_002', status: 'ACCEPTED' }, // alice <-> bob
+    { senderClerk: 'user_test_001', receiverClerk: 'user_test_003', status: 'ACCEPTED' }, // alice <-> carol
+    { senderClerk: 'user_test_002', receiverClerk: 'user_test_004', status: 'ACCEPTED' }, // bob <-> david
+    { senderClerk: 'user_test_003', receiverClerk: 'user_test_005', status: 'ACCEPTED' }, // carol <-> emma
   ];
 
   let friendCount = 0;
-  for (const friendship of friendships) {
+  for (const def of friendshipDefs) {
     try {
+      // Resolve IDs
+      const senderId = def.senderId || getUserByClerkPrefix(def.senderClerk!)?.id;
+      const receiverId = def.receiverId || getUserByClerkPrefix(def.receiverClerk!)?.id;
+      
+      if (!senderId || !receiverId) {
+        console.log(`⚠️ Skipping friendship: could not resolve user IDs`);
+        continue;
+      }
+
       const existing = await prisma.friend.findFirst({
         where: {
           OR: [
-            { senderId: friendship.sender, receiverId: friendship.receiver },
-            { senderId: friendship.receiver, receiverId: friendship.sender },
+            { senderId, receiverId },
+            { senderId: receiverId, receiverId: senderId },
           ],
         },
       });
@@ -189,14 +207,14 @@ async function main() {
       if (!existing) {
         await prisma.friend.create({
           data: {
-            senderId: friendship.sender,
-            receiverId: friendship.receiver,
-            status: friendship.status as any,
+            senderId,
+            receiverId,
+            status: def.status as any,
           },
         });
         friendCount++;
-        const statusEmoji = friendship.status === 'ACCEPTED' ? '✅' : '⏳';
-        console.log(`${statusEmoji} Created friendship: ${friendship.sender.substring(0, 20)} <-> ${friendship.receiver.substring(0, 20)}`);
+        const statusEmoji = def.status === 'ACCEPTED' ? '✅' : '⏳';
+        console.log(`${statusEmoji} Created friendship: ${senderId.substring(0, 8)}... <-> ${receiverId.substring(0, 8)}...`);
       }
     } catch (error) {
       // Skip duplicates

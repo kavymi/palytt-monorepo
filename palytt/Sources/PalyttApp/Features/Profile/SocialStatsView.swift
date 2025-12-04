@@ -128,7 +128,7 @@ struct SocialStatsView: View {
             }
         }
         .sheet(isPresented: $showAllFriends) {
-            FriendsListView(user: user)
+            FriendsView()
         }
     }
     

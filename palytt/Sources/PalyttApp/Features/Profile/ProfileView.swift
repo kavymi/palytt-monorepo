@@ -55,9 +55,7 @@ struct ProfileView: View {
     @State private var showAdminSettings = false
     @State private var showFollowersSheet = false
     @State private var showFollowingSheet = false
-    @State private var showFriendRequestsSheet = false
-    @State private var showFindFriends = false
-    @State private var showFriendsList = false
+    @State private var showFriendsView = false  // Unified friends view
     @State private var showInviteView = false
     @State private var showStreakView = false
     @State private var currentStreak: Int = 0
@@ -109,7 +107,6 @@ struct ProfileView: View {
                 showAdminSettings: $showAdminSettings,
                 showFollowersSheet: $showFollowersSheet,
                 showFollowingSheet: $showFollowingSheet,
-                showFriendRequestsSheet: $showFriendRequestsSheet,
                 viewModel: viewModel
             ))
             .sheet(isPresented: $showInviteView) {
@@ -118,18 +115,9 @@ struct ProfileView: View {
             .sheet(isPresented: $showStreakView) {
                 StreakView()
             }
-            .sheet(isPresented: $showFindFriends) {
-                UserSearchView()
+            .sheet(isPresented: $showFriendsView) {
+                FriendsView()
                     .environmentObject(appState)
-            }
-            .sheet(isPresented: $showFriendsList) {
-                if let currentUser = viewModel.currentUser {
-                    FriendsListView(
-                        userId: currentUser.clerkId ?? "",
-                        userName: currentUser.username
-                    )
-                    .environmentObject(appState)
-                }
             }
         }
         .background(Color.appBackground)
@@ -318,20 +306,11 @@ struct ProfileView: View {
             // Only show these buttons for own profile
             if targetUser == nil {
                 Button(action: { 
-                    showFriendsList = true
+                    showFriendsView = true
                     HapticManager.shared.impact(.light)
-                    // analyticsService.trackUserAction(.profileView, properties: ["section": "friends_list"])
+                    // analyticsService.trackUserAction(.profileView, properties: ["section": "friends"])
                 }) {
                     Image(systemName: "person.2.fill")
-                        .foregroundColor(.primaryBrand)
-                }
-                
-                Button(action: { 
-                    showFindFriends = true
-                    HapticManager.shared.impact(.light)
-                    // analyticsService.trackUserAction(.profileView, properties: ["section": "find_friends"])
-                }) {
-                    Image(systemName: "location.fill")
                         .foregroundColor(.primaryBrand)
                 }
                 
@@ -340,14 +319,6 @@ struct ProfileView: View {
                     // analyticsService.trackUserAction(.profileView, properties: ["section": "invite"])
                 }) {
                     Image(systemName: "square.and.arrow.up")
-                        .foregroundColor(.primaryBrand)
-                }
-                
-                Button(action: { 
-                    showFriendRequestsSheet = true
-                    // analyticsService.trackUserAction(.profileView, properties: ["section": "friend_requests"])
-                }) {
-                    Image(systemName: "person.2.badge.plus")
                         .foregroundColor(.primaryBrand)
                 }
             }
@@ -1767,7 +1738,6 @@ struct SheetPresentationModifier: ViewModifier {
     @Binding var showAdminSettings: Bool
     @Binding var showFollowersSheet: Bool
     @Binding var showFollowingSheet: Bool
-    @Binding var showFriendRequestsSheet: Bool
     let viewModel: ProfileViewModel
     
     func body(content: Content) -> some View {
@@ -1798,9 +1768,6 @@ struct SheetPresentationModifier: ViewModifier {
                         userName: user.displayName
                     )
                 }
-            }
-            .sheet(isPresented: $showFriendRequestsSheet) {
-                FriendRequestsView()
             }
     }
 }

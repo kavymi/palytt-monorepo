@@ -173,19 +173,20 @@ class BackendService: ObservableObject {
     // MARK: - Authentication Helper
     
     private func getAuthHeaders() async -> [String: String] {
-        // For now, use the user's Clerk ID as authentication
-        // In production, this should be replaced with proper JWT token from Clerk
         let baseHeaders = ["Content-Type": "application/json"]
         
-        guard let user = Clerk.shared.user else {
+        // Use AuthProvider to get proper JWT token from Clerk
+        do {
+            let headers = try await AuthProvider.shared.getHeadersWithUserId()
+            print("✅ BackendService: Got auth headers with token")
+            return headers
+        } catch {
+            print("⚠️ BackendService: Failed to get auth headers: \(error.localizedDescription)")
+            print("⚠️ BackendService: Clerk user exists: \(Clerk.shared.user != nil)")
+            print("⚠️ BackendService: Clerk session exists: \(Clerk.shared.session != nil)")
+            // Return base headers if authentication fails - let the backend handle unauthorized requests
             return baseHeaders
         }
-        
-        return [
-            "Content-Type": "application/json",
-            "Authorization": "Bearer clerk_\(user.id)",
-            "x-clerk-user-id": user.id
-        ]
     }
     
     // MARK: - Production Configuration (duplicate removed - see end of file for main implementation)

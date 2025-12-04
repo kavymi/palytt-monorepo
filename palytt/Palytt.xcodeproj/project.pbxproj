@@ -16,6 +16,7 @@
 		14DF34D5BA1853D82D38FBFB /* Factory in Frameworks */ = {isa = PBXBuildFile; productRef = 73552D86A5D3AA63D73398BF /* Factory */; };
 		18B814E598841332D1B51110 /* PalyttApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C7DCFF1508D69D4ABA82A6A /* PalyttApp.swift */; };
 		1AF60673CA3C372AC3AC2A0E /* FriendsListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9DB85D98D798FDE76CD2932 /* FriendsListView.swift */; };
+		FRIENDSVIEWBLD123456789AB /* FriendsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FRIENDSVIEW123456789ABCDE /* FriendsView.swift */; };
 		20A7B81D94105D1222A92695 /* User.swift in Sources */ = {isa = PBXBuildFile; fileRef = 02C242FEA257BA231293F69D /* User.swift */; };
 		A1B2C3D4E5F6789012345678 /* Notification.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2C3D4E5F6789012345678A1 /* Notification.swift */; };
 		NOTIFBADGE123456789ABCDEF /* NotificationBadge.swift in Sources */ = {isa = PBXBuildFile; fileRef = NOTIFBADGE123456789ABCD /* NotificationBadge.swift */; };
@@ -141,6 +142,7 @@
 		B036694D391F5D856B4D5B1C /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
 		B3E6B84F0951D2B6BB0AE577 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		B9DB85D98D798FDE76CD2932 /* FriendsListView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = FriendsListView.swift; sourceTree = "<group>"; };
+		FRIENDSVIEW123456789ABCDE /* FriendsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = FriendsView.swift; path = Sources/PalyttApp/Features/Social/FriendsView.swift; sourceTree = SOURCE_ROOT; };
 		BE63BBBA2E015C2000FDA1D4 /* Palytt.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Palytt.entitlements; sourceTree = "<group>"; };
 		BE7DB8B12E052B38006BCCDB /* LocationManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocationManager.swift; sourceTree = "<group>"; };
 		BE7DB8B32E052DBA006BCCDB /* BunnyNetService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BunnyNetService.swift; sourceTree = "<group>"; };
@@ -725,6 +727,7 @@
 				NOTIFS123456789ABCDEFGHI /* NotificationsView.swift in Sources */,
 				NOTIFBADGE123456789ABCDEF /* NotificationBadge.swift in Sources */,
 				1AF60673CA3C372AC3AC2A0E /* FriendsListView.swift in Sources */,
+				FRIENDSVIEWBLD123456789AB /* FriendsView.swift in Sources */,
 				E9F4368B88D3EB8BE6DAD996 /* SocialListViews.swift in Sources */,
 				USERAVATAR123456789ABCDEF /* UserAvatar.swift in Sources */,
 				CREATELIST123456789ABCDEF0 /* CreateListView.swift in Sources */,
