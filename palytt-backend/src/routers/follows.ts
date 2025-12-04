@@ -468,11 +468,9 @@ export const followsRouter = router({
         cursor: cursor ? { id: cursor } : undefined,
       });
       
-      // Check if there are more posts
-      let nextCursor: string | null = null;
+      // Remove extra posts if we fetched more than limit (for pagination check)
       if (posts.length > limit) {
-        const nextItem = posts.pop();
-        nextCursor = nextItem!.id;
+        posts.pop();
       }
       
       // Transform posts to match frontend schema (FollowingPost)

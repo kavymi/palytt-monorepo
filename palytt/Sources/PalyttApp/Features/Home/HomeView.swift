@@ -61,14 +61,14 @@ struct HomeView: View {
     
     @ViewBuilder
     private var mainContentSection: some View {
-        if viewModel.isLoading && viewModel.posts.isEmpty {
-            // Initial loading skeleton
+        if (viewModel.isLoading && viewModel.posts.isEmpty) || (!appState.isAuthenticated && viewModel.posts.isEmpty) {
+            // Initial loading skeleton - show while loading OR while waiting for auth
             ForEach(0..<3, id: \.self) { _ in
                 PostCardSkeleton()
                     .padding(.horizontal)
             }
-        } else if viewModel.posts.isEmpty && !viewModel.isLoading {
-            // Empty state
+        } else if viewModel.posts.isEmpty && !viewModel.isLoading && appState.isAuthenticated {
+            // Empty state - only show when authenticated and not loading
             EmptyFeedView()
         } else {
             // Posts grid
@@ -160,26 +160,14 @@ struct HomeView: View {
             }
             .onAppear {
                 // ✅ Smart refresh: fetch posts if empty or if data is stale (5+ minutes old)
+                // This will check for auth state and wait if not authenticated yet
                 viewModel.fetchPostsIfNeeded()
                 
-                // Track screen view for analytics
-                // AnalyticsManager.shared.trackScreenView("home_feed", properties: [
-                //     "is_authenticated": appState.isAuthenticated,
-                //     "posts_count": viewModel.posts.count
-                // ])
-                
-                // Start real-time connection (temporarily disabled)
-                // Task {
-                //     await realtimeService.connect()
-                //     await realtimeService.subscribeToUpdates(for: [
-                //         .newPost, .newLike, .newComment, .newFollower
-                //     ])
-                // }
-                
-                // Optimize for launch if first time (temporarily disabled)
-                // Task {
-                //     await performanceOptimizer.optimizeForLaunch()
-                // }
+                // If not authenticated yet but we have no posts, show loading state
+                // The onChange handler below will trigger fetch when auth is ready
+                if !appState.isAuthenticated && viewModel.posts.isEmpty {
+                    viewModel.isLoading = true
+                }
             }
             .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("NewPostCreated"))) { _ in
                 // Refresh posts when a new post is created
@@ -203,10 +191,13 @@ struct HomeView: View {
             }
             // ✅ Refresh when user authentication state changes (e.g., after Clerk loads)
             .onChange(of: appState.isAuthenticated) { oldValue, newValue in
-                if newValue && viewModel.posts.isEmpty {
-                    // User just became authenticated and we have no posts - fetch them
-                    print("🔐 HomeView: Authentication state changed, refreshing posts")
+                if newValue {
+                    // User just became authenticated - fetch posts immediately
+                    print("🔐 HomeView: User authenticated, fetching posts")
                     viewModel.fetchPosts()
+                } else if !newValue {
+                    // User logged out - clear posts
+                    viewModel.clearPosts()
                 }
             }
             // .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("RealtimeLiveUpdate"))) { notification in

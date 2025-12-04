@@ -247,6 +247,17 @@ class HomeViewModel: ObservableObject {
     
     // ✅ Smart fetch that only loads if needed
     func fetchPostsIfNeeded() {
+        // In preview mode, data is already loaded
+        if isPreviewMode {
+            return
+        }
+        
+        // Don't attempt to fetch if not authenticated yet - wait for auth state change
+        guard Clerk.shared.session != nil else {
+            print("⏳ HomeViewModel: Waiting for authentication before fetching posts")
+            return
+        }
+        
         // Fetch if we have no posts or if data is stale
         if posts.isEmpty || isDataStale {
             fetchPosts()

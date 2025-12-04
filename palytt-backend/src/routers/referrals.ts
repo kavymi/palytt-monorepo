@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { router, protectedProcedure, publicProcedure } from '../trpc.js';
-import { prisma, ensureUser } from '../db.js';
+import { prisma } from '../db.js';
 import crypto from 'crypto';
 
 // Helper function to get user UUID from clerkId
@@ -96,7 +96,6 @@ export const referralsRouter = router({
 
       // Count by status
       const pending = referrals.filter(r => r.status === 'PENDING').length;
-      const used = referrals.filter(r => r.status === 'USED').length;
       const rewarded = referrals.filter(r => r.status === 'REWARDED').length;
 
       // Get friends who joined

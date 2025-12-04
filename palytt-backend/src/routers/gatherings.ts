@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { router, protectedProcedure } from '../trpc.js';
-import { prisma, ensureUser } from '../db.js';
+import { prisma } from '../db.js';
 
 // Helper function to get user UUID from clerkId
 async function getUserIdFromClerkId(clerkId: string): Promise<string> {
