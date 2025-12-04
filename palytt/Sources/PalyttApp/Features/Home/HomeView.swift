@@ -201,6 +201,14 @@ struct HomeView: View {
                     viewModel.fetchPosts()
                 }
             }
+            // ✅ Refresh when user authentication state changes (e.g., after Clerk loads)
+            .onChange(of: appState.isAuthenticated) { oldValue, newValue in
+                if newValue && viewModel.posts.isEmpty {
+                    // User just became authenticated and we have no posts - fetch them
+                    print("🔐 HomeView: Authentication state changed, refreshing posts")
+                    viewModel.fetchPosts()
+                }
+            }
             // .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("RealtimeLiveUpdate"))) { notification in
             //     // Handle real-time live updates (temporarily disabled)
             //     if let liveUpdate = notification.object as? LiveUpdate {

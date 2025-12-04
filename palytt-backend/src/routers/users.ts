@@ -158,6 +158,7 @@ export const usersRouter = router({
 
   /**
    * Create or update user (upsert by Clerk ID)
+   * Also aliased as upsertByClerkId for iOS compatibility
    */
   upsert: publicProcedure
     .input(CreateUserSchema)
@@ -399,6 +400,46 @@ export const usersRouter = router({
       return {
         users: transformedUsers,
         matchedHashes,
+      };
+    }),
+
+  /**
+   * Alias for upsert - iOS app calls this endpoint name
+   */
+  upsertByClerkId: publicProcedure
+    .input(CreateUserSchema)
+    .mutation(async ({ input }) => {
+      const user = await prisma.user.upsert({
+        where: { clerkId: input.clerkId },
+        update: {
+          email: input.email,
+          username: input.username,
+          name: input.name,
+          bio: input.bio,
+          profileImage: input.profileImage,
+          website: input.website,
+        },
+        create: {
+          email: input.email,
+          username: input.username,
+          name: input.name,
+          bio: input.bio,
+          profileImage: input.profileImage,
+          website: input.website,
+          clerkId: input.clerkId,
+        },
+      });
+      
+      const isNew = user.createdAt.getTime() === user.updatedAt.getTime();
+      
+      return {
+        success: true,
+        user: {
+          ...user,
+          createdAt: user.createdAt.toISOString(),
+          updatedAt: user.updatedAt.toISOString(),
+        },
+        created: isNew,
       };
     }),
 });

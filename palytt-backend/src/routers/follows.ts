@@ -379,6 +379,136 @@ export const followsRouter = router({
       };
     }),
 
+  /**
+   * Get posts from users the specified user is following
+   * This is used for the map view to show posts from followed users
+   */
+  getFollowingPosts: publicProcedure
+    .input(z.object({
+      userId: z.string(), // clerkId of the user whose following's posts we want
+      limit: z.number().min(1).max(100).default(100),
+      cursor: z.string().optional(),
+    }))
+    .query(async ({ input, ctx }) => {
+      const { userId: clerkId, limit, cursor } = input;
+      
+      // Get user's UUID from clerk ID
+      const user = await prisma.user.findUnique({
+        where: { clerkId },
+        select: { id: true },
+      });
+      
+      if (!user) {
+        return [];
+      }
+      
+      // Get all users this user is following
+      const following = await prisma.follow.findMany({
+        where: {
+          followerId: user.id,
+        },
+        select: {
+          followingId: true,
+        },
+      });
+      
+      const followingIds = following.map(f => f.followingId);
+      
+      // If user is not following anyone, return empty result
+      if (followingIds.length === 0) {
+        return [];
+      }
+      
+      // Get current user's UUID for checking likes/bookmarks
+      let currentUserUUID: string | null = null;
+      if (ctx.user?.clerkId) {
+        const currentUser = await prisma.user.findUnique({
+          where: { clerkId: ctx.user.clerkId },
+          select: { id: true },
+        });
+        currentUserUUID = currentUser?.id || null;
+      }
+      
+      // Get posts from followed users
+      const posts = await prisma.post.findMany({
+        where: {
+          userId: { in: followingIds },
+          isPublic: true,
+          isDeleted: false,
+        },
+        include: {
+          author: {
+            select: {
+              id: true,
+              clerkId: true,
+              username: true,
+              name: true,
+              profileImage: true,
+            },
+          },
+          likes: currentUserUUID
+            ? {
+                where: {
+                  userId: currentUserUUID,
+                },
+              }
+            : false,
+          bookmarks: currentUserUUID
+            ? {
+                where: {
+                  userId: currentUserUUID,
+                },
+              }
+            : false,
+        },
+        orderBy: {
+          createdAt: 'desc',
+        },
+        take: limit + 1,
+        cursor: cursor ? { id: cursor } : undefined,
+      });
+      
+      // Check if there are more posts
+      let nextCursor: string | null = null;
+      if (posts.length > limit) {
+        const nextItem = posts.pop();
+        nextCursor = nextItem!.id;
+      }
+      
+      // Transform posts to match frontend schema (FollowingPost)
+      return posts.map((post: any) => ({
+        id: post.id,
+        authorId: post.userId,
+        authorClerkId: post.author.clerkId,
+        authorDisplayName: post.author.name || post.author.username,
+        authorUsername: post.author.username,
+        authorAvatarUrl: post.author.profileImage,
+        shopId: null,
+        shopName: post.title || '',
+        foodItem: post.menuItems?.[0] || '',
+        description: post.caption,
+        rating: post.rating || null,
+        imageUrl: post.mediaUrls?.[0] || null,
+        imageUrls: post.mediaUrls || [],
+        tags: [],
+        location: post.locationName && post.locationLatitude && post.locationLongitude
+          ? {
+              latitude: post.locationLatitude,
+              longitude: post.locationLongitude,
+              address: post.locationAddress || '',
+              name: post.locationName,
+            }
+          : null,
+        isPublic: post.isPublic,
+        likesCount: post.likesCount,
+        commentsCount: post.commentsCount,
+        isLiked: Array.isArray(post.likes) && post.likes.length > 0,
+        isBookmarked: Array.isArray(post.bookmarks) && post.bookmarks.length > 0,
+        createdAt: post.createdAt.toISOString(),
+        updatedAt: post.updatedAt.toISOString(),
+      }));
+    }),
+
   // Get suggested users to follow (users followed by people you follow)
   getSuggestedFollows: protectedProcedure
     .input(z.object({

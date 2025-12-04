@@ -232,7 +232,7 @@ struct MainTabView: View {
                     .padding(.bottom, 20) // Reduced padding for smaller bar
                     .transition(.move(edge: .bottom).combined(with: .opacity))
             } else {
-                // Mini tab bar indicator when hidden - only show on Explore tab
+                // Mini tab bar indicator when hidden - iOS 26 Liquid Glass style
                 if appState.selectedTab == .explore {
                     VStack {
                         Spacer()
@@ -246,29 +246,54 @@ struct MainTabView: View {
                             }) {
                                 HStack(spacing: 6) {
                                     Image(systemName: "chevron.up")
-                                        .font(.caption)
-                                        .fontWeight(.semibold)
+                                        .font(.system(size: 11, weight: .semibold))
                                     Text("Navigation")
-                                        .font(.caption)
-                                        .fontWeight(.semibold)
+                                        .font(.system(size: 12, weight: .semibold))
                                 }
-                                .foregroundColor(.white)
-                                .padding(.horizontal, 16)
-                                .padding(.vertical, 10)
-                                .background(
+                                .foregroundStyle(.primary)
+                                .padding(.horizontal, 18)
+                                .padding(.vertical, 11)
+                                .background {
+                                    ZStack {
+                                        Capsule()
+                                            .fill(.ultraThinMaterial)
+                                        
+                                        // Inner glow
+                                        Capsule()
+                                            .fill(
+                                                LinearGradient(
+                                                    colors: [
+                                                        Color.white.opacity(0.3),
+                                                        Color.clear
+                                                    ],
+                                                    startPoint: .topLeading,
+                                                    endPoint: .bottomTrailing
+                                                )
+                                            )
+                                    }
+                                }
+                                .overlay(
                                     Capsule()
-                                        .fill(.ultraThinMaterial)
-                                        .overlay(
-                                            Capsule()
-                                                .stroke(Color.white.opacity(0.3), lineWidth: 1)
+                                        .strokeBorder(
+                                            LinearGradient(
+                                                colors: [
+                                                    Color.white.opacity(0.5),
+                                                    Color.white.opacity(0.1)
+                                                ],
+                                                startPoint: .topLeading,
+                                                endPoint: .bottomTrailing
+                                            ),
+                                            lineWidth: 1
                                         )
                                 )
-                                .shadow(color: .black.opacity(0.25), radius: 8, x: 0, y: 4)
+                                .shadow(color: .black.opacity(0.15), radius: 12, x: 0, y: 6)
+                                .shadow(color: .black.opacity(0.08), radius: 24, x: 0, y: 12)
                             }
+                            .buttonStyle(GlassMiniTabButtonStyle())
                             
                             Spacer()
                         }
-                        .padding(.bottom, 10)
+                        .padding(.bottom, 12)
                     }
                     .transition(.move(edge: .bottom).combined(with: .opacity))
                 }
@@ -302,9 +327,43 @@ struct MainTabView: View {
     }
 }
 
-// MARK: - Custom Tab Bar
+// MARK: - Custom Tab Bar (iOS 26 Liquid Glass Theme)
 struct CustomTabBar: View {
     @EnvironmentObject var appState: AppState
+    @Environment(\.colorScheme) var colorScheme
+    
+    // Liquid Glass color properties
+    private var glassBackground: some ShapeStyle {
+        if colorScheme == .dark {
+            return AnyShapeStyle(.ultraThinMaterial)
+        } else {
+            return AnyShapeStyle(.thinMaterial)
+        }
+    }
+    
+    private var innerGlowColor: Color {
+        colorScheme == .dark 
+            ? Color.white.opacity(0.15) 
+            : Color.white.opacity(0.7)
+    }
+    
+    private var outerGlowColor: Color {
+        colorScheme == .dark 
+            ? Color.white.opacity(0.08) 
+            : Color.white.opacity(0.4)
+    }
+    
+    private var borderGradient: LinearGradient {
+        LinearGradient(
+            colors: [
+                Color.white.opacity(colorScheme == .dark ? 0.3 : 0.8),
+                Color.white.opacity(colorScheme == .dark ? 0.05 : 0.2),
+                Color.white.opacity(colorScheme == .dark ? 0.15 : 0.4)
+            ],
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
+    }
     
     var body: some View {
         HStack(spacing: 8) {
@@ -340,22 +399,57 @@ struct CustomTabBar: View {
                 selectedTab: $appState.selectedTab
             )
         }
-        .frame(height: 50)
-        .padding(.horizontal, 16)
-        .padding(.vertical, 6)
-        .background(
-            .ultraThinMaterial,
-            in: RoundedRectangle(cornerRadius: 25, style: .continuous)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 25, style: .continuous)
-                .strokeBorder(Color.white.opacity(0.2), lineWidth: 0.5)
-        )
-        .shadow(color: .black.opacity(0.1), radius: 10, x: 0, y: 5)
+        .frame(height: 54)
+        .padding(.horizontal, 20)
+        .padding(.vertical, 8)
+        .background {
+            // iOS 26 Liquid Glass layered background
+            ZStack {
+                // Base glass material
+                RoundedRectangle(cornerRadius: 27, style: .continuous)
+                    .fill(.ultraThinMaterial)
+                
+                // Inner subtle gradient for depth/refraction effect
+                RoundedRectangle(cornerRadius: 27, style: .continuous)
+                    .fill(
+                        LinearGradient(
+                            colors: [
+                                innerGlowColor,
+                                Color.clear,
+                                outerGlowColor
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                
+                // Subtle color tint for glass effect
+                RoundedRectangle(cornerRadius: 27, style: .continuous)
+                    .fill(
+                        RadialGradient(
+                            colors: [
+                                Color.white.opacity(colorScheme == .dark ? 0.05 : 0.15),
+                                Color.clear
+                            ],
+                            center: .topLeading,
+                            startRadius: 0,
+                            endRadius: 200
+                        )
+                    )
+            }
+        }
+        .overlay {
+            // iOS 26 style border with gradient for light refraction
+            RoundedRectangle(cornerRadius: 27, style: .continuous)
+                .strokeBorder(borderGradient, lineWidth: 1)
+        }
+        .shadow(color: Color.black.opacity(0.08), radius: 1, x: 0, y: 1) // Inner shadow illusion
+        .shadow(color: Color.black.opacity(colorScheme == .dark ? 0.4 : 0.15), radius: 20, x: 0, y: 10) // Soft outer shadow
+        .shadow(color: Color.black.opacity(colorScheme == .dark ? 0.2 : 0.08), radius: 40, x: 0, y: 20) // Diffuse shadow
     }
 }
 
-// MARK: - Tab Bar Button
+// MARK: - Tab Bar Button (iOS 26 Liquid Glass Theme)
 struct TabBarButton: View {
     let icon: String
     let tab: AppTab
@@ -363,30 +457,55 @@ struct TabBarButton: View {
     var isSpecial: Bool = false
     var showBadge: Bool = false
     
+    @Environment(\.colorScheme) var colorScheme
+    
     var isSelected: Bool {
         selectedTab == tab
     }
     
+    // iOS 26 style icon colors
+    private var iconColor: Color {
+        if isSelected {
+            return .primaryBrand
+        } else {
+            return colorScheme == .dark 
+                ? Color.white.opacity(0.5) 
+                : Color.black.opacity(0.4)
+        }
+    }
+    
     var body: some View {
         Button(action: {
-            // SoundManager.shared.playWithHaptic(.tabSwitch, hapticType: .selection)
-            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+            HapticManager.shared.impact(.light)
+            withAnimation(.spring(response: 0.35, dampingFraction: 0.7)) {
                 selectedTab = tab
             }
         }) {
             ZStack {
-                VStack(spacing: 2) {
-                    Image(systemName: icon)
-                        .font(.system(size: isSpecial ? 24 : 20))
-                        .foregroundColor(isSelected ? .primaryBrand : .tertiaryText)
-                        .scaleEffect(isSelected ? 1.1 : 1.0)
-                        .rotationEffect(.degrees(isSelected && !isSpecial ? 8 : 0))
-                        .animation(.spring(response: 0.3, dampingFraction: 0.5), value: isSelected)
+                // Selected state background glow (iOS 26 style)
+                if isSelected && !isSpecial {
+                    Circle()
+                        .fill(Color.primaryBrand.opacity(0.15))
+                        .frame(width: 44, height: 44)
+                        .blur(radius: 8)
+                }
+                
+                VStack(spacing: 4) {
+                    ZStack {
+                        // Icon with iOS 26 style transitions
+                        Image(systemName: icon)
+                            .font(.system(size: isSpecial ? 26 : 22, weight: isSelected ? .semibold : .regular))
+                            .foregroundStyle(iconColor)
+                            .symbolEffect(.bounce, value: isSelected)
+                            .scaleEffect(isSelected ? 1.08 : 1.0)
+                    }
                     
+                    // Selection indicator dot
                     if isSelected && !isSpecial {
-                        Circle()
+                        Capsule()
                             .fill(Color.primaryBrand)
-                            .frame(width: 4, height: 4)
+                            .frame(width: 5, height: 5)
+                            .shadow(color: Color.primaryBrand.opacity(0.5), radius: 4, x: 0, y: 0)
                             .transition(.scale.combined(with: .opacity))
                     }
                 }
@@ -398,14 +517,36 @@ struct TabBarButton: View {
                         HStack {
                             Spacer()
                             TabBarNotificationBadge()
-                                .offset(x: -6, y: 6)
+                                .offset(x: -4, y: 4)
                         }
                         Spacer()
                     }
                 }
             }
         }
-        .scaleEffect(isSpecial ? 1.15 : 1.0)
+        .buttonStyle(GlassTabButtonStyle(isSpecial: isSpecial))
+    }
+}
+
+// MARK: - Glass Tab Button Style
+struct GlassTabButtonStyle: ButtonStyle {
+    var isSpecial: Bool
+    
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.92 : (isSpecial ? 1.1 : 1.0))
+            .opacity(configuration.isPressed ? 0.8 : 1.0)
+            .animation(.spring(response: 0.25, dampingFraction: 0.6), value: configuration.isPressed)
+    }
+}
+
+// MARK: - Glass Mini Tab Button Style
+struct GlassMiniTabButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.94 : 1.0)
+            .opacity(configuration.isPressed ? 0.85 : 1.0)
+            .animation(.spring(response: 0.2, dampingFraction: 0.7), value: configuration.isPressed)
     }
 }
 
