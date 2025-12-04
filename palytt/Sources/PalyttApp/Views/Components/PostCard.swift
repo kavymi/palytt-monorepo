@@ -41,7 +41,7 @@ struct PostCard: View {
     }
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 14) {
             authorHeader
             mutualFriendsSection
             mediaCarousel
@@ -50,10 +50,14 @@ struct PostCard: View {
             captionSection
             recentCommentsSection
         }
-        .padding()
-        .background(Color.appCardBackground)
-        .cornerRadius(20)
-        .shadow(color: .black.opacity(0.05), radius: 10, x: 0, y: 5)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 14)
+        .background(
+            RoundedRectangle(cornerRadius: 24)
+                .fill(Color.appCardBackground)
+                .shadow(color: .black.opacity(0.04), radius: 12, x: 0, y: 4)
+                .shadow(color: .black.opacity(0.02), radius: 2, x: 0, y: 1)
+        )
         .onAppear {
             isLiked = post.isLiked
             isSaved = post.isSaved
@@ -90,39 +94,63 @@ struct PostCard: View {
     
     // MARK: - View Components
     private var authorHeader: some View {
-        HStack {
+        HStack(spacing: 12) {
             NavigationLink(destination: UserProfileView(user: post.author)) {
-                UserAvatar(user: post.author, size: 40)
+                UserAvatar(user: post.author, size: 44)
+                    .overlay(
+                        Circle()
+                            .stroke(
+                                LinearGradient(
+                                    colors: [.primaryBrand.opacity(0.3), .primaryBrand.opacity(0.1)],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                ),
+                                lineWidth: 2
+                            )
+                    )
             }
             
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: 3) {
                 Text(post.author.displayName)
-                    .font(.subheadline)
-                    .fontWeight(.semibold)
+                    .font(.system(size: 15, weight: .semibold))
                     .foregroundColor(.primaryText)
                 
                 if let shop = post.shop {
                     Button(action: {
+                        HapticManager.shared.impact(.light)
                         openDirections(to: shop)
                     }) {
-                        Text(shop.name)
-                            .font(.caption)
-                            .foregroundColor(.primaryBrand)
-                            .underline()
+                        HStack(spacing: 4) {
+                            Image(systemName: "mappin.circle.fill")
+                                .font(.system(size: 11))
+                            Text(shop.name)
+                                .font(.system(size: 12, weight: .medium))
+                        }
+                        .foregroundColor(.primaryBrand)
                     }
+                } else {
+                    // Show time ago if no shop
+                    Text(post.createdAt.timeAgoDisplay())
+                        .font(.system(size: 12))
+                        .foregroundColor(.secondaryText)
                 }
             }
             
             Spacer()
             
-            // Share button in header for better accessibility
+            // Share button with subtle background
             Button(action: {
                 HapticManager.shared.impact(.light)
                 showShareSheet = true
             }) {
                 Image(systemName: "paperplane")
-                    .font(.system(size: 18))
+                    .font(.system(size: 17, weight: .medium))
                     .foregroundColor(.secondaryText)
+                    .frame(width: 36, height: 36)
+                    .background(
+                        Circle()
+                            .fill(Color.appBackground.opacity(0.8))
+                    )
             }
         }
     }
@@ -195,9 +223,9 @@ struct PostCard: View {
                 }
             }
         }
-        .aspectRatio(3/4, contentMode: .fit)
-        .cornerRadius(16)
-        .clipped()
+        .aspectRatio(4/5, contentMode: .fit)
+        .clipShape(RoundedRectangle(cornerRadius: 18))
+        .shadow(color: .black.opacity(0.08), radius: 8, x: 0, y: 4)
     }
     
     private var carouselBackground: some View {
@@ -243,21 +271,23 @@ struct PostCard: View {
     }
     
     private func carouselDragGesture(geometry: GeometryProxy) -> some Gesture {
-        DragGesture(minimumDistance: 0, coordinateSpace: .local)
+        // Use a higher minimum distance to allow vertical scrolling to take priority
+        DragGesture(minimumDistance: 20, coordinateSpace: .local)
             .onChanged { value in
                 let horizontalAmount = abs(value.translation.width)
                 let verticalAmount = abs(value.translation.height)
                 
                 // Only handle horizontal drags for carousel navigation
-                // Require a more significant horizontal movement before taking control
-                if horizontalAmount > verticalAmount && horizontalAmount > 30 {
+                // Must be predominantly horizontal (at least 1.5x more horizontal than vertical)
+                if horizontalAmount > verticalAmount * 1.5 && horizontalAmount > 25 {
                     isDragging = true
-                    dragOffset = value.translation.width
-                }
-                // If it's primarily a vertical drag, don't interfere with scroll
-                else if verticalAmount > horizontalAmount {
-                    isDragging = false
-                    dragOffset = 0
+                    // Apply resistance at edges
+                    if (currentImageIndex == 0 && value.translation.width > 0) ||
+                       (currentImageIndex >= min(post.mediaURLs.count, 6) - 1 && value.translation.width < 0) {
+                        dragOffset = value.translation.width * 0.3 // Rubber band effect
+                    } else {
+                        dragOffset = value.translation.width
+                    }
                 }
             }
             .onEnded { value in
@@ -267,27 +297,24 @@ struct PostCard: View {
                 isDragging = false
                 
                 // Only process carousel navigation if it was primarily horizontal
-                if horizontalAmount > verticalAmount && horizontalAmount > 50 {
-                    let threshold: CGFloat = 80
-                    let dragThreshold = geometry.size.width * 0.25
+                if horizontalAmount > verticalAmount * 1.5 && horizontalAmount > 40 {
+                    let threshold: CGFloat = 60
                     
-                    withAnimation(.spring(response: 0.6, dampingFraction: 0.8)) {
+                    withAnimation(.spring(response: 0.5, dampingFraction: 0.8)) {
                         if abs(value.translation.width) > threshold {
                             if value.translation.width > 0 && currentImageIndex > 0 {
                                 currentImageIndex -= 1
+                                HapticManager.shared.impact(.light)
                             } else if value.translation.width < 0 && currentImageIndex < min(post.mediaURLs.count, 6) - 1 {
                                 currentImageIndex += 1
+                                HapticManager.shared.impact(.light)
                             }
                         }
                     }
-                    
-                    if abs(value.translation.width) > dragThreshold {
-                        HapticManager.shared.impact(.light)
-                    }
                 }
                 
-                // Always reset drag offset
-                withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                // Always reset drag offset with spring animation
+                withAnimation(.spring(response: 0.4, dampingFraction: 0.75)) {
                     dragOffset = 0
                 }
             }
@@ -298,27 +325,32 @@ struct PostCard: View {
             if post.mediaURLs.count > 1 {
                 VStack {
                     Spacer()
-                    HStack(spacing: 8) {
-                        Spacer()
+                    HStack(spacing: 6) {
                         ForEach(0..<min(post.mediaURLs.count, 6), id: \.self) { index in
-                            RoundedRectangle(cornerRadius: 4)
-                                .fill(currentImageIndex == index ? Color.white : Color.white.opacity(0.5))
+                            Capsule()
+                                .fill(currentImageIndex == index ? Color.white : Color.white.opacity(0.4))
                                 .frame(
-                                    width: currentImageIndex == index ? 24 : 8,
-                                    height: 4
+                                    width: currentImageIndex == index ? 20 : 6,
+                                    height: 6
                                 )
-                                .shadow(color: .black.opacity(0.4), radius: 2, x: 0, y: 1)
-                                .animation(.spring(response: 0.4, dampingFraction: 0.75), value: currentImageIndex)
+                                .shadow(color: .black.opacity(0.3), radius: 2, x: 0, y: 1)
+                                .animation(.spring(response: 0.35, dampingFraction: 0.7), value: currentImageIndex)
                                 .onTapGesture {
-                                    withAnimation(.spring(response: 0.6, dampingFraction: 0.8)) {
+                                    withAnimation(.spring(response: 0.5, dampingFraction: 0.75)) {
                                         currentImageIndex = index
                                     }
                                     HapticManager.shared.impact(.light)
                                 }
                         }
-                        Spacer()
                     }
-                    .padding(.bottom, 16)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+                    .background(
+                        Capsule()
+                            .fill(.ultraThinMaterial)
+                            .shadow(color: .black.opacity(0.15), radius: 4, x: 0, y: 2)
+                    )
+                    .padding(.bottom, 12)
                 }
             }
         }
@@ -330,16 +362,22 @@ struct PostCard: View {
                 VStack {
                     HStack {
                         Spacer()
-                        Text("\(currentImageIndex + 1)/\(min(post.mediaURLs.count, 6))")
-                            .font(.caption)
-                            .fontWeight(.medium)
-                            .foregroundColor(.white)
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 4)
-                            .background(Color.black.opacity(0.6))
-                            .cornerRadius(8)
-                            .padding(.top, 12)
-                            .padding(.trailing, 12)
+                        HStack(spacing: 4) {
+                            Image(systemName: "photo.on.rectangle")
+                                .font(.system(size: 10, weight: .semibold))
+                            Text("\(currentImageIndex + 1)/\(min(post.mediaURLs.count, 6))")
+                                .font(.system(size: 12, weight: .semibold, design: .rounded))
+                        }
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
+                        .background(
+                            Capsule()
+                                .fill(.ultraThinMaterial)
+                                .shadow(color: .black.opacity(0.2), radius: 4, x: 0, y: 2)
+                        )
+                        .padding(.top, 10)
+                        .padding(.trailing, 10)
                     }
                     Spacer()
                 }
@@ -348,37 +386,52 @@ struct PostCard: View {
     }
     
     private var interactionBar: some View {
-        HStack(spacing: 16) {
+        HStack(spacing: 0) {
             ratingView
+            
             Spacer()
-            likeButton
-            commentButton
-            saveButton
+            
+            HStack(spacing: 20) {
+                likeButton
+                commentButton
+                saveButton
+            }
         }
         .font(.system(size: 20))
-        .padding(.top, 8)
+        .padding(.top, 10)
     }
     
     private var ratingView: some View {
         Group {
             if let rating = post.rating {
-                HStack(spacing: 4) {
-                    ForEach(Array(1...5), id: \.self) { star in
-                        let starRating = Double(star)
-                        Image(systemName: {
-                            if rating >= starRating {
-                                return "star.fill"
-                            } else if rating >= starRating - 0.5 {
-                                return "star.leadinghalf.filled"
-                            } else {
-                                return "star"
-                            }
-                        }())
-                        .foregroundColor(.orange)
-                        .font(.caption2)
+                HStack(spacing: 6) {
+                    HStack(spacing: 3) {
+                        ForEach(Array(1...5), id: \.self) { star in
+                            let starRating = Double(star)
+                            Image(systemName: {
+                                if rating >= starRating {
+                                    return "star.fill"
+                                } else if rating >= starRating - 0.5 {
+                                    return "star.leadinghalf.filled"
+                                } else {
+                                    return "star"
+                                }
+                            }())
+                            .foregroundColor(.orange)
+                            .font(.system(size: 12, weight: .semibold))
+                        }
                     }
+                    
+                    Text(String(format: "%.1f", rating))
+                        .font(.system(size: 13, weight: .bold, design: .rounded))
+                        .foregroundColor(.primaryText)
                 }
-                .padding(.trailing, 12)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+                .background(
+                    Capsule()
+                        .fill(Color.orange.opacity(0.12))
+                )
             }
         }
     }

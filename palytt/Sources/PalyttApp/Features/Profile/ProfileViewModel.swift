@@ -59,6 +59,7 @@ class ProfileViewModel: ObservableObject {
     @Published var isSaving = false
     @Published var showError = false
     @Published var hasValidationErrors = false
+    @Published var didSaveSuccessfully = false
     
     private var cancellables = Set<AnyCancellable>()
     
@@ -347,46 +348,91 @@ class ProfileViewModel: ObservableObject {
             var uploadedImageURL: String? = nil
             if let profileImage = profileImage {
                 uploadedImageURL = await uploadProfileImage(profileImage)
+                print("✅ Profile image uploaded: \(uploadedImageURL ?? "nil")")
             }
             
             // Update Clerk profile first
             try await updateClerkProfile(with: uploadedImageURL)
+            print("✅ Clerk profile updated")
             
             // Then sync with backend
             await updateBackendProfile(with: uploadedImageURL)
+            print("✅ Backend profile updated")
             
-            // Update local user object
-            if let existingUser = currentUser {
-                currentUser = User(
-                    id: existingUser.id,
-                    email: existingUser.email,
-                    firstName: firstName.isEmpty ? nil : firstName,
-                    lastName: lastName.isEmpty ? nil : lastName,
-                    username: username,
-                    displayName: nil, // Will be auto-generated from firstName/lastName
-                    bio: bio.isEmpty ? nil : bio,
-                    avatarURL: uploadedImageURL != nil ? URL(string: uploadedImageURL!) : existingUser.avatarURL,
-                    clerkId: existingUser.clerkId,
-                    role: existingUser.role,
-                    dietaryPreferences: Array(selectedDietaryPreferences),
-                    location: existingUser.location,
-                    joinedAt: existingUser.joinedAt,
-                    followersCount: existingUser.followersCount,
-                    followingCount: existingUser.followingCount,
-                    postsCount: existingUser.postsCount
-                )
+            // Clear the local profile image since it's now uploaded
+            self.profileImage = nil
+            
+            // Update the profileImageURL if we uploaded a new image
+            if let newImageURL = uploadedImageURL {
+                self.profileImageURL = newImageURL
             }
             
+            // Refetch the user data from backend to ensure we have the latest
+            await refetchUserProfile()
+            
             HapticManager.shared.haptic(.success)
+            
+            // Mark save as successful to trigger dismiss
+            didSaveSuccessfully = true
             
         } catch {
             errorMessage = "Failed to save profile: \(error.localizedDescription)"
             HapticManager.shared.haptic(.error)
             print("❌ Profile save error: \(error)")
+            didSaveSuccessfully = false
         }
         
         isSaving = false
         isLoading = false
+    }
+    
+    /// Refetch user profile from backend after save to ensure data consistency
+    private func refetchUserProfile() async {
+        guard let clerkId = currentUser?.clerkId ?? Clerk.shared.user?.id else {
+            print("⚠️ No clerk ID available for refetch")
+            return
+        }
+        
+        do {
+            let backendUser = try await BackendService.shared.getUserByClerkId(clerkId: clerkId)
+            let user = backendUser.toUser()
+            
+            print("✅ Refetched user profile from backend")
+            
+            // Update current user with fresh data from backend
+            self.currentUser = User(
+                id: user.id,
+                email: user.email,
+                firstName: user.firstName,
+                lastName: user.lastName,
+                username: user.username,
+                displayName: user.displayName,
+                bio: user.bio,
+                avatarURL: user.avatarURL,
+                clerkId: user.clerkId,
+                role: user.role,
+                dietaryPreferences: user.dietaryPreferences,
+                location: user.location,
+                joinedAt: user.joinedAt,
+                followersCount: user.followersCount,
+                followingCount: user.followingCount,
+                postsCount: user.postsCount
+            )
+            
+            // Update form fields with the fresh data
+            firstName = user.firstName ?? ""
+            lastName = user.lastName ?? ""
+            username = user.username
+            bio = user.bio ?? ""
+            if let avatarURL = user.avatarURL {
+                profileImageURL = avatarURL.absoluteString
+            }
+            selectedDietaryPreferences = Set(user.dietaryPreferences)
+            
+        } catch {
+            print("⚠️ Failed to refetch user profile: \(error)")
+            // Don't throw - the save was successful, just couldn't refetch
+        }
     }
     
     private func validateAllFields() async {

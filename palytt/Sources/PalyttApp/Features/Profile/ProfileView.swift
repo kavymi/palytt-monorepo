@@ -364,60 +364,71 @@ struct ProfileView: View {
 struct ProfileHeaderView: View {
     let user: User
     let onEditProfile: () -> Void
+    @State private var avatarScale: CGFloat = 1.0
     
     var body: some View {
-        VStack(spacing: 16) {
-            // Profile Picture
-            if let avatarURL = user.avatarURL {
-                KFImage(avatarURL)
-                    .placeholder {
-                        Circle()
-                            .fill(LinearGradient.primaryGradient)
-                            .frame(width: 100, height: 100)
-                            .overlay(
-                                Text(user.username.prefix(2).uppercased())
-                                    .font(.largeTitle)
-                                    .fontWeight(.bold)
-                                    .foregroundColor(.white)
-                            )
-                    }
-                    .resizable()
-                    .aspectRatio(contentMode: .fill)
-                    .frame(width: 100, height: 100)
-                    .clipShape(Circle())
-            } else {
+        VStack(spacing: 20) {
+            // Profile Picture with Gradient Ring
+            ZStack {
+                // Outer gradient ring
                 Circle()
-                    .fill(LinearGradient.primaryGradient)
-                    .frame(width: 100, height: 100)
-                    .overlay(
-                        Text(user.username.prefix(2).uppercased())
-                            .font(.largeTitle)
-                            .fontWeight(.bold)
-                            .foregroundColor(.white)
+                    .stroke(
+                        LinearGradient(
+                            colors: [.primaryBrand, .primaryBrand.opacity(0.6), .primaryBrand.opacity(0.3)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ),
+                        lineWidth: 4
                     )
+                    .frame(width: 120, height: 120)
+                
+                // Avatar
+                if let avatarURL = user.avatarURL {
+                    KFImage(avatarURL)
+                        .placeholder {
+                            profileInitials
+                        }
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
+                        .frame(width: 108, height: 108)
+                        .clipShape(Circle())
+                } else {
+                    profileInitials
+                }
             }
+            .scaleEffect(avatarScale)
+            .onAppear {
+                withAnimation(.spring(response: 0.6, dampingFraction: 0.7).delay(0.1)) {
+                    avatarScale = 1.0
+                }
+            }
+            .shadow(color: .primaryBrand.opacity(0.2), radius: 12, x: 0, y: 6)
             
             // User Info
-            VStack(spacing: 8) {
+            VStack(spacing: 6) {
                 Text(user.displayName)
                     .font(.title2)
                     .fontWeight(.bold)
                     .foregroundColor(.appPrimaryText)
                 
-                Text("@\(user.username)")
-                    .font(.subheadline)
-                    .foregroundColor(.appSecondaryText)
+                HStack(spacing: 4) {
+                    Text("@\(user.username)")
+                        .font(.subheadline)
+                        .foregroundColor(.appSecondaryText)
+                }
                 
-                if let bio = user.bio {
+                if let bio = user.bio, !bio.isEmpty {
                     Text(bio)
                         .font(.subheadline)
-                        .foregroundColor(.appPrimaryText)
+                        .foregroundColor(.appPrimaryText.opacity(0.85))
                         .multilineTextAlignment(.center)
-                        .padding(.horizontal)
+                        .lineLimit(3)
+                        .padding(.horizontal, 32)
+                        .padding(.top, 4)
                 }
             }
             
-            // Edit Profile Button
+            // Edit Profile Button - Enhanced
             Button(action: onEditProfile) {
                 HStack(spacing: 8) {
                     Image(systemName: "pencil")
@@ -426,17 +437,44 @@ struct ProfileHeaderView: View {
                         .font(.subheadline)
                         .fontWeight(.semibold)
                 }
-                .foregroundColor(.primaryBrand)
-                .padding(.horizontal, 20)
-                .padding(.vertical, 10)
+                .foregroundColor(.white)
+                .padding(.horizontal, 28)
+                .padding(.vertical, 12)
                 .background(
-                    RoundedRectangle(cornerRadius: 20)
-                        .stroke(Color.primaryBrand, lineWidth: 1.5)
+                    Capsule()
+                        .fill(LinearGradient.primaryGradient)
+                        .shadow(color: .primaryBrand.opacity(0.3), radius: 8, x: 0, y: 4)
                 )
             }
-            .buttonStyle(HapticButtonStyle(haptic: .light))
+            .buttonStyle(ProfileScaleButtonStyle())
         }
-        .padding()
+        .padding(.vertical, 24)
+        .padding(.horizontal)
+    }
+    
+    private var profileInitials: some View {
+        Circle()
+            .fill(LinearGradient.primaryGradient)
+            .frame(width: 108, height: 108)
+            .overlay(
+                Text(user.username.prefix(2).uppercased())
+                    .font(.system(size: 36, weight: .bold, design: .rounded))
+                    .foregroundColor(.white)
+            )
+    }
+}
+
+// MARK: - Profile Scale Button Style
+struct ProfileScaleButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.95 : 1.0)
+            .animation(.spring(response: 0.3, dampingFraction: 0.7), value: configuration.isPressed)
+            .onChange(of: configuration.isPressed) { _, isPressed in
+                if isPressed {
+                    HapticManager.shared.impact(.light)
+                }
+            }
     }
 }
 
@@ -445,41 +483,48 @@ struct OtherUserProfileHeaderView: View {
     let user: User
     @StateObject private var socialActionViewModel = SocialActionViewModel()
     @EnvironmentObject var appState: AppState
+    @State private var avatarScale: CGFloat = 0.9
     
     var body: some View {
-        VStack(spacing: 16) {
-            // Profile Picture
-            if let avatarURL = user.avatarURL {
-                KFImage(avatarURL)
-                    .placeholder {
-                        Circle()
-                            .fill(LinearGradient.primaryGradient)
-                            .frame(width: 100, height: 100)
-                            .overlay(
-                                Text(user.username.prefix(2).uppercased())
-                                    .font(.largeTitle)
-                                    .fontWeight(.bold)
-                                    .foregroundColor(.white)
-                            )
-                    }
-                    .resizable()
-                    .aspectRatio(contentMode: .fill)
-                    .frame(width: 100, height: 100)
-                    .clipShape(Circle())
-            } else {
+        VStack(spacing: 20) {
+            // Profile Picture with Gradient Ring
+            ZStack {
+                // Outer gradient ring
                 Circle()
-                    .fill(LinearGradient.primaryGradient)
-                    .frame(width: 100, height: 100)
-                    .overlay(
-                        Text(user.username.prefix(2).uppercased())
-                            .font(.largeTitle)
-                            .fontWeight(.bold)
-                            .foregroundColor(.white)
+                    .stroke(
+                        LinearGradient(
+                            colors: [.primaryBrand, .primaryBrand.opacity(0.6), .primaryBrand.opacity(0.3)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ),
+                        lineWidth: 4
                     )
+                    .frame(width: 120, height: 120)
+                
+                // Avatar
+                if let avatarURL = user.avatarURL {
+                    KFImage(avatarURL)
+                        .placeholder {
+                            profileInitials
+                        }
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
+                        .frame(width: 108, height: 108)
+                        .clipShape(Circle())
+                } else {
+                    profileInitials
+                }
             }
+            .scaleEffect(avatarScale)
+            .onAppear {
+                withAnimation(.spring(response: 0.6, dampingFraction: 0.7).delay(0.1)) {
+                    avatarScale = 1.0
+                }
+            }
+            .shadow(color: .primaryBrand.opacity(0.2), radius: 12, x: 0, y: 6)
             
             // User Info
-            VStack(spacing: 8) {
+            VStack(spacing: 6) {
                 Text(user.displayName)
                     .font(.title2)
                     .fontWeight(.bold)
@@ -489,22 +534,36 @@ struct OtherUserProfileHeaderView: View {
                     .font(.subheadline)
                     .foregroundColor(.appSecondaryText)
                 
-                if let bio = user.bio {
+                if let bio = user.bio, !bio.isEmpty {
                     Text(bio)
                         .font(.subheadline)
-                        .foregroundColor(.appPrimaryText)
+                        .foregroundColor(.appPrimaryText.opacity(0.85))
                         .multilineTextAlignment(.center)
-                        .padding(.horizontal)
+                        .lineLimit(3)
+                        .padding(.horizontal, 32)
+                        .padding(.top, 4)
                 }
             }
             
             // Social Actions for other users
             SocialActionsView(targetUser: user, viewModel: socialActionViewModel)
         }
-        .padding()
+        .padding(.vertical, 24)
+        .padding(.horizontal)
         .task {
             await socialActionViewModel.loadUserRelationship(for: user, currentUser: appState.currentUser)
         }
+    }
+    
+    private var profileInitials: some View {
+        Circle()
+            .fill(LinearGradient.primaryGradient)
+            .frame(width: 108, height: 108)
+            .overlay(
+                Text(user.username.prefix(2).uppercased())
+                    .font(.system(size: 36, weight: .bold, design: .rounded))
+                    .foregroundColor(.white)
+            )
     }
 }
 
@@ -821,32 +880,94 @@ struct ProfileStatsView: View {
     @Binding var showFollowingSheet: Bool
     
     var body: some View {
-        HStack(spacing: 40) {
-            StatButton(
+        HStack(spacing: 0) {
+            EnhancedStatButton(
                 count: user.postsCount,
-                label: "Posts"
+                label: "Posts",
+                icon: "square.grid.2x2.fill"
             ) {
                 // Scroll to posts
             }
             
-            StatButton(
+            // Divider
+            Rectangle()
+                .fill(Color.appSecondaryText.opacity(0.2))
+                .frame(width: 1, height: 40)
+            
+            EnhancedStatButton(
                 count: user.followersCount,
-                label: "Followers"
+                label: "Followers",
+                icon: "person.2.fill"
             ) {
                 showFollowersSheet = true
             }
             
-            StatButton(
+            // Divider
+            Rectangle()
+                .fill(Color.appSecondaryText.opacity(0.2))
+                .frame(width: 1, height: 40)
+            
+            EnhancedStatButton(
                 count: user.followingCount,
-                label: "Following"
+                label: "Following",
+                icon: "heart.fill"
             ) {
                 showFollowingSheet = true
             }
         }
+        .padding(.vertical, 16)
+        .padding(.horizontal, 20)
+        .background(
+            RoundedRectangle(cornerRadius: 20)
+                .fill(Color.appCardBackground)
+                .shadow(color: .black.opacity(0.04), radius: 10, x: 0, y: 4)
+        )
         .padding(.horizontal)
     }
 }
 
+struct EnhancedStatButton: View {
+    let count: Int
+    let label: String
+    let icon: String
+    let action: () -> Void
+    @State private var isPressed = false
+    
+    var body: some View {
+        Button(action: {
+            HapticManager.shared.impact(.light)
+            action()
+        }) {
+            VStack(spacing: 6) {
+                Text(formatCount(count))
+                    .font(.system(size: 22, weight: .bold, design: .rounded))
+                    .foregroundColor(.appPrimaryText)
+                    .contentTransition(.numericText())
+                
+                Text(label)
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundColor(.appSecondaryText)
+            }
+            .frame(maxWidth: .infinity)
+        }
+        .buttonStyle(PlainButtonStyle())
+        .scaleEffect(isPressed ? 0.95 : 1.0)
+        .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isPressed)
+    }
+    
+    private func formatCount(_ count: Int) -> String {
+        if count >= 1_000_000 {
+            return String(format: "%.1fM", Double(count) / 1_000_000)
+        } else if count >= 10_000 {
+            return String(format: "%.1fK", Double(count) / 1_000)
+        } else if count >= 1_000 {
+            return String(format: "%.1fK", Double(count) / 1_000)
+        }
+        return "\(count)"
+    }
+}
+
+// Legacy StatButton for compatibility
 struct StatButton: View {
     let count: Int
     let label: String
@@ -872,26 +993,141 @@ struct StatButton: View {
 // MARK: - Profile Posts Grid
 struct ProfilePostsGrid: View {
     let posts: [Post]
+    @State private var showCreatePost = false
     
     var body: some View {
-        LazyVGrid(columns: [
-            GridItem(.flexible(), spacing: 2),
-            GridItem(.flexible(), spacing: 2),
-            GridItem(.flexible(), spacing: 2)
-        ], spacing: 2) {
-            ForEach(posts, id: \.id) { post in
-                NavigationLink(destination: PostDetailView(post: post)) {
-                    ProfilePostGridItem(post: post)
+        VStack(spacing: 0) {
+            // Section Header
+            HStack {
+                Image(systemName: "square.grid.2x2.fill")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundColor(.primaryBrand)
+                
+                Text("Posts")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundColor(.appPrimaryText)
+                
+                Spacer()
+                
+                if !posts.isEmpty {
+                    Text("\(posts.count)")
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundColor(.appSecondaryText)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 4)
+                        .background(
+                            Capsule()
+                                .fill(Color.appCardBackground)
+                        )
                 }
-                .buttonStyle(PlainButtonStyle())
+            }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 12)
+            
+            Divider()
+                .padding(.horizontal)
+            
+            if posts.isEmpty {
+                // Empty State
+                ProfileEmptyPostsView(showCreatePost: $showCreatePost)
+                    .padding(.top, 40)
+            } else {
+                // Posts Grid
+                LazyVGrid(columns: [
+                    GridItem(.flexible(), spacing: 3),
+                    GridItem(.flexible(), spacing: 3),
+                    GridItem(.flexible(), spacing: 3)
+                ], spacing: 3) {
+                    ForEach(posts, id: \.id) { post in
+                        NavigationLink(destination: PostDetailView(post: post)) {
+                            ProfilePostGridItem(post: post)
+                        }
+                        .buttonStyle(PlainButtonStyle())
+                    }
+                }
+                .padding(.horizontal, 3)
+                .padding(.top, 3)
             }
         }
-        .padding(.horizontal, 2)
+        .sheet(isPresented: $showCreatePost) {
+            CreatePostView()
+        }
+    }
+}
+
+// MARK: - Profile Empty Posts View
+struct ProfileEmptyPostsView: View {
+    @Binding var showCreatePost: Bool
+    @State private var iconBounce = false
+    
+    var body: some View {
+        VStack(spacing: 24) {
+            // Animated Icon
+            ZStack {
+                Circle()
+                    .fill(Color.primaryBrand.opacity(0.1))
+                    .frame(width: 100, height: 100)
+                
+                Circle()
+                    .fill(Color.primaryBrand.opacity(0.15))
+                    .frame(width: 80, height: 80)
+                
+                Image(systemName: "camera.fill")
+                    .font(.system(size: 32, weight: .medium))
+                    .foregroundColor(.primaryBrand)
+                    .offset(y: iconBounce ? -4 : 0)
+            }
+            .onAppear {
+                withAnimation(.easeInOut(duration: 1.2).repeatForever(autoreverses: true)) {
+                    iconBounce = true
+                }
+            }
+            
+            VStack(spacing: 10) {
+                Text("Share Your First Discovery")
+                    .font(.system(size: 20, weight: .bold, design: .rounded))
+                    .foregroundColor(.appPrimaryText)
+                
+                Text("Capture and share the amazing food\nyou've been enjoying lately")
+                    .font(.subheadline)
+                    .foregroundColor(.appSecondaryText)
+                    .multilineTextAlignment(.center)
+                    .lineSpacing(4)
+            }
+            
+            Button(action: {
+                HapticManager.shared.impact(.medium)
+                showCreatePost = true
+            }) {
+                HStack(spacing: 8) {
+                    Image(systemName: "plus.circle.fill")
+                        .font(.system(size: 18, weight: .semibold))
+                    Text("Create Post")
+                        .font(.system(size: 16, weight: .semibold))
+                }
+                .foregroundColor(.white)
+                .padding(.horizontal, 32)
+                .padding(.vertical, 14)
+                .background(
+                    Capsule()
+                        .fill(LinearGradient.primaryGradient)
+                        .shadow(color: .primaryBrand.opacity(0.3), radius: 10, x: 0, y: 5)
+                )
+            }
+            .buttonStyle(ProfileScaleButtonStyle())
+        }
+        .padding(.horizontal, 40)
+        .padding(.bottom, 60)
     }
 }
 
 struct ProfilePostGridItem: View {
     let post: Post
+    @State private var isLoaded = false
+    
+    private var gridItemSize: CGFloat {
+        (UIScreen.main.bounds.width - 12) / 3
+    }
     
     var body: some View {
         ZStack(alignment: .topTrailing) {
@@ -899,50 +1135,80 @@ struct ProfilePostGridItem: View {
                 KFImage(imageURL)
                     .placeholder {
                         Rectangle()
-                            .fill(Color.gray.opacity(0.3))
+                            .fill(Color.appCardBackground)
                             .overlay(
-                                Image(systemName: "photo")
-                                    .foregroundColor(.gray)
+                                ProgressView()
+                                    .progressViewStyle(CircularProgressViewStyle(tint: .primaryBrand))
+                                    .scaleEffect(0.8)
                             )
+                    }
+                    .onSuccess { _ in
+                        withAnimation(.easeOut(duration: 0.3)) {
+                            isLoaded = true
+                        }
                     }
                     .resizable()
                     .aspectRatio(contentMode: .fill)
-                    .frame(width: UIScreen.main.bounds.width / 3 - 4, height: UIScreen.main.bounds.width / 3 - 4)
+                    .frame(width: gridItemSize, height: gridItemSize)
                     .clipped()
+                    .opacity(isLoaded ? 1 : 0.7)
             } else {
                 Rectangle()
                     .fill(LinearGradient.primaryGradient)
-                    .frame(width: UIScreen.main.bounds.width / 3 - 4, height: UIScreen.main.bounds.width / 3 - 4)
+                    .frame(width: gridItemSize, height: gridItemSize)
                     .overlay(
-                        Text(post.caption.prefix(2).uppercased())
-                            .font(.caption)
-                            .fontWeight(.bold)
-                            .foregroundColor(.white)
+                        VStack(spacing: 4) {
+                            Image(systemName: "fork.knife")
+                                .font(.system(size: 20, weight: .medium))
+                            Text(post.caption.prefix(12) + (post.caption.count > 12 ? "..." : ""))
+                                .font(.system(size: 10, weight: .medium))
+                                .lineLimit(2)
+                                .multilineTextAlignment(.center)
+                                .padding(.horizontal, 4)
+                        }
+                        .foregroundColor(.white)
                     )
             }
             
-            // Multiple photos indicator
+            // Overlay gradient for better indicator visibility
             if post.mediaURLs.count > 1 {
-                HStack(spacing: 2) {
-                    ForEach(0..<min(post.mediaURLs.count, 3), id: \.self) { _ in
-                        Circle()
-                            .fill(Color.white)
-                            .frame(width: 4, height: 4)
-                    }
-                    if post.mediaURLs.count > 3 {
-                        Text("+")
-                            .font(.system(size: 8, weight: .bold))
-                            .foregroundColor(.white)
-                    }
-                }
-                .padding(4)
-                .background(
-                    RoundedRectangle(cornerRadius: 8)
-                        .fill(Color.black.opacity(0.5))
+                LinearGradient(
+                    colors: [.black.opacity(0.4), .clear],
+                    startPoint: .topTrailing,
+                    endPoint: .bottomLeading
                 )
-                .padding(4)
+                .frame(width: 50, height: 50)
+            }
+            
+            // Multiple photos indicator - improved design
+            if post.mediaURLs.count > 1 {
+                Image(systemName: "square.fill.on.square.fill")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundColor(.white)
+                    .shadow(color: .black.opacity(0.5), radius: 2, x: 0, y: 1)
+                    .padding(8)
+            }
+            
+            // Rating badge if exists
+            if let rating = post.rating, rating > 0 {
+                HStack(spacing: 2) {
+                    Image(systemName: "star.fill")
+                        .font(.system(size: 9, weight: .bold))
+                    Text(String(format: "%.1f", rating))
+                        .font(.system(size: 10, weight: .bold))
+                }
+                .foregroundColor(.white)
+                .padding(.horizontal, 6)
+                .padding(.vertical, 3)
+                .background(
+                    Capsule()
+                        .fill(Color.black.opacity(0.6))
+                )
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
+                .padding(6)
             }
         }
+        .cornerRadius(2)
     }
 }
 

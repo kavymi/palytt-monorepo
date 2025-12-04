@@ -746,6 +746,13 @@ struct EditProfileMainContent: View {
                     LoadingOverlay()
                 }
             }
+            .onChange(of: viewModel.didSaveSuccessfully) { _, didSave in
+                if didSave {
+                    // Reset the flag and dismiss
+                    viewModel.didSaveSuccessfully = false
+                    dismiss()
+                }
+            }
         }
     }
     

@@ -71,31 +71,36 @@ struct HomeView: View {
             // Empty state - only show when authenticated and not loading
             EmptyFeedView()
         } else {
-            // Posts grid
-            ForEach(viewModel.posts, id: \.id) { post in
-                PostCard(
-                    post: post,
-                    onLike: { postId in
-                        Task {
-                            await viewModel.toggleLike(for: postId)
+                    // Posts grid with staggered animation
+                    ForEach(Array(viewModel.posts.enumerated()), id: \.element.id) { index, post in
+                        PostCard(
+                            post: post,
+                            onLike: { postId in
+                                Task {
+                                    await viewModel.toggleLike(for: postId)
+                                }
+                            },
+                            onBookmark: { postId in
+                                Task {
+                                    await viewModel.toggleBookmark(for: postId)
+                                }
+                            },
+                            onBookmarkNavigate: {
+                                HapticManager.shared.impact(.medium)
+                                appState.selectedTab = .profile
+                            }
+                        )
+                        .padding(.horizontal, 12)
+                        .onAppear {
+                            viewModel.checkForMorePosts(currentPost: post)
                         }
-                    },
-                    onBookmark: { postId in
-                        Task {
-                            await viewModel.toggleBookmark(for: postId)
-                        }
-                    },
-                    onBookmarkNavigate: {
-                        HapticManager.shared.impact(.medium)
-                        appState.selectedTab = .profile
+                        .transition(
+                            .asymmetric(
+                                insertion: .opacity.combined(with: .move(edge: .bottom)).combined(with: .scale(scale: 0.95)),
+                                removal: .opacity
+                            )
+                        )
                     }
-                )
-                .padding(.horizontal)
-                .onAppear {
-                    viewModel.checkForMorePosts(currentPost: post)
-                }
-                .transition(.slide.combined(with: .opacity))
-            }
             
             // Loading more indicator
             if viewModel.isLoadingMore {
@@ -267,68 +272,103 @@ struct HomeView: View {
 struct EmptyFeedView: View {
     @EnvironmentObject var appState: AppState
     @State private var showFindFriends = false
+    @State private var iconBounce = false
+    @State private var appeared = false
     
     var body: some View {
-        VStack(spacing: 24) {
-            // Friendly illustration
+        VStack(spacing: 28) {
+            // Animated illustration with layered circles
             ZStack {
+                // Outer pulsing ring
                 Circle()
-                    .fill(Color.primaryBrand.opacity(0.1))
-                    .frame(width: 120, height: 120)
+                    .stroke(Color.primaryBrand.opacity(0.15), lineWidth: 2)
+                    .frame(width: 160, height: 160)
+                    .scaleEffect(iconBounce ? 1.1 : 1.0)
+                    .opacity(iconBounce ? 0.5 : 0.8)
+                
+                Circle()
+                    .fill(Color.primaryBrand.opacity(0.08))
+                    .frame(width: 140, height: 140)
+                
+                Circle()
+                    .fill(Color.primaryBrand.opacity(0.12))
+                    .frame(width: 110, height: 110)
                 
                 Image(systemName: "person.2.fill")
-                    .font(.system(size: 50))
+                    .font(.system(size: 48, weight: .medium))
                     .foregroundColor(.primaryBrand)
+                    .offset(y: iconBounce ? -3 : 0)
+            }
+            .onAppear {
+                withAnimation(.easeInOut(duration: 2.0).repeatForever(autoreverses: true)) {
+                    iconBounce = true
+                }
             }
             
-            VStack(spacing: 12) {
+            VStack(spacing: 14) {
                 Text("See what your friends are eating")
-                    .font(.title3)
-                    .fontWeight(.semibold)
+                    .font(.system(size: 22, weight: .bold, design: .rounded))
                     .foregroundColor(.primaryText)
+                    .multilineTextAlignment(.center)
                 
                 Text("Add friends to see their food discoveries here")
-                    .font(.subheadline)
+                    .font(.system(size: 15))
                     .foregroundColor(.secondaryText)
                     .multilineTextAlignment(.center)
-                    .padding(.horizontal, 32)
+                    .lineSpacing(4)
+                    .padding(.horizontal, 40)
             }
+            .opacity(appeared ? 1 : 0)
+            .offset(y: appeared ? 0 : 20)
             
-            // Find Friends CTA
-            Button(action: {
-                HapticManager.shared.impact(.medium)
-                showFindFriends = true
-            }) {
-                HStack(spacing: 8) {
-                    Image(systemName: "person.badge.plus")
-                        .font(.system(size: 16, weight: .semibold))
-                    Text("Find Friends")
-                        .font(.headline)
-                        .fontWeight(.semibold)
+            VStack(spacing: 16) {
+                // Find Friends CTA - Enhanced
+                Button(action: {
+                    HapticManager.shared.impact(.medium)
+                    showFindFriends = true
+                }) {
+                    HStack(spacing: 10) {
+                        Image(systemName: "person.badge.plus")
+                            .font(.system(size: 17, weight: .semibold))
+                        Text("Find Friends")
+                            .font(.system(size: 17, weight: .semibold))
+                    }
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 36)
+                    .padding(.vertical, 16)
+                    .background(
+                        Capsule()
+                            .fill(LinearGradient.primaryGradient)
+                            .shadow(color: .primaryBrand.opacity(0.35), radius: 12, x: 0, y: 6)
+                    )
                 }
-                .foregroundColor(.white)
-                .padding(.horizontal, 32)
-                .padding(.vertical, 14)
-                .background(
-                    LinearGradient.primaryGradient
-                )
-                .cornerRadius(25)
-            }
-            
-            // Secondary action - Invite friends
-            Button(action: {
-                HapticManager.shared.impact(.light)
-                // Could trigger invite flow
-            }) {
-                Text("Invite friends to Palytt")
-                    .font(.subheadline)
-                    .fontWeight(.medium)
+                .scaleEffect(appeared ? 1 : 0.9)
+                
+                // Secondary action - Invite friends
+                Button(action: {
+                    HapticManager.shared.impact(.light)
+                    // Could trigger invite flow
+                }) {
+                    HStack(spacing: 6) {
+                        Image(systemName: "square.and.arrow.up")
+                            .font(.system(size: 13, weight: .medium))
+                        Text("Invite friends to Palytt")
+                            .font(.system(size: 14, weight: .medium))
+                    }
                     .foregroundColor(.primaryBrand)
+                }
             }
-            .padding(.top, 8)
+            .opacity(appeared ? 1 : 0)
+            .offset(y: appeared ? 0 : 30)
         }
-        .padding(.top, 80)
+        .padding(.top, 60)
+        .padding(.bottom, 100)
         .frame(maxWidth: .infinity)
+        .onAppear {
+            withAnimation(.spring(response: 0.7, dampingFraction: 0.8).delay(0.2)) {
+                appeared = true
+            }
+        }
         .sheet(isPresented: $showFindFriends) {
             AddFriendsView()
         }
@@ -336,35 +376,78 @@ struct EmptyFeedView: View {
 }
 
 struct LoadingMoreView: View {
+    @State private var isAnimating = false
+    
     var body: some View {
         HStack(spacing: 12) {
-            ProgressView()
-                .scaleEffect(0.8)
-                .tint(.milkTea)
+            // Custom animated loader
+            HStack(spacing: 4) {
+                ForEach(0..<3, id: \.self) { index in
+                    Circle()
+                        .fill(Color.primaryBrand)
+                        .frame(width: 6, height: 6)
+                        .scaleEffect(isAnimating ? 1.0 : 0.5)
+                        .opacity(isAnimating ? 1.0 : 0.4)
+                        .animation(
+                            .easeInOut(duration: 0.5)
+                                .repeatForever(autoreverses: true)
+                                .delay(Double(index) * 0.15),
+                            value: isAnimating
+                        )
+                }
+            }
             
-            Text("Loading more posts...")
-                .font(.caption)
+            Text("Loading more...")
+                .font(.system(size: 13, weight: .medium))
                 .foregroundColor(.appSecondaryText)
         }
+        .padding(.horizontal, 20)
+        .padding(.vertical, 12)
+        .background(
+            Capsule()
+                .fill(Color.appCardBackground)
+                .shadow(color: .black.opacity(0.04), radius: 8, x: 0, y: 2)
+        )
         .frame(maxWidth: .infinity)
-        .padding(.vertical, 8)
+        .padding(.vertical, 16)
+        .onAppear {
+            isAnimating = true
+        }
     }
 }
 
 struct EndOfContentView: View {
+    @State private var appeared = false
+    
     var body: some View {
-        VStack(spacing: 8) {
-            Image(systemName: "checkmark.circle.fill")
-                .font(.title2)
-                .foregroundColor(.milkTea)
+        VStack(spacing: 10) {
+            ZStack {
+                Circle()
+                    .fill(Color.primaryBrand.opacity(0.1))
+                    .frame(width: 50, height: 50)
+                
+                Image(systemName: "checkmark.circle.fill")
+                    .font(.system(size: 26, weight: .medium))
+                    .foregroundColor(.primaryBrand)
+            }
+            .scaleEffect(appeared ? 1.0 : 0.8)
             
             Text("You're all caught up!")
-                .font(.caption)
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundColor(.appPrimaryText)
+            
+            Text("Check back later for new posts")
+                .font(.system(size: 12))
                 .foregroundColor(.appSecondaryText)
         }
         .frame(maxWidth: .infinity)
-        .padding(.vertical, 12)
-        .opacity(0.7)
+        .padding(.vertical, 24)
+        .opacity(appeared ? 1 : 0)
+        .onAppear {
+            withAnimation(.spring(response: 0.5, dampingFraction: 0.7)) {
+                appeared = true
+            }
+        }
     }
 }
 

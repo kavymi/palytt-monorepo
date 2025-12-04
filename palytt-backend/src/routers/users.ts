@@ -36,11 +36,16 @@ const CreateUserSchema = z.object({
 });
 
 const UpdateUserSchema = z.object({
-  username: z.string().min(1).max(50).nullable(),
-  name: z.string().min(1).max(200).nullable(),
-  bio: z.string().max(500).nullable(),
-  profileImage: z.string().url().nullable(),
-  website: z.string().url().nullable(),
+  username: z.string().min(1).max(50).nullable().optional(),
+  name: z.string().min(1).max(200).nullable().optional(),
+  bio: z.string().max(500).nullable().optional(),
+  profileImage: z.string().url().nullable().optional(),
+  website: z.string().url().nullable().optional(),
+  // iOS app may send these additional fields
+  firstName: z.string().nullable().optional(),
+  lastName: z.string().nullable().optional(),
+  avatarUrl: z.string().nullable().optional(),
+  dietaryPreferences: z.array(z.string()).optional(),
 });
 
 export const usersRouter = router({
@@ -147,9 +152,27 @@ export const usersRouter = router({
       data: UpdateUserSchema,
     }))
     .mutation(async ({ input }) => {
+      // Map iOS field names to backend field names
+      // iOS sends: firstName, lastName, avatarUrl
+      // Backend expects: name, profileImage
+      const { firstName, lastName, avatarUrl, dietaryPreferences, ...restData } = input.data;
+      
+      // Build name from firstName/lastName if provided
+      let name = restData.name;
+      if (!name && (firstName || lastName)) {
+        name = [firstName, lastName].filter(Boolean).join(' ').trim() || null;
+      }
+      
+      // Use avatarUrl if profileImage not provided
+      const profileImage = restData.profileImage ?? avatarUrl ?? undefined;
+      
       const updatedUser = await prisma.user.update({
         where: { clerkId: input.clerkId },
-        data: input.data,
+        data: {
+          ...restData,
+          name: name ?? undefined,
+          profileImage: profileImage ?? undefined,
+        },
       });
       
       return {
