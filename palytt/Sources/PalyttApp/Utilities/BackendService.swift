@@ -2818,15 +2818,16 @@ class BackendService: ObservableObject {
         let urlString = "\(baseURL)/trpc/posts.getFriendsPosts?input=\(encodedInput)"
         print("🌐 BackendService: Calling friends feed URL: \(urlString)")
         
-        // Get auth token
-        guard let token = try? await Clerk.shared.session?.getToken()?.jwt else {
+        // Get auth headers using the standard method (includes both Authorization and x-clerk-user-id)
+        let authHeaders = await getAuthHeaders()
+        
+        // Check if we have proper authentication
+        guard authHeaders["Authorization"] != nil else {
             throw BackendError.trpcError("User not authenticated", 401)
         }
         
-        let headers: HTTPHeaders = [
-            "Authorization": "Bearer \(token)",
-            "Content-Type": "application/json"
-        ]
+        // Convert to HTTPHeaders for Alamofire
+        let headers = HTTPHeaders(authHeaders.map { HTTPHeader(name: $0.key, value: $0.value) })
         
         return try await withCheckedThrowingContinuation { continuation in
             AF.request(urlString, method: .get, headers: headers)

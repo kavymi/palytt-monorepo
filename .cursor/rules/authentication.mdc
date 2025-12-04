@@ -1,0 +1,110 @@
+---
+description: Authentication patterns for iOS app and backend integration with Clerk
+globs: palytt/**/*.swift, palytt-backend/**/*.ts
+alwaysApply: true
+---
+
+# Authentication Patterns
+
+## iOS App - BackendService Authentication
+
+**CRITICAL: Always use `getAuthHeaders()` for authenticated API requests**
+
+When adding new authenticated endpoints to `BackendService.swift`, follow this pattern:
+
+### ✅ CORRECT Pattern
+
+```swift
+func myAuthenticatedEndpoint() async throws -> SomeResponse {
+    // Build your request URL
+    let urlString = "\(baseURL)/trpc/my.endpoint?input=\(encodedInput)"
+    
+    // Get auth headers using the standard method
+    let authHeaders = await getAuthHeaders()
+    
+    // Check if we have proper authentication
+    guard authHeaders["Authorization"] != nil else {
+        throw BackendError.trpcError("User not authenticated", 401)
+    }
+    
+    // Convert to HTTPHeaders for Alamofire
+    let headers = HTTPHeaders(authHeaders.map { HTTPHeader(name: $0.key, value: $0.value) })
+    
+    return try await withCheckedThrowingContinuation { continuation in
+        AF.request(urlString, method: .get, headers: headers)
+            .validate()
+            .responseData { response in
+                // Handle response...
+            }
+    }
+}
+```
+
+### ❌ WRONG Pattern - NEVER Do This
+
+```swift
+// This pattern silently fails and causes auth errors!
+guard let token = try? await Clerk.shared.session?.getToken()?.jwt else {
+    throw BackendError.trpcError("User not authenticated", 401)
+}
+
+let headers: HTTPHeaders = [
+    "Authorization": "Bearer \(token)",
+    "Content-Type": "application/json"
+]
+```
+
+### Why `getAuthHeaders()` is Required
+
+The `getAuthHeaders()` method in `BackendService`:
+1. Uses `AuthProvider.shared.getHeadersWithUserId()` which properly handles token retrieval
+2. Includes the `x-clerk-user-id` header that the backend needs for user identification
+3. Handles token caching and refresh automatically
+4. Provides proper error handling (doesn't silently fail with `try?`)
+
+### For Generic tRPC Requests
+
+Use `performTRPCRequest` which already handles authentication correctly:
+
+```swift
+return try await performTRPCRequest(
+    procedure: "my.endpoint",
+    input: myInput,
+    method: .get
+)
+```
+
+## Backend - Environment Variables
+
+The backend requires these environment variables for authentication:
+
+```bash
+# Required for JWT token verification
+CLERK_SECRET_KEY=sk_live_xxxxx
+
+# Required for database
+DATABASE_URL=postgresql://user:pass@host:5432/db
+```
+
+### Docker Compose
+
+When running with Docker, ensure `CLERK_SECRET_KEY` is passed to the container:
+
+```yaml
+environment:
+  CLERK_SECRET_KEY: ${CLERK_SECRET_KEY}
+```
+
+### Common Auth Errors
+
+| Error | Cause | Solution |
+|-------|-------|----------|
+| "CLERK_SECRET_KEY is not set" | Missing env var | Set `CLERK_SECRET_KEY` in `.env` or Docker env |
+| "Unauthorized - Please sign in" | Token not passed or invalid | Use `getAuthHeaders()` pattern |
+| "No Bearer token found" | Headers not sent correctly | Check `Authorization` header is included |
+
+## Reference Files
+
+- iOS Auth Provider: `palytt/Sources/PalyttApp/Networking/Auth/AuthProvider.swift`
+- Backend tRPC context: `palytt-backend/src/trpc.ts`
+- BackendService: `palytt/Sources/PalyttApp/Utilities/BackendService.swift`

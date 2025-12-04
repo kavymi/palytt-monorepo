@@ -27,8 +27,12 @@ alwaysApply: true
 
   - **Step 4: Run App on Simulator (MANDATORY after changes are complete)**
     - After all changes are finished and validated, launch the app on iOS Simulator to verify functionality
-    - Use `run_terminal_cmd` to execute: `cd palytt && xcodebuild -project Palytt.xcodeproj -scheme Palytt -destination 'platform=iOS Simulator,name=iPhone 17 Pro' build && xcrun simctl boot "iPhone 17 Pro" && xcodebuild -project Palytt.xcodeproj -scheme Palytt -destination 'platform=iOS Simulator,name=iPhone 17 Pro' -allowProvisioningUpdates`
-    - Alternatively, use: `cd palytt && xcrun xcodebuild -project Palytt.xcodeproj -scheme Palytt -destination 'platform=iOS Simulator,name=iPhone 17 Pro' -allowProvisioningUpdates build-for-testing && xcrun xcodebuild -project Palytt.xcodeproj -scheme Palytt -destination 'platform=iOS Simulator,name=iPhone 17 Pro' -allowProvisioningUpdates test-without-building`
+    - **If the app is already running on the simulator:**
+      - Use the MCP tool `mcp_XcodeBuildMCP_build_run_sim` to rebuild and relaunch the app
+      - This is faster than a full clean build as it uses incremental compilation
+      - Example: `mcp_XcodeBuildMCP_build_run_sim({ projectPath: '/Users/kavyrattana/Coding/palytt-monorepo/palytt/Palytt.xcodeproj', scheme: 'Palytt', simulatorName: 'iPhone 17 Pro' })`
+    - **If the app is NOT running:**
+      - Use `run_terminal_cmd` to execute: `cd palytt && xcodebuild -project Palytt.xcodeproj -scheme Palytt -destination 'platform=iOS Simulator,name=iPhone 17 Pro' build && xcrun simctl boot "iPhone 17 Pro" && xcodebuild -project Palytt.xcodeproj -scheme Palytt -destination 'platform=iOS Simulator,name=iPhone 17 Pro' -allowProvisioningUpdates`
     - Wait for the app to launch and perform basic smoke testing (navigate through main screens)
     - Verify that the changes work as expected in the running app
 
@@ -72,6 +76,23 @@ alwaysApply: true
   # Alternative: Build and run with testing
   cd palytt && xcodebuild -project Palytt.xcodeproj -scheme Palytt -destination 'platform=iOS Simulator,name=iPhone 17 Pro' -allowProvisioningUpdates build-for-testing
   ```
+
+- **Rerunning the App (When App is Already Running):**
+  - **IMPORTANT:** If the simulator is already running with the app, use the MCP build tools to rerun instead of a full rebuild
+  - This leverages incremental builds and is significantly faster
+  ```bash
+  # Using MCP tool (preferred when app is already running):
+  mcp_XcodeBuildMCP_build_run_sim({
+    projectPath: '/Users/kavyrattana/Coding/palytt-monorepo/palytt/Palytt.xcodeproj',
+    scheme: 'Palytt',
+    simulatorName: 'iPhone 17 Pro'
+  })
+  ```
+  - The MCP tool automatically handles:
+    - Stopping the existing app instance
+    - Incremental compilation of changed files
+    - Installing the updated app
+    - Launching the app on the simulator
 
 - **When to Skip Validation:**
   - Only skip if making documentation-only changes (*.md files)
