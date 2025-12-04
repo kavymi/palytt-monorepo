@@ -34,11 +34,8 @@ struct HomeView: View {
     
     @ViewBuilder
     private var feedStatusSection: some View {
-        if viewModel.isUsingPersonalizedFeed, let feedStats = viewModel.feedStats {
-            FeedStatusIndicatorView(feedStats: feedStats)
-                .padding(.horizontal)
-                .padding(.top, 8)
-        }
+        // Friends feed doesn't need a status indicator - it's the default and only feed
+        EmptyView()
     }
     
     @ViewBuilder
@@ -264,115 +261,76 @@ struct HomeView: View {
     }
 }
 
-// MARK: - Feed Status Indicator
-
-struct FeedStatusIndicatorView: View {
-    let feedStats: HomeViewModel.FeedStats
-    
-    var body: some View {
-        HStack(spacing: 12) {
-            // Personalized Feed Icon
-            Image(systemName: "location.fill.viewfinder")
-                .foregroundColor(.primaryBrand)
-                .font(.system(size: 16, weight: .medium))
-            
-            VStack(alignment: .leading, spacing: 2) {
-                Text("Personalized Feed")
-                    .font(.subheadline)
-                    .fontWeight(.semibold)
-                    .foregroundColor(.primaryText)
-                
-                HStack(spacing: 16) {
-                    if feedStats.fromFollowed > 0 {
-                        HStack(spacing: 4) {
-                            Image(systemName: "person.2.fill")
-                                .font(.caption)
-                                .foregroundColor(.primaryBrand)
-                            Text("\(feedStats.fromFollowed) from followed")
-                                .font(.caption)
-                                .foregroundColor(.secondaryText)
-                        }
-                    }
-                    
-                    if feedStats.fromNearby > 0 {
-                        HStack(spacing: 4) {
-                            Image(systemName: "location.fill")
-                                .font(.caption)
-                                .foregroundColor(.success)
-                            Text("\(feedStats.fromNearby) nearby")
-                                .font(.caption)
-                                .foregroundColor(.secondaryText)
-                        }
-                    }
-                    
-                    Spacer()
-                }
-            }
-            
-            Spacer()
-            
-            // 25 mile radius indicator
-            VStack(alignment: .trailing, spacing: 2) {
-                Text("25mi")
-                    .font(.caption)
-                    .fontWeight(.medium)
-                    .foregroundColor(.primaryBrand)
-                Text("radius")
-                    .font(.caption2)
-                    .foregroundColor(.tertiaryText)
-            }
-        }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 12)
-        .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(Color.primaryBrand.opacity(0.05))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 12)
-                        .stroke(Color.primaryBrand.opacity(0.15), lineWidth: 1)
-                )
-        )
-    }
-}
-
 // MARK: - Supporting Views
 
 struct EmptyFeedView: View {
+    @EnvironmentObject var appState: AppState
+    @State private var showFindFriends = false
+    
     var body: some View {
-        VStack(spacing: 20) {
-            Image(systemName: "photo.on.rectangle.angled")
-                .font(.system(size: 60))
-                .foregroundColor(.milkTea)
-            
-            VStack(spacing: 8) {
-                Text("No posts yet")
-                    .font(.headline)
-                    .foregroundColor(.appSecondaryText)
+        VStack(spacing: 24) {
+            // Friendly illustration
+            ZStack {
+                Circle()
+                    .fill(Color.primaryBrand.opacity(0.1))
+                    .frame(width: 120, height: 120)
                 
-                Text("Be the first to share something delicious!")
-                    .font(.subheadline)
-                    .foregroundColor(.appTertiaryText)
-                    .multilineTextAlignment(.center)
+                Image(systemName: "person.2.fill")
+                    .font(.system(size: 50))
+                    .foregroundColor(.primaryBrand)
             }
             
-            // Encouraging action
+            VStack(spacing: 12) {
+                Text("See what your friends are eating")
+                    .font(.title3)
+                    .fontWeight(.semibold)
+                    .foregroundColor(.primaryText)
+                
+                Text("Add friends to see their food discoveries here")
+                    .font(.subheadline)
+                    .foregroundColor(.secondaryText)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 32)
+            }
+            
+            // Find Friends CTA
             Button(action: {
                 HapticManager.shared.impact(.medium)
-                // Navigate to create post - you might want to trigger this via AppState
+                showFindFriends = true
             }) {
-                Label("Share Your Food", systemImage: "plus.circle.fill")
-                    .font(.headline)
-                    .foregroundColor(.white)
-                    .padding(.horizontal, 24)
-                    .padding(.vertical, 12)
-                    .background(
-                        LinearGradient.primaryGradient
-                    )
-                    .cornerRadius(25)
+                HStack(spacing: 8) {
+                    Image(systemName: "person.badge.plus")
+                        .font(.system(size: 16, weight: .semibold))
+                    Text("Find Friends")
+                        .font(.headline)
+                        .fontWeight(.semibold)
+                }
+                .foregroundColor(.white)
+                .padding(.horizontal, 32)
+                .padding(.vertical, 14)
+                .background(
+                    LinearGradient.primaryGradient
+                )
+                .cornerRadius(25)
             }
+            
+            // Secondary action - Invite friends
+            Button(action: {
+                HapticManager.shared.impact(.light)
+                // Could trigger invite flow
+            }) {
+                Text("Invite friends to Palytt")
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+                    .foregroundColor(.primaryBrand)
+            }
+            .padding(.top, 8)
         }
-        .padding(.top, 100)
+        .padding(.top, 80)
         .frame(maxWidth: .infinity)
+        .sheet(isPresented: $showFindFriends) {
+            AddFriendsView()
+        }
     }
 }
 

@@ -19,9 +19,12 @@ model User {
   bio           String?
   profileImage  String?
   website       String?
+  phoneHash     String?   // SHA256 hash of normalized phone number for contacts sync
   followerCount Int       @default(0)
   followingCount Int      @default(0)
   postsCount    Int       @default(0)
+  isVerified    Boolean   @default(false)
+  isActive      Boolean   @default(true)
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
@@ -44,6 +47,25 @@ model User {
 
   // Notification Relations
   notifications      Notification[]
+
+  // Gathering Invite Relations
+  gatheringInvitesSent     GatheringInvite[] @relation("GatheringInvitesSent")
+  gatheringInvitesReceived GatheringInvite[] @relation("GatheringInvitesReceived")
+
+  // Referral Relations
+  referralsSent            Referral[]        @relation("ReferralsSent")
+  referralsReceived        Referral[]        @relation("ReferralsReceived")
+
+  // Referral tracking
+  referralCode             String?           @unique  // User's own referral code
+  referredBy               String?           // ClerkId of user who referred them
+  referralRewardsCount     Int               @default(0)  // Total rewards earned from referrals
+
+  // Posting Streak tracking
+  currentStreak            Int               @default(0)  // Current consecutive days posting
+  longestStreak            Int               @default(0)  // Best streak ever achieved
+  lastPostDate             DateTime?         // Date of last post (for streak calculation)
+  streakFreezeCount        Int               @default(0)  // Number of streak freezes available
 
   @@map("users")
 }
@@ -316,5 +338,69 @@ enum NotificationType {
   FRIEND_POST
   MESSAGE
   POST_MENTION
+  GATHERING_INVITE
   GENERAL
+}
+
+// ============================================
+// GATHERING INVITES
+// ============================================
+
+model GatheringInvite {
+  id            String              @id @default(uuid())
+  gatheringId   String              // ID of the gathering (stored externally or as string reference)
+  inviterId     String              // User who sent the invite
+  inviteeId     String              // User being invited
+  status        GatheringInviteStatus @default(PENDING)
+  createdAt     DateTime            @default(now())
+  respondedAt   DateTime?
+
+  // Relations
+  inviter       User                @relation("GatheringInvitesSent", fields: [inviterId], references: [id], onDelete: Cascade)
+  invitee       User                @relation("GatheringInvitesReceived", fields: [inviteeId], references: [id], onDelete: Cascade)
+
+  @@unique([gatheringId, inviteeId])
+  @@index([gatheringId])
+  @@index([inviterId])
+  @@index([inviteeId])
+  @@map("gathering_invites")
+}
+
+enum GatheringInviteStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  EXPIRED
+}
+
+// ============================================
+// REFERRAL SYSTEM
+// ============================================
+
+model Referral {
+  id            String         @id @default(uuid())
+  code          String         @unique  // Unique referral code
+  referrerId    String         // User who created the referral code
+  refereeId     String?        // User who signed up using the code (null until used)
+  status        ReferralStatus @default(PENDING)
+  rewardType    String?        // Type of reward earned (e.g., "premium_week", "badge")
+  rewardAmount  Int?           // Numeric value if applicable
+  createdAt     DateTime       @default(now())
+  completedAt   DateTime?      // When the referral was completed (referee signed up)
+
+  // Relations
+  referrer      User           @relation("ReferralsSent", fields: [referrerId], references: [id], onDelete: Cascade)
+  referee       User?          @relation("ReferralsReceived", fields: [refereeId], references: [id], onDelete: SetNull)
+
+  @@index([referrerId])
+  @@index([refereeId])
+  @@index([code])
+  @@map("referrals")
+}
+
+enum ReferralStatus {
+  PENDING     // Code created but not used
+  USED        // Code used, referee signed up
+  REWARDED    // Reward has been given to referrer
+  EXPIRED     // Code expired (optional time limit)
 } 

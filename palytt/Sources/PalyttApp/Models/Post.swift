@@ -342,6 +342,119 @@ extension Post {
     }
 }
 
+// MARK: - Friends Feed Conversion
+
+extension Post {
+    /// Convert a FriendsFeedPost (from friends feed) to Post model
+    static func from(friendsFeedPost: BackendService.FriendsFeedPost) -> Post {
+        // Parse dates from ISO8601 strings
+        let dateFormatter = ISO8601DateFormatter()
+        let createdAt = dateFormatter.date(from: friendsFeedPost.createdAt) ?? Date()
+        let updatedAt = dateFormatter.date(from: friendsFeedPost.updatedAt) ?? Date()
+        
+        // Convert image URLs
+        var mediaURLs: [URL] = []
+        for urlString in friendsFeedPost.imageUrls {
+            if let url = URL(string: urlString) {
+                mediaURLs.append(url)
+            }
+        }
+        
+        // Add legacy imageUrl if not already included
+        if let imageUrl = friendsFeedPost.imageUrl,
+           !friendsFeedPost.imageUrls.contains(imageUrl),
+           let url = URL(string: imageUrl) {
+            mediaURLs.insert(url, at: 0)
+        }
+        
+        // Create location from backend location
+        let location: Location
+        if let backendLocation = friendsFeedPost.location {
+            location = Location(
+                latitude: backendLocation.latitude,
+                longitude: backendLocation.longitude,
+                address: backendLocation.address,
+                city: extractCity(from: backendLocation.address),
+                country: "Unknown"
+            )
+        } else {
+            location = Location(
+                latitude: 0,
+                longitude: 0,
+                address: "Unknown Location",
+                city: "Unknown",
+                country: "Unknown"
+            )
+        }
+        
+        // Create shop if we have shop information
+        let shop: Shop?
+        if !friendsFeedPost.shopName.isEmpty {
+            let defaultHours = BusinessHours(
+                monday: BusinessHours.DayHours(open: "00:00", close: "23:59", isClosed: false),
+                tuesday: BusinessHours.DayHours(open: "00:00", close: "23:59", isClosed: false),
+                wednesday: BusinessHours.DayHours(open: "00:00", close: "23:59", isClosed: false),
+                thursday: BusinessHours.DayHours(open: "00:00", close: "23:59", isClosed: false),
+                friday: BusinessHours.DayHours(open: "00:00", close: "23:59", isClosed: false),
+                saturday: BusinessHours.DayHours(open: "00:00", close: "23:59", isClosed: false),
+                sunday: BusinessHours.DayHours(open: "00:00", close: "23:59", isClosed: false)
+            )
+            
+            shop = Shop(
+                id: UUID(),
+                name: friendsFeedPost.shopName,
+                description: nil,
+                location: location,
+                phoneNumber: nil,
+                website: nil,
+                hours: defaultHours,
+                cuisineTypes: [],
+                drinkTypes: [],
+                priceRange: .moderate,
+                rating: friendsFeedPost.rating ?? 0.0,
+                reviewsCount: 0,
+                photosCount: 0,
+                menu: nil,
+                ownerId: nil,
+                isVerified: false,
+                featuredImageURL: nil
+            )
+        } else {
+            shop = nil
+        }
+        
+        // Create author from friends feed data
+        let postAuthor = User(
+            id: UUID(uuidString: friendsFeedPost.authorId) ?? UUID(),
+            email: "unknown@example.com",
+            username: friendsFeedPost.authorUsername ?? "user_\(friendsFeedPost.authorId.prefix(8))",
+            displayName: friendsFeedPost.authorDisplayName ?? friendsFeedPost.authorUsername ?? "Unknown User",
+            avatarURL: friendsFeedPost.authorAvatarUrl != nil ? URL(string: friendsFeedPost.authorAvatarUrl!) : nil,
+            clerkId: friendsFeedPost.authorClerkId
+        )
+        
+        return Post(
+            id: UUID(uuidString: friendsFeedPost.id) ?? UUID(),
+            convexId: friendsFeedPost.id,
+            userId: UUID(uuidString: friendsFeedPost.authorId) ?? UUID(),
+            author: postAuthor,
+            title: friendsFeedPost.foodItem,
+            caption: friendsFeedPost.description ?? "",
+            mediaURLs: mediaURLs,
+            shop: shop,
+            location: location,
+            menuItems: friendsFeedPost.tags,
+            rating: friendsFeedPost.rating,
+            createdAt: createdAt,
+            updatedAt: updatedAt,
+            likesCount: friendsFeedPost.likesCount,
+            commentsCount: friendsFeedPost.commentsCount,
+            isLiked: friendsFeedPost.isLiked,
+            isSaved: friendsFeedPost.isBookmarked
+        )
+    }
+}
+
 // MARK: - Gathering Link Types
 
 enum GatheringLinkType: String, Codable, CaseIterable {

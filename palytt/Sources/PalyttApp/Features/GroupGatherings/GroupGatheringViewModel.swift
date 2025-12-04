@@ -314,6 +314,12 @@ class GroupGatheringViewModel: ObservableObject {
         print("Refreshing gathering data")
     }
     
+    func loadGatheringDetails() {
+        // Reload gathering details after updates (e.g., invites sent)
+        refreshGatheringData()
+        loadRecentActivity()
+    }
+    
     // MARK: - Calendar Integration
     
     private func checkCalendarAuthorization() {

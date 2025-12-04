@@ -1,6 +1,24 @@
 import { z } from 'zod';
 import { router, protectedProcedure } from '../trpc.js';
-import { prisma } from '../db.js';
+import { prisma, ensureUser } from '../db.js';
+
+// Helper function to get user UUID from clerkId
+async function getUserIdFromClerkId(clerkId: string): Promise<string> {
+  const user = await prisma.user.findUnique({
+    where: { clerkId },
+    select: { id: true },
+  });
+  if (!user) {
+    throw new Error('User not found');
+  }
+  return user.id;
+}
+
+// Helper function to get user UUID, creating user if needed
+async function ensureUserIdFromClerkId(clerkId: string): Promise<string> {
+  const user = await ensureUser(clerkId, `${clerkId}@clerk.local`);
+  return user.id;
+}
 
 export const messagesRouter = router({
   // Get all chatrooms for the current user
@@ -11,13 +29,16 @@ export const messagesRouter = router({
     }))
     .query(async ({ input, ctx }) => {
       const { limit, cursor } = input;
-      const userId = ctx.user.clerkId;
+      const userClerkId = ctx.user.clerkId;
+
+      // Get current user's UUID
+      const userUUID = await ensureUserIdFromClerkId(userClerkId);
 
       const chatrooms = await prisma.chatroom.findMany({
         where: {
           participants: {
             some: {
-              userId,
+              userId: userUUID,
               leftAt: null, // Only active participants
             },
           },
@@ -65,7 +86,7 @@ export const messagesRouter = router({
               messages: {
                 where: {
                   readAt: null,
-                  senderId: { not: userId },
+                  senderId: { not: userUUID },
                 },
               },
             },
@@ -84,7 +105,7 @@ export const messagesRouter = router({
         lastMessage: chatroom.messages[0] || null,
         unreadCount: chatroom._count.messages,
         otherParticipants: chatroom.participants
-          .filter((p: any) => p.userId !== userId)
+          .filter((p: any) => p.userId !== userUUID)
           .map((p: any) => p.user),
       }));
 
@@ -97,22 +118,28 @@ export const messagesRouter = router({
   // Create a new chatroom (direct message)
   createChatroom: protectedProcedure
     .input(z.object({
-      participantId: z.string().optional(), // For direct messages
-      participantIds: z.array(z.string()).optional(), // For group messages
+      participantId: z.string().optional(), // clerkId - For direct messages
+      participantIds: z.array(z.string()).optional(), // clerkIds - For group messages
       type: z.enum(['DIRECT', 'GROUP']).default('DIRECT'),
       name: z.string().optional(),
       description: z.string().optional(),
       imageUrl: z.string().optional(),
     }))
     .mutation(async ({ input, ctx }) => {
-      const { participantId, participantIds, type, name, description, imageUrl } = input;
-      const userId = ctx.user.clerkId;
+      const { participantId: participantClerkId, participantIds: participantClerkIds, type, name, description, imageUrl } = input;
+      const userClerkId = ctx.user.clerkId;
+
+      // Get current user's UUID
+      const userUUID = await ensureUserIdFromClerkId(userClerkId);
 
       // For direct messages, check if chatroom already exists
       if (type === 'DIRECT') {
-        if (!participantId) {
+        if (!participantClerkId) {
           throw new Error('participantId is required for direct messages');
         }
+
+        // Get participant's UUID
+        const participantUUID = await getUserIdFromClerkId(participantClerkId);
 
         const existingChatroom = await prisma.chatroom.findFirst({
           where: {
@@ -120,14 +147,14 @@ export const messagesRouter = router({
             participants: {
               every: {
                 userId: {
-                  in: [userId, participantId],
+                  in: [userUUID, participantUUID],
                 },
               },
             },
             AND: {
               participants: {
                 some: {
-                  userId: participantId,
+                  userId: participantUUID,
                 },
               },
             },
@@ -152,57 +179,99 @@ export const messagesRouter = router({
         if (existingChatroom) {
           return existingChatroom;
         }
+
+        // Create new direct chatroom
+        const chatroom = await prisma.chatroom.create({
+          data: {
+            type,
+            name,
+            description,
+            imageUrl,
+            participants: {
+              create: [
+                {
+                  userId: userUUID,
+                  isAdmin: true,
+                },
+                {
+                  userId: participantUUID,
+                  isAdmin: false,
+                },
+              ],
+            },
+          },
+          include: {
+            participants: {
+              include: {
+                user: {
+                  select: {
+                    id: true,
+                    clerkId: true,
+                    username: true,
+                    name: true,
+                    profileImage: true,
+                  },
+                },
+              },
+            },
+          },
+        });
+
+        return chatroom;
       } else if (type === 'GROUP') {
-        if (!participantIds || participantIds.length === 0) {
+        if (!participantClerkIds || participantClerkIds.length === 0) {
           throw new Error('participantIds is required for group messages');
         }
         if (!name) {
           throw new Error('name is required for group messages');
         }
-      }
 
-      // Create new chatroom
-      const chatroom = await prisma.chatroom.create({
-        data: {
-          type,
-          name,
-          description,
-          imageUrl,
-          participants: {
-            create: [
-              {
-                userId,
-                isAdmin: true,
-              },
-              ...(type === 'DIRECT' && participantId ? [{
-                userId: participantId,
-                isAdmin: false,
-              }] : []),
-              ...(type === 'GROUP' && participantIds ? participantIds.map((id: any) => ({
-                userId: id,
-                isAdmin: false,
-              })) : []),
-            ],
+        // Get UUIDs for all participants
+        const participantUUIDs = await Promise.all(
+          participantClerkIds.map(clerkId => getUserIdFromClerkId(clerkId))
+        );
+
+        // Create new group chatroom
+        const chatroom = await prisma.chatroom.create({
+          data: {
+            type,
+            name,
+            description,
+            imageUrl,
+            participants: {
+              create: [
+                {
+                  userId: userUUID,
+                  isAdmin: true,
+                },
+                ...participantUUIDs.map(uuid => ({
+                  userId: uuid,
+                  isAdmin: false,
+                })),
+              ],
+            },
           },
-        },
-        include: {
-          participants: {
-            include: {
-              user: {
-                select: {
-                  id: true,
-                  clerkId: true,
-                  username: true,
-                  name: true,
-                  profileImage: true,
+          include: {
+            participants: {
+              include: {
+                user: {
+                  select: {
+                    id: true,
+                    clerkId: true,
+                    username: true,
+                    name: true,
+                    profileImage: true,
+                  },
                 },
               },
             },
           },
-        },
-      });
+        });
 
-      return chatroom;
+        return chatroom;
+      }
+
+      throw new Error('Invalid chatroom type');
     }),
 
   // Send a message to a chatroom
@@ -222,13 +291,16 @@ export const messagesRouter = router({
     }))
     .mutation(async ({ input, ctx }) => {
       const { chatroomId, content, messageType, mediaUrl, sharedContentId, linkPreview } = input;
-      const userId = ctx.user.clerkId;
+      const userClerkId = ctx.user.clerkId;
+
+      // Get current user's UUID
+      const userUUID = await ensureUserIdFromClerkId(userClerkId);
 
       // Verify user is a participant in the chatroom
       const participant = await prisma.chatroomParticipant.findFirst({
         where: {
           chatroomId,
-          userId,
+          userId: userUUID,
           leftAt: null,
         },
       });
@@ -240,7 +312,7 @@ export const messagesRouter = router({
       // Prepare message data
       const messageData = {
         chatroomId,
-        senderId: userId,
+        senderId: userUUID,
         content,
         messageType,
         mediaUrl,
@@ -286,13 +358,16 @@ export const messagesRouter = router({
     }))
     .query(async ({ input, ctx }) => {
       const { chatroomId, limit, cursor } = input;
-      const userId = ctx.user.clerkId;
+      const userClerkId = ctx.user.clerkId;
+
+      // Get current user's UUID
+      const userUUID = await ensureUserIdFromClerkId(userClerkId);
 
       // Verify user is a participant
       const participant = await prisma.chatroomParticipant.findFirst({
         where: {
           chatroomId,
-          userId,
+          userId: userUUID,
         },
       });
 
@@ -348,13 +423,16 @@ export const messagesRouter = router({
     }))
     .mutation(async ({ input, ctx }) => {
       const { chatroomId, messageIds } = input;
-      const userId = ctx.user.clerkId;
+      const userClerkId = ctx.user.clerkId;
+
+      // Get current user's UUID
+      const userUUID = await ensureUserIdFromClerkId(userClerkId);
 
       // Verify user is a participant
       const participant = await prisma.chatroomParticipant.findFirst({
         where: {
           chatroomId,
-          userId,
+          userId: userUUID,
         },
       });
 
@@ -370,7 +448,7 @@ export const messagesRouter = router({
           where: {
             id: { in: messageIds },
             chatroomId,
-            senderId: { not: userId }, // Don't mark own messages
+            senderId: { not: userUUID }, // Don't mark own messages
             readAt: null,
           },
           data: {
@@ -382,7 +460,7 @@ export const messagesRouter = router({
         await prisma.message.updateMany({
           where: {
             chatroomId,
-            senderId: { not: userId },
+            senderId: { not: userUUID },
             readAt: null,
           },
           data: {
@@ -404,17 +482,20 @@ export const messagesRouter = router({
   addParticipants: protectedProcedure
     .input(z.object({
       chatroomId: z.string(),
-      userIds: z.array(z.string()),
+      userIds: z.array(z.string()), // clerkIds
     }))
     .mutation(async ({ input, ctx }) => {
-      const { chatroomId, userIds } = input;
-      const userId = ctx.user.clerkId;
+      const { chatroomId, userIds: userClerkIds } = input;
+      const userClerkId = ctx.user.clerkId;
+
+      // Get current user's UUID
+      const userUUID = await ensureUserIdFromClerkId(userClerkId);
 
       // Verify user is an admin of the chatroom
       const participant = await prisma.chatroomParticipant.findFirst({
         where: {
           chatroomId,
-          userId,
+          userId: userUUID,
           isAdmin: true,
           leftAt: null,
         },
@@ -431,11 +512,16 @@ export const messagesRouter = router({
         throw new Error('Cannot add participants to direct messages');
       }
 
+      // Get UUIDs for all new participants
+      const newUserUUIDs = await Promise.all(
+        userClerkIds.map(clerkId => getUserIdFromClerkId(clerkId))
+      );
+
       // Add new participants
       const newParticipants = await prisma.chatroomParticipant.createMany({
-        data: userIds.map((newUserId: any) => ({
+        data: newUserUUIDs.map(uuid => ({
           chatroomId,
-          userId: newUserId,
+          userId: uuid,
           isAdmin: false,
         })),
         skipDuplicates: true,
@@ -451,13 +537,16 @@ export const messagesRouter = router({
     }))
     .mutation(async ({ input, ctx }) => {
       const { chatroomId } = input;
-      const userId = ctx.user.clerkId;
+      const userClerkId = ctx.user.clerkId;
+
+      // Get current user's UUID
+      const userUUID = await ensureUserIdFromClerkId(userClerkId);
 
       // Find the participant record
       const participant = await prisma.chatroomParticipant.findFirst({
         where: {
           chatroomId,
-          userId,
+          userId: userUUID,
           leftAt: null,
         },
       });
@@ -478,19 +567,22 @@ export const messagesRouter = router({
   // Get unread message count across all chatrooms
   getUnreadCount: protectedProcedure
     .query(async ({ ctx }) => {
-      const userId = ctx.user.clerkId;
+      const userClerkId = ctx.user.clerkId;
+
+      // Get current user's UUID
+      const userUUID = await ensureUserIdFromClerkId(userClerkId);
 
       const unreadCount = await prisma.message.count({
         where: {
           chatroom: {
             participants: {
               some: {
-                userId,
+                userId: userUUID,
                 leftAt: null,
               },
             },
           },
-          senderId: { not: userId },
+          senderId: { not: userUUID },
           readAt: null,
         },
       });
@@ -508,13 +600,16 @@ export const messagesRouter = router({
     }))
     .mutation(async ({ input, ctx }) => {
       const { chatroomId, name, description, imageUrl } = input;
-      const userId = ctx.user.clerkId;
+      const userClerkId = ctx.user.clerkId;
+
+      // Get current user's UUID
+      const userUUID = await ensureUserIdFromClerkId(userClerkId);
 
       // Verify user is an admin of the chatroom
       const participant = await prisma.chatroomParticipant.findFirst({
         where: {
           chatroomId,
-          userId,
+          userId: userUUID,
           isAdmin: true,
           leftAt: null,
         },
@@ -566,17 +661,21 @@ export const messagesRouter = router({
   makeAdmin: protectedProcedure
     .input(z.object({
       chatroomId: z.string(),
-      userId: z.string(),
+      userId: z.string(), // clerkId
     }))
     .mutation(async ({ input, ctx }) => {
-      const { chatroomId, userId: targetUserId } = input;
-      const userId = ctx.user.clerkId;
+      const { chatroomId, userId: targetClerkId } = input;
+      const userClerkId = ctx.user.clerkId;
+
+      // Get UUIDs
+      const userUUID = await ensureUserIdFromClerkId(userClerkId);
+      const targetUUID = await getUserIdFromClerkId(targetClerkId);
 
       // Verify user is an admin of the chatroom
       const participant = await prisma.chatroomParticipant.findFirst({
         where: {
           chatroomId,
-          userId,
+          userId: userUUID,
           isAdmin: true,
           leftAt: null,
         },
@@ -597,7 +696,7 @@ export const messagesRouter = router({
       await prisma.chatroomParticipant.updateMany({
         where: {
           chatroomId,
-          userId: targetUserId,
+          userId: targetUUID,
           leftAt: null,
         },
         data: {
@@ -612,17 +711,21 @@ export const messagesRouter = router({
   removeParticipant: protectedProcedure
     .input(z.object({
       chatroomId: z.string(),
-      userId: z.string(),
+      userId: z.string(), // clerkId
     }))
     .mutation(async ({ input, ctx }) => {
-      const { chatroomId, userId: targetUserId } = input;
-      const userId = ctx.user.clerkId;
+      const { chatroomId, userId: targetClerkId } = input;
+      const userClerkId = ctx.user.clerkId;
+
+      // Get UUIDs
+      const userUUID = await ensureUserIdFromClerkId(userClerkId);
+      const targetUUID = await getUserIdFromClerkId(targetClerkId);
 
       // Verify user is an admin of the chatroom
       const participant = await prisma.chatroomParticipant.findFirst({
         where: {
           chatroomId,
-          userId,
+          userId: userUUID,
           isAdmin: true,
           leftAt: null,
         },
@@ -643,7 +746,7 @@ export const messagesRouter = router({
       await prisma.chatroomParticipant.updateMany({
         where: {
           chatroomId,
-          userId: targetUserId,
+          userId: targetUUID,
           leftAt: null,
         },
         data: {
@@ -664,13 +767,16 @@ export const messagesRouter = router({
     }))
     .query(async ({ input, ctx }) => {
       const { chatroomId, messageType, limit, cursor } = input;
-      const userId = ctx.user.clerkId;
+      const userClerkId = ctx.user.clerkId;
+
+      // Get current user's UUID
+      const userUUID = await ensureUserIdFromClerkId(userClerkId);
 
       // Verify user is a participant
       const participant = await prisma.chatroomParticipant.findFirst({
         where: {
           chatroomId,
-          userId,
+          userId: userUUID,
         },
       });
 

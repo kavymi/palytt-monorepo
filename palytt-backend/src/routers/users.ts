@@ -276,6 +276,131 @@ export const usersRouter = router({
         followingCount: user.followingCount,
       };
     }),
+
+  /**
+   * Get user's posting streak information
+   */
+  getStreakInfo: publicProcedure
+    .input(z.object({ clerkId: z.string().min(1) }))
+    .query(async ({ input }) => {
+      const user = await prisma.user.findUnique({
+        where: { clerkId: input.clerkId },
+        select: {
+          currentStreak: true,
+          longestStreak: true,
+          lastPostDate: true,
+          streakFreezeCount: true,
+        },
+      });
+      
+      if (!user) {
+        throw new Error('User not found');
+      }
+      
+      // Check if streak is still active (posted within last 2 days)
+      const now = new Date();
+      let isStreakActive = false;
+      let daysSinceLastPost = 0;
+      
+      if (user.lastPostDate) {
+        const lastPost = new Date(user.lastPostDate);
+        const diffTime = now.getTime() - lastPost.getTime();
+        daysSinceLastPost = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+        isStreakActive = daysSinceLastPost <= 1;
+      }
+      
+      // If streak is broken, return 0 for current streak
+      const effectiveStreak = isStreakActive ? user.currentStreak : 0;
+      
+      // Calculate streak milestones
+      const milestones = [7, 14, 30, 60, 100, 365];
+      const nextMilestone = milestones.find(m => m > effectiveStreak) || null;
+      const achievedMilestones = milestones.filter(m => m <= user.longestStreak);
+      
+      return {
+        currentStreak: effectiveStreak,
+        longestStreak: user.longestStreak || 0,
+        lastPostDate: user.lastPostDate?.toISOString() || null,
+        isStreakActive,
+        daysSinceLastPost,
+        streakFreezeCount: user.streakFreezeCount || 0,
+        nextMilestone,
+        achievedMilestones,
+      };
+    }),
+
+  /**
+   * Find users by hashed phone numbers (for contacts sync)
+   * This endpoint receives SHA256 hashes of normalized phone numbers
+   * and returns matching users who have those phone hashes stored.
+   * 
+   * Privacy: We never store or receive actual phone numbers - only hashes.
+   */
+  findByPhoneHashes: publicProcedure
+    .input(z.object({
+      phoneHashes: z.array(z.string()).max(500), // Limit to 500 hashes per request
+    }))
+    .query(async ({ input }) => {
+      const { phoneHashes } = input;
+      
+      if (phoneHashes.length === 0) {
+        return {
+          users: [],
+          matchedHashes: [],
+        };
+      }
+      
+      // Find users with matching phone hashes
+      const users = await prisma.user.findMany({
+        where: {
+          phoneHash: {
+            in: phoneHashes,
+          },
+        },
+        select: {
+          id: true,
+          clerkId: true,
+          username: true,
+          name: true,
+          profileImage: true,
+          bio: true,
+          phoneHash: true,
+          followerCount: true,
+          followingCount: true,
+          postsCount: true,
+          isVerified: true,
+          isActive: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+      });
+      
+      // Get the matched hashes
+      const matchedHashes = users.map((u: any) => u.phoneHash).filter(Boolean);
+      
+      // Transform users for response
+      const transformedUsers = users.map((user: any) => ({
+        id: user.id,
+        clerkId: user.clerkId,
+        username: user.username,
+        name: user.name,
+        profileImage: user.profileImage,
+        bio: user.bio,
+        phoneHash: user.phoneHash,
+        followerCount: user.followerCount,
+        followingCount: user.followingCount,
+        postsCount: user.postsCount,
+        isVerified: user.isVerified || false,
+        isActive: user.isActive || true,
+        createdAt: user.createdAt.toISOString(),
+        updatedAt: user.updatedAt.toISOString(),
+      }));
+      
+      return {
+        users: transformedUsers,
+        matchedHashes,
+      };
+    }),
 });
 
 // Export types for frontend

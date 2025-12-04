@@ -21,6 +21,7 @@ enum NotificationType: String, CaseIterable, Codable {
     case friendPost = "FRIEND_POST"
     case message = "MESSAGE"
     case postMention = "POST_MENTION"
+    case gatheringInvite = "GATHERING_INVITE"
     case general = "GENERAL"
     
     var displayName: String {
@@ -34,6 +35,7 @@ enum NotificationType: String, CaseIterable, Codable {
         case .friendPost: return "Friend Post"
         case .message: return "Message"
         case .postMention: return "Post Mention"
+        case .gatheringInvite: return "Gathering Invite"
         case .general: return "General"
         }
     }
@@ -49,6 +51,7 @@ enum NotificationType: String, CaseIterable, Codable {
         case .friendPost: return "photo.fill"
         case .message: return "message.fill"
         case .postMention: return "at.circle.fill"
+        case .gatheringInvite: return "person.3.fill"
         case .general: return "bell.fill"
         }
     }
@@ -61,6 +64,7 @@ enum NotificationType: String, CaseIterable, Codable {
         case .friendPost: return "purple"
         case .message: return "blue"
         case .postMention: return "orange"
+        case .gatheringInvite: return "indigo"
         case .general: return "gray"
         }
     }
@@ -149,6 +153,8 @@ struct PalyttNotification: Identifiable, Codable, Equatable {
             return "sent you a message"
         case .postMention:
             return "mentioned you in a post"
+        case .gatheringInvite:
+            return "invited you to a gathering"
         case .general:
             return message
         }

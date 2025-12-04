@@ -1,0 +1,27 @@
+# Appfile for Palytt
+
+# Your Apple Developer Portal credentials
+# You can set these via environment variables or in a .env file
+
+# App Identifier
+app_identifier(ENV["APP_IDENTIFIER"] || "com.palytt.app") # Replace with your actual bundle identifier
+
+# Apple ID / App Store Connect credentials
+apple_id(ENV["APPLE_ID"]) # Your Apple ID email
+
+# Team ID (found in Apple Developer Portal)
+team_id(ENV["TEAM_ID"]) # Your Team ID
+
+# App Store Connect Team ID (if different from Developer Portal Team ID)
+itc_team_id(ENV["ITC_TEAM_ID"] || ENV["TEAM_ID"])
+
+# For more information about the Appfile, see:
+#     https://docs.fastlane.tools/advanced/#appfile
+
+
+
+
+
+
+
+

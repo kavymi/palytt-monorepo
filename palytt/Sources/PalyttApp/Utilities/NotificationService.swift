@@ -210,6 +210,7 @@ class NotificationService: ObservableObject {
         limit: Int,
         cursor: String?,
         type: NotificationType? = nil,
+        types: [NotificationType]? = nil,
         unreadOnly: Bool
     ) async throws -> (notifications: [PalyttNotification], nextCursor: String?) {
         
@@ -219,13 +220,15 @@ class NotificationService: ObservableObject {
             let unreadOnly: Bool
             let cursor: String?
             let type: String?
+            let types: [String]?
         }
         
         let input = GetNotificationsInput(
             limit: limit,
             unreadOnly: unreadOnly,
             cursor: cursor,
-            type: type?.rawValue
+            type: type?.rawValue,
+            types: types?.map { $0.rawValue }
         )
         
         // Make tRPC query
@@ -238,6 +241,45 @@ class NotificationService: ObservableObject {
         let appNotifications = response.notifications.compactMap { $0.toPalyttNotification() }
         
         return (notifications: appNotifications, nextCursor: response.nextCursor)
+    }
+    
+    /// Load notifications filtered by types
+    func loadNotifications(filterTypes: [NotificationType]?, refresh: Bool = false) async {
+        guard !isLoading else { return }
+        
+        if refresh {
+            nextCursor = nil
+            hasMoreNotifications = true
+        }
+        
+        guard hasMoreNotifications else { return }
+        
+        isLoading = true
+        
+        do {
+            let response = try await fetchNotifications(
+                limit: 20,
+                cursor: nextCursor,
+                types: filterTypes,
+                unreadOnly: false
+            )
+            
+            if refresh {
+                notifications = response.notifications
+            } else {
+                notifications.append(contentsOf: response.notifications)
+            }
+            
+            nextCursor = response.nextCursor
+            hasMoreNotifications = response.nextCursor != nil
+            
+            print("✅ NotificationService: Loaded \(response.notifications.count) notifications (filtered)")
+            
+        } catch {
+            print("❌ NotificationService: Failed to load notifications: \(error)")
+        }
+        
+        isLoading = false
     }
     
     private func fetchUnreadCount() async throws -> Int {

@@ -1,38 +1,50 @@
 import { z } from 'zod';
 import { router, publicProcedure, protectedProcedure } from '../trpc.js';
-import { prisma } from '../db.js';
+import { prisma, ensureUser } from '../db.js';
+
+// Helper function to get user UUID from clerkId
+async function getUserIdFromClerkId(clerkId: string): Promise<string> {
+  const user = await prisma.user.findUnique({
+    where: { clerkId },
+    select: { id: true },
+  });
+  if (!user) {
+    throw new Error('User not found');
+  }
+  return user.id;
+}
+
+// Helper function to get user UUID, creating user if needed
+async function ensureUserIdFromClerkId(clerkId: string): Promise<string> {
+  const user = await ensureUser(clerkId, `${clerkId}@clerk.local`);
+  return user.id;
+}
 
 export const followsRouter = router({
   // Follow a user
   follow: protectedProcedure
     .input(z.object({
-      userId: z.string(), // The user to follow
+      userId: z.string(), // The clerkId of the user to follow
     }))
     .mutation(async ({ input, ctx }) => {
-      const { userId } = input;
-      const followerId = ctx.user.clerkId;
+      const { userId: targetClerkId } = input;
+      const followerClerkId = ctx.user.clerkId;
 
       // Check if user is trying to follow themselves
-      if (followerId === userId) {
+      if (followerClerkId === targetClerkId) {
         throw new Error('Cannot follow yourself');
       }
 
-      // Check if target user exists
-      const targetUser = await prisma.user.findUnique({
-        where: { clerkId: userId },
-        select: { id: true },
-      });
-
-      if (!targetUser) {
-        throw new Error('User not found');
-      }
+      // Get UUIDs for both users
+      const followerUUID = await ensureUserIdFromClerkId(followerClerkId);
+      const targetUUID = await getUserIdFromClerkId(targetClerkId);
 
       // Check if already following
       const existingFollow = await prisma.follow.findUnique({
         where: {
           followerId_followingId: {
-            followerId,
-            followingId: userId,
+            followerId: followerUUID,
+            followingId: targetUUID,
           },
         },
       });
@@ -41,11 +53,11 @@ export const followsRouter = router({
         throw new Error('Already following this user');
       }
 
-      // Create follow relationship
+      // Create follow relationship using UUIDs
       const follow = await prisma.follow.create({
         data: {
-          followerId,
-          followingId: userId,
+          followerId: followerUUID,
+          followingId: targetUUID,
         },
         include: {
           follower: {
@@ -72,11 +84,11 @@ export const followsRouter = router({
       // Update follower and following counts
       await prisma.$transaction([
         prisma.user.update({
-          where: { clerkId: followerId },
+          where: { id: followerUUID },
           data: { followingCount: { increment: 1 } },
         }),
         prisma.user.update({
-          where: { clerkId: userId },
+          where: { id: targetUUID },
           data: { followerCount: { increment: 1 } },
         }),
       ]);
@@ -87,18 +99,22 @@ export const followsRouter = router({
   // Unfollow a user
   unfollow: protectedProcedure
     .input(z.object({
-      userId: z.string(), // The user to unfollow
+      userId: z.string(), // The clerkId of the user to unfollow
     }))
     .mutation(async ({ input, ctx }) => {
-      const { userId } = input;
-      const followerId = ctx.user.clerkId;
+      const { userId: targetClerkId } = input;
+      const followerClerkId = ctx.user.clerkId;
+
+      // Get UUIDs for both users
+      const followerUUID = await ensureUserIdFromClerkId(followerClerkId);
+      const targetUUID = await getUserIdFromClerkId(targetClerkId);
 
       // Find the follow relationship
       const follow = await prisma.follow.findUnique({
         where: {
           followerId_followingId: {
-            followerId,
-            followingId: userId,
+            followerId: followerUUID,
+            followingId: targetUUID,
           },
         },
       });
@@ -115,11 +131,11 @@ export const followsRouter = router({
       // Update follower and following counts
       await prisma.$transaction([
         prisma.user.update({
-          where: { clerkId: followerId },
+          where: { id: followerUUID },
           data: { followingCount: { decrement: 1 } },
         }),
         prisma.user.update({
-          where: { clerkId: userId },
+          where: { id: targetUUID },
           data: { followerCount: { decrement: 1 } },
         }),
       ]);
@@ -130,21 +146,24 @@ export const followsRouter = router({
   // Get users that the specified user is following
   getFollowing: publicProcedure
     .input(z.object({
-      userId: z.string().optional(), // If not provided, get current user's following
+      userId: z.string().optional(), // clerkId - If not provided, get current user's following
       limit: z.number().min(1).max(100).default(50),
       cursor: z.string().optional(),
     }))
     .query(async ({ input, ctx }) => {
-      const { userId, limit, cursor } = input;
-      const targetUserId = userId || ctx.user?.clerkId;
+      const { userId: userClerkId, limit, cursor } = input;
+      const targetClerkId = userClerkId || ctx.user?.clerkId;
 
-      if (!targetUserId) {
+      if (!targetClerkId) {
         throw new Error('User ID required');
       }
 
+      // Get target user's UUID
+      const targetUUID = await getUserIdFromClerkId(targetClerkId);
+
       const following = await prisma.follow.findMany({
         where: {
-          followerId: targetUserId,
+          followerId: targetUUID,
         },
         take: limit + 1,
         cursor: cursor ? { id: cursor } : undefined,
@@ -188,21 +207,24 @@ export const followsRouter = router({
   // Get followers of the specified user
   getFollowers: publicProcedure
     .input(z.object({
-      userId: z.string().optional(), // If not provided, get current user's followers
+      userId: z.string().optional(), // clerkId - If not provided, get current user's followers
       limit: z.number().min(1).max(100).default(50),
       cursor: z.string().optional(),
     }))
     .query(async ({ input, ctx }) => {
-      const { userId, limit, cursor } = input;
-      const targetUserId = userId || ctx.user?.clerkId;
+      const { userId: userClerkId, limit, cursor } = input;
+      const targetClerkId = userClerkId || ctx.user?.clerkId;
 
-      if (!targetUserId) {
+      if (!targetClerkId) {
         throw new Error('User ID required');
       }
 
+      // Get target user's UUID
+      const targetUUID = await getUserIdFromClerkId(targetClerkId);
+
       const followers = await prisma.follow.findMany({
         where: {
-          followingId: targetUserId,
+          followingId: targetUUID,
         },
         take: limit + 1,
         cursor: cursor ? { id: cursor } : undefined,
@@ -246,17 +268,29 @@ export const followsRouter = router({
   // Check if user1 is following user2
   isFollowing: publicProcedure
     .input(z.object({
-      followerId: z.string(),
-      followingId: z.string(),
+      followerId: z.string(), // clerkId
+      followingId: z.string(), // clerkId
     }))
     .query(async ({ input }) => {
-      const { followerId, followingId } = input;
+      const { followerId: followerClerkId, followingId: followingClerkId } = input;
+
+      // Get UUIDs for both users
+      let followerUUID: string, followingUUID: string;
+      try {
+        [followerUUID, followingUUID] = await Promise.all([
+          getUserIdFromClerkId(followerClerkId),
+          getUserIdFromClerkId(followingClerkId),
+        ]);
+      } catch {
+        // If either user doesn't exist, they can't be following
+        return { isFollowing: false };
+      }
 
       const follow = await prisma.follow.findUnique({
         where: {
           followerId_followingId: {
-            followerId,
-            followingId,
+            followerId: followerUUID,
+            followingId: followingUUID,
           },
         },
       });
@@ -267,13 +301,13 @@ export const followsRouter = router({
   // Get follow stats for a user
   getFollowStats: publicProcedure
     .input(z.object({
-      userId: z.string(),
+      userId: z.string(), // clerkId
     }))
     .query(async ({ input }) => {
-      const { userId } = input;
+      const { userId: clerkId } = input;
 
       const user = await prisma.user.findUnique({
-        where: { clerkId: userId },
+        where: { clerkId },
         select: {
           followerCount: true,
           followingCount: true,
@@ -291,21 +325,33 @@ export const followsRouter = router({
   // Get mutual follows (users that both user1 and user2 follow)
   getMutualFollows: publicProcedure
     .input(z.object({
-      userId1: z.string(),
-      userId2: z.string(),
+      userId1: z.string(), // clerkId
+      userId2: z.string(), // clerkId
       limit: z.number().min(1).max(50).default(20),
     }))
     .query(async ({ input }) => {
-      const { userId1, userId2, limit } = input;
+      const { userId1: clerkId1, userId2: clerkId2, limit } = input;
+
+      // Get UUIDs for both users
+      let uuid1: string, uuid2: string;
+      try {
+        [uuid1, uuid2] = await Promise.all([
+          getUserIdFromClerkId(clerkId1),
+          getUserIdFromClerkId(clerkId2),
+        ]);
+      } catch {
+        // If either user doesn't exist, they have no mutual follows
+        return { mutualFollows: [], count: 0 };
+      }
 
       // Get users that both userId1 and userId2 follow
       const mutualFollows = await prisma.follow.findMany({
         where: {
-          followerId: userId1,
+          followerId: uuid1,
           following: {
             followers: {
               some: {
-                followerId: userId2,
+                followerId: uuid2,
               },
             },
           },
@@ -340,7 +386,10 @@ export const followsRouter = router({
     }))
     .query(async ({ input, ctx }) => {
       const { limit } = input;
-      const userId = ctx.user.clerkId;
+      const userClerkId = ctx.user.clerkId;
+
+      // Get current user's UUID
+      const userUUID = await ensureUserIdFromClerkId(userClerkId);
 
       // Get users that people you follow are following, but you're not following yet
       const suggestions = await prisma.follow.findMany({
@@ -348,17 +397,17 @@ export const followsRouter = router({
           follower: {
             followers: {
               some: {
-                followerId: userId,
+                followerId: userUUID,
               },
             },
           },
           followingId: {
-            not: userId, // Don't suggest yourself
+            not: userUUID, // Don't suggest yourself
           },
           following: {
             followers: {
               none: {
-                followerId: userId, // Don't suggest users you already follow
+                followerId: userUUID, // Don't suggest users you already follow
               },
             },
           },

@@ -58,8 +58,10 @@ struct ProfileView: View {
     @State private var showFriendRequestsSheet = false
     @State private var showFindFriends = false
     @State private var showFriendsList = false
-
     @State private var showInviteView = false
+    @State private var showStreakView = false
+    @State private var currentStreak: Int = 0
+    @State private var isStreakActive: Bool = false
     
     // Phase 3 Services (temporarily disabled for build)
     // @StateObject private var privacyManager = PrivacyControlsManager.shared
@@ -80,6 +82,10 @@ struct ProfileView: View {
             .scrollContentBackground(.hidden)
             .refreshable {
                 await viewModel.refreshProfile()
+                await loadStreakData()
+            }
+            .task {
+                await loadStreakData()
             }
             #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
@@ -108,6 +114,9 @@ struct ProfileView: View {
             ))
             .sheet(isPresented: $showInviteView) {
                 InviteView()
+            }
+            .sheet(isPresented: $showStreakView) {
+                StreakView()
             }
             .sheet(isPresented: $showFindFriends) {
                 UserSearchView()
@@ -196,10 +205,23 @@ struct ProfileView: View {
             OtherUserProfileHeaderView(user: targetUser)
         } else {
             // Viewing own profile
-            ProfileHeaderView(
-                user: user,
-                onEditProfile: { showEditProfile = true }
-            )
+            VStack(spacing: 0) {
+                ProfileHeaderView(
+                    user: user,
+                    onEditProfile: { showEditProfile = true }
+                )
+                
+                // Streak Badge (tappable)
+                if currentStreak > 0 || isStreakActive {
+                    Button(action: {
+                        HapticManager.shared.impact(.light)
+                        showStreakView = true
+                    }) {
+                        StreakBadgeView(currentStreak: currentStreak, isActive: isStreakActive)
+                    }
+                    .padding(.top, -8)
+                }
+            }
         }
         
         // Stats
@@ -349,6 +371,18 @@ struct ProfileView: View {
                 Image(systemName: "gearshape.fill")
                     .foregroundColor(.primaryBrand)
             }
+        }
+    }
+    
+    private func loadStreakData() async {
+        guard let currentUser = Clerk.shared.user else { return }
+        
+        do {
+            let response = try await BackendService.shared.getStreakInfo(clerkId: currentUser.id)
+            currentStreak = response.currentStreak
+            isStreakActive = response.isStreakActive
+        } catch {
+            print("❌ ProfileView: Failed to load streak data: \(error)")
         }
     }
     
