@@ -2,7 +2,8 @@
 set -e
 
 echo "🔄 Running database migrations..."
-npx prisma migrate deploy
+# Use pnpm to run the project's installed prisma version (5.22.0)
+pnpm exec prisma migrate deploy
 
 echo "✅ Migrations complete!"
 echo "🚀 Starting server..."
