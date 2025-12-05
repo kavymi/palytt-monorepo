@@ -61,16 +61,13 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV IS_DOCKER=true
 
-# Copy package files and install ALL dependencies (needed for Prisma generation)
+# Copy package files and install ALL dependencies (needed for Prisma CLI and generation)
 COPY package.json pnpm-lock.yaml* ./
 RUN pnpm install --frozen-lockfile
 
 # Copy schema and generate Prisma client
 COPY prisma ./prisma
 RUN pnpm prisma:generate
-
-# Remove dev dependencies to reduce image size
-RUN pnpm prune --prod
 
 # Copy built application
 COPY --from=builder /app/dist ./dist
