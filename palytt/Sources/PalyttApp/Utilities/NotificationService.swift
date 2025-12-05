@@ -12,6 +12,11 @@ import Foundation
 import Combine
 import Alamofire
 import UIKit
+import Clerk
+
+#if canImport(ConvexMobile)
+import ConvexMobile
+#endif
 
 @MainActor
 class NotificationService: ObservableObject {
@@ -21,19 +26,99 @@ class NotificationService: ObservableObject {
     @Published var unreadCount: Int = 0
     @Published var isLoading: Bool = false
     @Published var hasMoreNotifications: Bool = true
+    @Published var hasNewNotification: Bool = false // Real-time indicator for new notifications
     
     private var nextCursor: String?
     private let backendService = BackendService.shared
     private var cancellables = Set<AnyCancellable>()
     private var refreshTimer: Timer?
+    private var convexSubscriptionActive: Bool = false
+    
+    #if canImport(ConvexMobile)
+    private var convexClient: ConvexClient?
+    #endif
     
     private init() {
         setupPeriodicRefresh()
+        setupConvexNotifications()
     }
     
     deinit {
         refreshTimer?.invalidate()
         NotificationCenter.default.removeObserver(self)
+    }
+    
+    // MARK: - Convex Real-Time Notifications
+    
+    /// Set up Convex subscription for real-time notifications
+    private func setupConvexNotifications() {
+        guard BackendService.shared.isConvexAvailable else {
+            print("🟡 NotificationService: Convex not available, using polling only")
+            return
+        }
+        
+        #if canImport(ConvexMobile)
+        let deploymentUrl = APIConfigurationManager.shared.convexDeploymentURL
+        convexClient = ConvexClient(deploymentUrl: deploymentUrl)
+        print("🟢 NotificationService: Convex client initialized for real-time notifications")
+        #endif
+    }
+    
+    /// Subscribe to real-time notifications via Convex
+    func subscribeToLiveNotifications() {
+        guard BackendService.shared.isConvexAvailable else { return }
+        guard let clerkId = Clerk.shared.user?.id else { return }
+        guard !convexSubscriptionActive else { return }
+        
+        #if canImport(ConvexMobile)
+        guard let client = convexClient else { return }
+        
+        convexSubscriptionActive = true
+        
+        Task {
+            do {
+                let args: [String: ConvexEncodable] = [
+                    "clerkId": clerkId,
+                    "limit": 50
+                ]
+                
+                // Subscribe to Convex notifications
+                for try await liveNotifications in client.subscribe(to: "notifications:subscribeToNotifications", with: args) as AsyncThrowingStream<[ConvexLiveNotification], Error> {
+                    await MainActor.run {
+                        // Check if there are new notifications
+                        let existingIds = Set(self.notifications.map { $0.id })
+                        let newNotifications = liveNotifications.filter { !existingIds.contains($0._id) }
+                        
+                        if !newNotifications.isEmpty {
+                            self.hasNewNotification = true
+                            HapticManager.shared.impact(.medium)
+                            print("🔔 NotificationService: Received \(newNotifications.count) new notifications via Convex")
+                        }
+                        
+                        // Update unread count from live data
+                        self.unreadCount = liveNotifications.filter { !$0.isRead }.count
+                    }
+                }
+            } catch {
+                await MainActor.run {
+                    self.convexSubscriptionActive = false
+                    print("❌ NotificationService: Convex subscription failed: \(error)")
+                }
+            }
+        }
+        
+        print("🟢 NotificationService: Subscribed to real-time notifications via Convex")
+        #endif
+    }
+    
+    /// Unsubscribe from live notifications
+    func unsubscribeFromLiveNotifications() {
+        convexSubscriptionActive = false
+    }
+    
+    /// Clear the new notification indicator
+    func clearNewNotificationIndicator() {
+        hasNewNotification = false
     }
     
     // MARK: - Public Methods
@@ -199,13 +284,16 @@ class NotificationService: ObservableObject {
     // MARK: - Private Methods
     
     private func setupPeriodicRefresh() {
-        // Refresh unread count every 30 seconds
-        refreshTimer = Timer.scheduledTimer(withTimeInterval: 30.0, repeats: true) { [weak self] _ in
+        // If Convex is available, use longer polling interval as backup
+        // Convex provides real-time updates, so polling is just a fallback
+        let interval: TimeInterval = BackendService.shared.isConvexAvailable ? 60.0 : 30.0
+        
+        refreshTimer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { [weak self] _ in
             Task { @MainActor in
                 await self?.refreshUnreadCount()
                 
                 // Also refresh notifications if we're on the notifications tab
-                // This provides a basic real-time experience
+                // This provides a basic real-time experience (or backup for Convex)
                 if !(self?.notifications.isEmpty ?? true) {
                     await self?.loadNotifications(refresh: true)
                 }
@@ -220,7 +308,16 @@ class NotificationService: ObservableObject {
         ) { [weak self] _ in
             Task { @MainActor in
                 await self?.refresh()
+                // Also re-subscribe to Convex when app becomes active
+                self?.subscribeToLiveNotifications()
             }
+        }
+        
+        // Subscribe to Convex notifications on init
+        Task { @MainActor in
+            // Small delay to ensure Clerk is ready
+            try? await Task.sleep(nanoseconds: 2_000_000_000)
+            subscribeToLiveNotifications()
         }
     }
     
@@ -330,5 +427,55 @@ class NotificationService: ObservableObject {
         )
         
         return response
+    }
+}
+
+// MARK: - Convex Live Notification Model
+
+/// Model for notifications received via Convex real-time subscription
+struct ConvexLiveNotification: Codable {
+    let _id: String
+    let recipientClerkId: String
+    let senderClerkId: String?
+    let senderName: String?
+    let senderProfileImage: String?
+    let type: String
+    let title: String
+    let message: String
+    let metadata: ConvexNotificationMetadata?
+    let isRead: Bool
+    let postgresId: String?
+    let createdAt: Int64
+    
+    struct ConvexNotificationMetadata: Codable {
+        let postId: String?
+        let commentId: String?
+        let chatroomId: String?
+        let friendRequestId: String?
+        let userId: String?
+    }
+    
+    /// Convert to PalyttNotification
+    func toPalyttNotification() -> PalyttNotification {
+        let notificationType = NotificationType(rawValue: type) ?? .general
+        
+        let data = NotificationData(
+            postId: metadata?.postId,
+            commentId: metadata?.commentId,
+            friendRequestId: metadata?.friendRequestId,
+            senderId: metadata?.userId ?? senderClerkId,
+            senderName: senderName
+        )
+        
+        return PalyttNotification(
+            id: _id,
+            userId: recipientClerkId,
+            type: notificationType,
+            title: title,
+            message: message,
+            data: data,
+            isRead: isRead,
+            createdAt: Date(timeIntervalSince1970: Double(createdAt) / 1000.0)
+        )
     }
 }

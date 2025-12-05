@@ -53,7 +53,31 @@ Build for testing
 [bundle exec] fastlane ios deploy_testflight
 ```
 
-Deploy to TestFlight
+Deploy to TestFlight (Full - with all tests)
+
+### ios internal_testing
+
+```sh
+[bundle exec] fastlane ios internal_testing
+```
+
+Quick build and deploy to TestFlight for Internal Testing
+
+### ios build_internal
+
+```sh
+[bundle exec] fastlane ios build_internal
+```
+
+Build only for Internal Testing (no upload)
+
+### ios upload_internal
+
+```sh
+[bundle exec] fastlane ios upload_internal
+```
+
+Upload existing build to TestFlight for Internal Testing
 
 ### ios deploy_app_store
 

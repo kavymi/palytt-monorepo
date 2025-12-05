@@ -9,6 +9,7 @@
 //
 
 import { prisma } from '../db.js';
+import { syncNotificationToConvex, recordFriendActivity, type ConvexNotificationType } from './convexSync.js';
 import type pkg from '@prisma/client';
 type NotificationType = pkg.NotificationType;
 
@@ -17,11 +18,13 @@ export interface NotificationData {
   commentId?: string;
   friendRequestId?: string;
   senderId?: string;
+  senderName?: string;
   [key: string]: any;
 }
 
 /**
  * Creates a notification for a user
+ * Also syncs to Convex for real-time delivery
  */
 export async function createNotification(
   userClerkId: string,
@@ -47,7 +50,8 @@ export async function createNotification(
       return;
     }
 
-    await prisma.notification.create({
+    // Create notification in PostgreSQL
+    const notification = await prisma.notification.create({
       data: {
         userId: user.id,
         type,
@@ -58,6 +62,26 @@ export async function createNotification(
     });
 
     console.log(`✅ Notification created for user ${userClerkId}: ${type} - ${title}`);
+
+    // Also push to Convex for real-time delivery
+    // This runs async and doesn't block the main operation
+    syncNotificationToConvex(
+      notification.id,
+      userClerkId,
+      type as ConvexNotificationType,
+      title,
+      message,
+      data.senderId,
+      data.senderName,
+      {
+        postId: data.postId,
+        commentId: data.commentId,
+        friendRequestId: data.friendRequestId,
+        userId: data.senderId,
+      }
+    ).catch((err) => {
+      console.warn('⚠️ Failed to sync notification to Convex (non-blocking):', err);
+    });
   } catch (error) {
     console.error('❌ Failed to create notification:', error);
     // Don't throw error to avoid breaking the main operation
@@ -66,6 +90,7 @@ export async function createNotification(
 
 /**
  * Creates a notification when someone likes a post
+ * Also records activity for real-time friend feed
  */
 export async function createPostLikeNotification(
   postId: string,
@@ -116,10 +141,23 @@ export async function createPostLikeNotification(
       {
         postId,
         senderId: likerUserId,
+        senderName: likerName,
         likerName,
         postTitle
       }
     );
+
+    // Record activity for friend feed (non-blocking)
+    recordFriendActivity(
+      likerUserId,
+      likerName,
+      'liked_post',
+      postId,
+      'post',
+      postTitle.substring(0, 50)
+    ).catch((err) => {
+      console.warn('⚠️ Failed to record like activity to Convex:', err);
+    });
   } catch (error) {
     console.error('❌ Failed to create post like notification:', error);
   }
@@ -127,6 +165,7 @@ export async function createPostLikeNotification(
 
 /**
  * Creates a notification when someone comments on a post
+ * Also records activity for real-time friend feed
  */
 export async function createPostCommentNotification(
   postId: string,
@@ -181,11 +220,24 @@ export async function createPostCommentNotification(
       {
         postId,
         senderId: commenterId,
+        senderName: commenterName,
         commenterName,
         postTitle,
         commentContent: truncatedComment
       }
     );
+
+    // Record activity for friend feed (non-blocking)
+    recordFriendActivity(
+      commenterId,
+      commenterName,
+      'commented',
+      postId,
+      'post',
+      truncatedComment
+    ).catch((err) => {
+      console.warn('⚠️ Failed to record comment activity to Convex:', err);
+    });
   } catch (error) {
     console.error('❌ Failed to create post comment notification:', error);
   }

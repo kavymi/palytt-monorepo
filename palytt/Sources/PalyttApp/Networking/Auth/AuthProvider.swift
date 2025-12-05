@@ -115,10 +115,12 @@ final class AuthProvider: AuthProviderProtocol {
         return clerk.user?.id
     }
     
-    /// Check if user is authenticated
-    /// - Returns: true if user is signed in
+    /// Check if user is authenticated with an active session
+    /// - Returns: true if user is signed in AND has an active session
     func isAuthenticated() -> Bool {
-        return clerk.user != nil
+        // Must have both a user AND an active session to be truly authenticated
+        // A user can exist without a session (e.g., session expired)
+        return clerk.user != nil && clerk.session != nil
     }
     
     /// Clear cached authentication data

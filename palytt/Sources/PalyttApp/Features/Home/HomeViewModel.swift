@@ -14,8 +14,16 @@ import Combine
 
 // MARK: - Supporting Types for Enhanced Combine Implementation
 
-enum FeedType {
-    case friends
+enum FeedType: String, CaseIterable {
+    case friends = "Friends"
+    case forYou = "For You"
+    
+    var icon: String {
+        switch self {
+        case .friends: return "person.2.fill"
+        case .forYou: return "sparkles"
+        }
+    }
 }
 
 enum LoadingState {
@@ -29,11 +37,29 @@ enum LoadingState {
 @MainActor
 class HomeViewModel: ObservableObject {
     @Published var posts: [Post] = []
+    @Published var forYouPosts: [Post] = []  // Separate array for "For You" feed
     @Published var isLoading = false
     @Published var isLoadingMore = false
     @Published var errorMessage: String?
     @Published var hasMorePages = true
+    @Published var hasMoreForYouPages = true  // Pagination for "For You" feed
     @Published var friendsCount: Int = 0  // Track number of friends for empty state
+    @Published var selectedFeedType: FeedType = .friends  // Current feed type selection
+    
+    // Computed property to get current feed posts based on selection
+    var currentPosts: [Post] {
+        switch selectedFeedType {
+        case .friends: return posts
+        case .forYou: return forYouPosts
+        }
+    }
+    
+    var currentHasMorePages: Bool {
+        switch selectedFeedType {
+        case .friends: return hasMorePages
+        case .forYou: return hasMoreForYouPages
+        }
+    }
     
     // Computed reactive loading state for enhanced state management
     var loadingState: LoadingState {
@@ -44,6 +70,7 @@ class HomeViewModel: ObservableObject {
     private let backendService: BackendService?
     private var currentPage = 1
     private var nextCursor: String?
+    private var forYouNextCursor: String?  // Separate cursor for "For You" pagination
     private let pageSize = 20
     
     // Enhanced Combine cancellation handling for better performance
@@ -158,8 +185,27 @@ class HomeViewModel: ObservableObject {
     
     /// Handle feed type changes with appropriate data loading strategy
     private func handleFeedTypeChange(_ feedType: FeedType) {
-        // Feed type changes no longer needed - we only have friends feed
-        // Keeping method for future extensibility
+        switch feedType {
+        case .friends:
+            if posts.isEmpty && !isLoading {
+                fetchPosts()
+            }
+        case .forYou:
+            if forYouPosts.isEmpty && !isLoading {
+                fetchForYouPosts()
+            }
+        }
+    }
+    
+    /// Switch feed type and load data if needed
+    func switchFeedType(to feedType: FeedType) {
+        guard selectedFeedType != feedType else { return }
+        
+        selectedFeedType = feedType
+        feedTypeSubject.send(feedType)
+        
+        // Trigger data load if needed
+        handleFeedTypeChange(feedType)
     }
     
     /// Perform scroll-triggered loading with enhanced logic
@@ -298,13 +344,19 @@ class HomeViewModel: ObservableObject {
     
     /// Load more posts for infinite scroll
     func loadMorePosts() {
-        guard !isLoadingMore && hasMorePages && !isLoading else { return }
+        let hasMore = selectedFeedType == .friends ? hasMorePages : hasMoreForYouPages
+        guard !isLoadingMore && hasMore && !isLoading else { return }
         
         isLoadingMore = true
         
         // Use separate task for pagination to avoid interfering with main loading
         Task {
-            await loadMoreFriendsFeed()
+            switch selectedFeedType {
+            case .friends:
+                await loadMoreFriendsFeed()
+            case .forYou:
+                await loadMoreForYouFeed()
+            }
         }
     }
     
@@ -395,6 +447,115 @@ class HomeViewModel: ObservableObject {
             print("❌ HomeViewModel: Failed to load more friends posts: \(error)")
             self.isLoadingMore = false
         }
+    }
+    
+    // MARK: - "For You" Discovery Feed
+    
+    /// Fetch "For You" discovery posts - location-based and engagement-weighted
+    func fetchForYouPosts() {
+        guard !isLoading else { return }
+        
+        // In preview mode, use mock data
+        if isPreviewMode {
+            forYouPosts = MockData.generateTrendingPosts()
+            return
+        }
+        
+        guard backendService != nil else { return }
+        
+        // Reset pagination
+        forYouNextCursor = nil
+        hasMoreForYouPages = true
+        
+        isLoading = true
+        errorMessage = nil
+        
+        Task {
+            await loadForYouFeed()
+        }
+    }
+    
+    private func loadForYouFeed() async {
+        do {
+            guard let backendService = backendService else {
+                self.isLoading = false
+                self.errorMessage = "Backend service not available"
+                return
+            }
+            
+            print("✨ HomeViewModel: Loading 'For You' discovery feed")
+            
+            // Get user's location for location-based recommendations
+            let locationManager = LocationManager.shared
+            let userLocation = locationManager.currentLocation
+            
+            let response = try await backendService.getForYouPosts(
+                limit: pageSize,
+                cursor: nil,
+                latitude: userLocation?.coordinate.latitude,
+                longitude: userLocation?.coordinate.longitude
+            )
+            
+            // Convert to Post objects
+            let newPosts = response.posts.compactMap { post -> Post? in
+                return Post.from(forYouPost: post)
+            }
+            
+            self.forYouPosts = newPosts
+            self.hasMoreForYouPages = response.hasMore
+            self.forYouNextCursor = response.nextCursor
+            self.isLoading = false
+            
+            print("✅ HomeViewModel: Loaded 'For You' feed with \(newPosts.count) posts")
+            
+        } catch {
+            print("❌ HomeViewModel: Failed to load 'For You' feed: \(error)")
+            self.isLoading = false
+            // Fall back to trending posts on error
+            await loadFallbackTrendingPosts()
+        }
+    }
+    
+    private func loadMoreForYouFeed() async {
+        do {
+            guard let backendService = backendService else {
+                self.isLoadingMore = false
+                return
+            }
+            
+            let locationManager = LocationManager.shared
+            let userLocation = locationManager.currentLocation
+            
+            let response = try await backendService.getForYouPosts(
+                limit: pageSize,
+                cursor: forYouNextCursor,
+                latitude: userLocation?.coordinate.latitude,
+                longitude: userLocation?.coordinate.longitude
+            )
+            
+            let newPosts = response.posts.compactMap { post -> Post? in
+                return Post.from(forYouPost: post)
+            }
+            
+            self.forYouPosts.append(contentsOf: newPosts)
+            self.hasMoreForYouPages = response.hasMore
+            self.forYouNextCursor = response.nextCursor
+            self.isLoadingMore = false
+            
+            print("✅ HomeViewModel: Loaded \(newPosts.count) more 'For You' posts, total: \(self.forYouPosts.count)")
+            
+        } catch {
+            print("❌ HomeViewModel: Failed to load more 'For You' posts: \(error)")
+            self.isLoadingMore = false
+        }
+    }
+    
+    /// Fallback to local trending posts if API fails
+    private func loadFallbackTrendingPosts() async {
+        // Use mock trending data as fallback
+        self.forYouPosts = MockData.generateTrendingPosts()
+        self.hasMoreForYouPages = false
+        print("⚠️ HomeViewModel: Using fallback trending posts")
     }
     
     // MARK: - Helper Methods

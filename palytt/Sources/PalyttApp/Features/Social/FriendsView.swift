@@ -22,6 +22,7 @@ struct FriendsView: View {
     @State private var searchText = ""
     @State private var showingFilters = false
     @State private var searchFilters = SearchFilters()
+    @State private var showingActivityFeed = false
     @FocusState private var isSearchFocused: Bool
     @State private var searchDebounceTask: Task<Void, Never>?
     @Namespace private var tabAnimation
@@ -89,6 +90,17 @@ struct FriendsView: View {
             .navigationTitle("Friends")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    // Activity Feed button - real-time friend activity via Convex
+                    Button(action: {
+                        HapticManager.shared.impact(.light)
+                        showingActivityFeed = true
+                    }) {
+                        Image(systemName: "bolt.fill")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundColor(.primaryBrand)
+                    }
+                }
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button("Done") {
                         HapticManager.shared.impact(.light)
@@ -96,6 +108,9 @@ struct FriendsView: View {
                     }
                     .foregroundColor(.primaryBrand)
                 }
+            }
+            .sheet(isPresented: $showingActivityFeed) {
+                ActivityFeedView()
             }
             .sheet(isPresented: $showingFilters) {
                 FriendsSearchFiltersView(filters: $searchFilters, onApply: {
@@ -257,9 +272,12 @@ struct FriendsView: View {
             } else {
                 List {
                     ForEach(viewModel.friends, id: \.clerkId) { user in
-                        FriendRowView(user: user)
-                            .listRowBackground(Color.cardBackground)
-                            .listRowSeparatorTint(Color.divider)
+                        FriendRowView(
+                            user: user,
+                            presenceStatus: viewModel.getPresenceStatus(for: user.clerkId)
+                        )
+                        .listRowBackground(Color.cardBackground)
+                        .listRowSeparatorTint(Color.divider)
                     }
                     
                     if viewModel.hasMoreFriends && !viewModel.isLoadingFriends {
@@ -585,6 +603,7 @@ struct FriendsView: View {
 class FriendsViewViewModel: ObservableObject {
     // Friends
     @Published var friends: [BackendUser] = []
+    @Published var friendPresence: [String: PresenceStatus] = [:] // clerkId -> status
     @Published var isLoadingFriends = false
     @Published var hasMoreFriends = true
     
@@ -607,6 +626,40 @@ class FriendsViewViewModel: ObservableObject {
     private var currentUserId: String = ""
     private var friendsPage = 1
     private let pageSize = 20
+    
+    /// Get presence status for a specific friend
+    func getPresenceStatus(for clerkId: String) -> PresenceStatus {
+        // First check our local cache
+        if let status = friendPresence[clerkId] {
+            return status
+        }
+        
+        // Then check PresenceService's online friends
+        if let presence = PresenceService.shared.onlineFriends[clerkId] {
+            return presence.status
+        }
+        
+        return .offline
+    }
+    
+    /// Subscribe to presence updates for all friends using Convex
+    private func subscribeToFriendsPresence() {
+        let friendClerkIds = friends.compactMap { $0.clerkId }
+        guard !friendClerkIds.isEmpty else { return }
+        
+        // Subscribe via BackendService (which uses PresenceService internally)
+        BackendService.shared.subscribeToFriendPresence(friendIds: friendClerkIds)
+        
+        // Load initial presence data
+        Task {
+            let presenceData = await BackendService.shared.getBatchPresence(clerkIds: friendClerkIds)
+            await MainActor.run {
+                self.friendPresence = presenceData
+            }
+        }
+        
+        print("🟢 FriendsViewViewModel: Subscribed to presence for \(friendClerkIds.count) friends")
+    }
     
     enum DiscoverTab: CaseIterable {
         case suggested, contacts, search
@@ -654,6 +707,10 @@ class FriendsViewViewModel: ObservableObject {
             let friendsData = try await backendService.getFriends(userId: userId, limit: pageSize)
             friends = friendsData
             hasMoreFriends = friendsData.count == pageSize
+            
+            // Subscribe to presence for all friends via Convex
+            subscribeToFriendsPresence()
+            
         } catch {
             errorMessage = "Failed to load friends: \(error.localizedDescription)"
             print("❌ Error loading friends: \(error)")
@@ -964,5 +1021,6 @@ struct FriendsSearchFiltersView: View {
     FriendsView()
         .environmentObject(MockAppState())
 }
+
 
 

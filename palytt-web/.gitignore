@@ -1,0 +1,34 @@
+# Dependencies
+node_modules/
+
+# Build
+.output/
+.vinxi/
+dist/
+app.config.timestamp*.js
+vite.config.timestamp*.js
+
+# Env
+.env
+.env.local
+.env.*.local
+
+# Logs
+*.log
+npm-debug.log*
+
+# Editor
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# TypeScript
+*.tsbuildinfo
+
+# Turbo
+.turbo/

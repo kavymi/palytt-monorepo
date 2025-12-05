@@ -53,9 +53,12 @@ struct FriendsListView: View {
                     // Friends list
                     List {
                         ForEach(viewModel.friends, id: \.clerkId) { user in
-                            FriendRowView(user: user)
-                                .listRowBackground(Color.cardBackground)
-                                .listRowSeparatorTint(Color.divider)
+                            FriendRowView(
+                                user: user,
+                                presenceStatus: viewModel.getPresenceStatus(for: user.clerkId)
+                            )
+                            .listRowBackground(Color.cardBackground)
+                            .listRowSeparatorTint(Color.divider)
                         }
                         
                         // Load more indicator
@@ -140,20 +143,38 @@ struct FriendsListView: View {
 // MARK: - Friend Row View
 struct FriendRowView: View {
     let user: BackendUser
+    var presenceStatus: PresenceStatus? = nil // Optional Convex presence status
     @EnvironmentObject var appState: AppState
     
     var body: some View {
         NavigationLink(destination: ProfileView(targetUser: user.toUser())) {
             HStack(spacing: 12) {
-                // Profile image
-                BackendUserAvatar(user: user, size: 44)
+                // Profile image with presence indicator
+                ZStack(alignment: .bottomTrailing) {
+                    BackendUserAvatar(user: user, size: 44)
+                    
+                    // Online status indicator (Convex presence)
+                    if let status = presenceStatus, status != .offline {
+                        PresenceIndicatorView(status: status, size: 12)
+                            .offset(x: 2, y: 2)
+                    }
+                }
                 
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(user.displayName ?? user.username ?? "Unknown User")
-                        .font(.subheadline)
-                        .fontWeight(.semibold)
-                        .foregroundColor(.primaryText)
-                        .lineLimit(1)
+                    HStack(spacing: 4) {
+                        Text(user.displayName ?? user.username ?? "Unknown User")
+                            .font(.subheadline)
+                            .fontWeight(.semibold)
+                            .foregroundColor(.primaryText)
+                            .lineLimit(1)
+                        
+                        // Subtle online indicator text
+                        if let status = presenceStatus, status == .online {
+                            Text("•")
+                                .font(.caption)
+                                .foregroundColor(.green)
+                        }
+                    }
                     
                     Text("@\(user.username ?? "unknown")")
                         .font(.caption)
@@ -170,20 +191,27 @@ struct FriendRowView: View {
                 
                 Spacer()
                 
-                // Friend indicator
+                // Friend indicator with online status
                 HStack(spacing: 4) {
                     Image(systemName: "person.2.circle.fill")
                         .font(.caption)
                         .foregroundColor(.primaryBrand)
                     
-                    Text("Friend")
-                        .font(.caption)
-                        .fontWeight(.medium)
-                        .foregroundColor(.primaryBrand)
+                    if let status = presenceStatus, status == .online {
+                        Text("Online")
+                            .font(.caption)
+                            .fontWeight(.medium)
+                            .foregroundColor(.green)
+                    } else {
+                        Text("Friend")
+                            .font(.caption)
+                            .fontWeight(.medium)
+                            .foregroundColor(.primaryBrand)
+                    }
                 }
                 .padding(.horizontal, 8)
                 .padding(.vertical, 4)
-                .background(Color.primaryBrand.opacity(0.1))
+                .background(presenceStatus == .online ? Color.green.opacity(0.1) : Color.primaryBrand.opacity(0.1))
                 .cornerRadius(8)
             }
             .padding(.vertical, 4)
@@ -196,6 +224,7 @@ struct FriendRowView: View {
 @MainActor
 class FriendsViewModel: ObservableObject {
     @Published var friends: [BackendUser] = []
+    @Published var friendPresence: [String: PresenceStatus] = [:] // clerkId -> status
     @Published var isLoading = false
     @Published var errorMessage: String?
     @Published var hasMore = true
@@ -221,12 +250,50 @@ class FriendsViewModel: ObservableObject {
             )
             friends = friendsData
             hasMore = friendsData.count == pageSize
+            
+            // Subscribe to presence for all friends via Convex
+            subscribeToFriendsPresence()
+            
         } catch {
             errorMessage = "Failed to load friends: \(error.localizedDescription)"
             print("❌ Error loading friends: \(error)")
         }
         
         isLoading = false
+    }
+    
+    /// Subscribe to presence updates for all friends using Convex
+    private func subscribeToFriendsPresence() {
+        let friendClerkIds = friends.compactMap { $0.clerkId }
+        guard !friendClerkIds.isEmpty else { return }
+        
+        // Subscribe via BackendService (which uses PresenceService internally)
+        BackendService.shared.subscribeToFriendPresence(friendIds: friendClerkIds)
+        
+        // Load initial presence data
+        Task {
+            let presenceData = await BackendService.shared.getBatchPresence(clerkIds: friendClerkIds)
+            await MainActor.run {
+                self.friendPresence = presenceData
+            }
+        }
+        
+        print("🟢 FriendsViewModel: Subscribed to presence for \(friendClerkIds.count) friends")
+    }
+    
+    /// Get presence status for a specific friend
+    func getPresenceStatus(for clerkId: String) -> PresenceStatus {
+        // First check our local cache
+        if let status = friendPresence[clerkId] {
+            return status
+        }
+        
+        // Then check PresenceService's online friends
+        if let presence = PresenceService.shared.onlineFriends[clerkId] {
+            return presence.status
+        }
+        
+        return .offline
     }
     
     func refresh() async {
@@ -248,6 +315,12 @@ class FriendsViewModel: ObservableObject {
             
             friends.append(contentsOf: newFriends)
             hasMore = newFriends.count == pageSize
+            
+            // Also subscribe to new friends' presence
+            if !newFriends.isEmpty {
+                subscribeToFriendsPresence()
+            }
+            
         } catch {
             errorMessage = "Failed to load more friends: \(error.localizedDescription)"
             currentPage -= 1 // Revert page increment

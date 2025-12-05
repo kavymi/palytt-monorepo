@@ -17,11 +17,13 @@ import Clerk
 struct ChatView: View {
     let chatroom: BackendService.Chatroom
     @StateObject private var viewModel = ChatViewModel()
+    @ObservedObject private var presenceService = PresenceService.shared
     @Environment(\.dismiss) private var dismiss
     @State private var messageText = ""
     @State private var isTyping = false
     @State private var showingPostPicker = false
     @State private var typingTimer: Timer?
+    @State private var otherUserPresenceStatus: PresenceStatus = .offline
     @FocusState private var isTextFieldFocused: Bool
     
     private var otherParticipant: BackendService.User? {
@@ -40,16 +42,33 @@ struct ChatView: View {
         }
     }
     
+    /// Real-time online status from Convex presence
     private var isOnline: Bool {
-        return otherParticipant?.isOnline ?? false
+        // First check Convex presence
+        if let otherClerkId = otherParticipant?.clerkId,
+           let presence = presenceService.onlineFriends[otherClerkId] {
+            return presence.status == .online
+        }
+        // Fallback to local state or backend data
+        return otherUserPresenceStatus == .online || (otherParticipant?.isOnline ?? false)
+    }
+    
+    /// Get presence status for header display
+    private var presenceStatus: PresenceStatus {
+        if let otherClerkId = otherParticipant?.clerkId,
+           let presence = presenceService.onlineFriends[otherClerkId] {
+            return presence.status
+        }
+        return otherUserPresenceStatus
     }
     
     var body: some View {
         VStack(spacing: 0) {
-            // Custom header
+            // Custom header with Convex presence
             ChatHeaderView(
                 displayName: displayName,
                 isOnline: isOnline,
+                presenceStatus: presenceStatus,
                 avatar: otherParticipant,
                 onDismiss: {
                     HapticManager.shared.impact(.light)
@@ -71,7 +90,8 @@ struct ChatView: View {
                                 MessageBubbleView(
                                     message: message,
                                     isFromCurrentUser: message.senderId == currentUserId,
-                                    showAvatar: shouldShowAvatar(for: message)
+                                    showAvatar: shouldShowAvatar(for: message),
+                                    readStatus: viewModel.getReadStatus(for: message)
                                 )
                                 .id(message._id)
                             }
@@ -122,6 +142,23 @@ struct ChatView: View {
         .onAppear {
             viewModel.loadMessages(for: chatroom._id)
             viewModel.startRealTimeUpdates(for: chatroom._id)
+            
+            // Initialize Convex presence tracking
+            Task {
+                await BackendService.shared.initializePresenceTracking()
+                await BackendService.shared.updateCurrentScreen("chat:\(chatroom._id)")
+                
+                // Load other user's presence via Convex
+                if let otherClerkId = otherParticipant?.clerkId {
+                    let status = await BackendService.shared.getUserPresence(clerkId: otherClerkId)
+                    await MainActor.run {
+                        otherUserPresenceStatus = status
+                    }
+                    
+                    // Subscribe to their presence updates
+                    BackendService.shared.subscribeToFriendPresence(friendIds: [otherClerkId])
+                }
+            }
         }
         .onDisappear {
             viewModel.stopRealTimeUpdates()
@@ -215,8 +252,33 @@ struct ChatView: View {
 struct ChatHeaderView: View {
     let displayName: String
     let isOnline: Bool
+    var presenceStatus: PresenceStatus = .offline
     let avatar: BackendService.User?
     let onDismiss: () -> Void
+    
+    /// Get status text based on Convex presence
+    private var statusText: String {
+        switch presenceStatus {
+        case .online:
+            return "Online"
+        case .away:
+            return "Away"
+        case .offline:
+            return "Offline"
+        }
+    }
+    
+    /// Get status color based on Convex presence
+    private var statusColor: Color {
+        switch presenceStatus {
+        case .online:
+            return .green
+        case .away:
+            return .orange
+        case .offline:
+            return .gray
+        }
+    }
     
     var body: some View {
         HStack(spacing: 12) {
@@ -226,33 +288,30 @@ struct ChatHeaderView: View {
                     .foregroundColor(.primaryBrand)
             }
             
-            // Avatar
+            // Avatar with Convex presence indicator
             if let user = avatar {
-                AsyncImage(url: URL(string: user.avatarUrl ?? "")) { image in
-                    image
-                        .resizable()
-                        .aspectRatio(contentMode: .fill)
-                } placeholder: {
-                    Circle()
-                        .fill(Color.gray.opacity(0.3))
-                        .overlay(
-                            Image(systemName: "person.fill")
-                                .foregroundColor(.gray)
-                        )
-                }
-                .frame(width: 40, height: 40)
-                .clipShape(Circle())
-                    .overlay(
-                        // Online status indicator
-                        isOnline ? Circle()
-                            .fill(Color.success)
-                            .frame(width: 12, height: 12)
+                ZStack(alignment: .bottomTrailing) {
+                    AsyncImage(url: URL(string: user.avatarUrl ?? "")) { image in
+                        image
+                            .resizable()
+                            .aspectRatio(contentMode: .fill)
+                    } placeholder: {
+                        Circle()
+                            .fill(Color.gray.opacity(0.3))
                             .overlay(
-                                Circle()
-                                    .stroke(Color.cardBackground, lineWidth: 2)
+                                Image(systemName: "person.fill")
+                                    .foregroundColor(.gray)
                             )
-                            .offset(x: 14, y: 14) : nil
-                    )
+                    }
+                    .frame(width: 40, height: 40)
+                    .clipShape(Circle())
+                    
+                    // Presence indicator using Convex status
+                    if presenceStatus != .offline {
+                        PresenceIndicatorView(status: presenceStatus, size: 12)
+                            .offset(x: 2, y: 2)
+                    }
+                }
             } else {
                 Circle()
                     .fill(LinearGradient.primaryGradient)
@@ -270,9 +329,10 @@ struct ChatHeaderView: View {
                     .fontWeight(.semibold)
                     .foregroundColor(.primaryText)
                 
-                Text(isOnline ? "Online" : "Offline")
+                // Show Convex-powered presence status
+                Text(statusText)
                     .font(.caption2)
-                    .foregroundColor(isOnline ? .success : .tertiaryText)
+                    .foregroundColor(statusColor)
             }
             
             Spacer()
@@ -289,6 +349,7 @@ struct MessageBubbleView: View {
     let message: BackendService.Message
     let isFromCurrentUser: Bool
     let showAvatar: Bool
+    var readStatus: MessageReadStatus = .none // Convex read receipt status
     
     var body: some View {
         HStack(alignment: .bottom, spacing: 8) {
@@ -341,11 +402,18 @@ struct MessageBubbleView: View {
                         .shadow(color: .black.opacity(0.1), radius: 2, x: 0, y: 1)
                 }
                 
-                // Timestamp
-                Text(formatTimestamp(message.createdAt))
-                    .font(.caption2)
-                    .foregroundColor(.tertiaryText)
-                    .padding(.horizontal, 8)
+                // Timestamp with read receipt (for sent messages)
+                HStack(spacing: 4) {
+                    Text(formatTimestamp(message.createdAt))
+                        .font(.caption2)
+                        .foregroundColor(.tertiaryText)
+                    
+                    // Read receipt indicator (only for messages we sent)
+                    if isFromCurrentUser && readStatus != .none {
+                        ReadReceiptIndicator(status: readStatus)
+                    }
+                }
+                .padding(.horizontal, 8)
             }
             
             if isFromCurrentUser {
@@ -361,6 +429,42 @@ struct MessageBubbleView: View {
         let formatter = DateFormatter()
         formatter.dateFormat = "h:mm a"
         return formatter.string(from: date)
+    }
+}
+
+// MARK: - Read Receipt Indicator
+struct ReadReceiptIndicator: View {
+    let status: MessageReadStatus
+    
+    var body: some View {
+        HStack(spacing: 2) {
+            switch status {
+            case .none:
+                EmptyView()
+            case .sent:
+                Image(systemName: "checkmark")
+                    .font(.system(size: 10, weight: .medium))
+                    .foregroundColor(.gray)
+            case .delivered:
+                // Double checkmark for delivered
+                HStack(spacing: -4) {
+                    Image(systemName: "checkmark")
+                        .font(.system(size: 10, weight: .medium))
+                    Image(systemName: "checkmark")
+                        .font(.system(size: 10, weight: .medium))
+                }
+                .foregroundColor(.gray)
+            case .read:
+                // Blue double checkmark for read
+                HStack(spacing: -4) {
+                    Image(systemName: "checkmark")
+                        .font(.system(size: 10, weight: .bold))
+                    Image(systemName: "checkmark")
+                        .font(.system(size: 10, weight: .bold))
+                }
+                .foregroundColor(.primaryBrand)
+            }
+        }
     }
 }
 

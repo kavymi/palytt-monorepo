@@ -219,6 +219,11 @@ struct ProfileView: View {
             showFollowingSheet: $showFollowingSheet
         )
         
+        // Daily Challenges Section (only for own profile)
+        if targetUser == nil || targetUser?.id == appState.currentUser?.id {
+            ProfileChallengesSection()
+        }
+        
         // Admin Section (visible to admin users)
         if user.isAdmin {
             AdminQuickAccessView(showAdminSettings: $showAdminSettings)

@@ -1,0 +1,19 @@
+{
+  "name": "palytt-convex",
+  "version": "1.0.0",
+  "description": "Real-time presence and typing indicators microservice for Palytt",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "convex dev",
+    "dev:once": "convex dev --once",
+    "deploy": "convex deploy",
+    "codegen": "convex codegen"
+  },
+  "dependencies": {
+    "convex": "^1.17.4"
+  },
+  "devDependencies": {
+    "typescript": "^5.8.3"
+  }
+}

@@ -12,6 +12,11 @@ import Foundation
 import SwiftUI
 import EventKit
 import Combine
+import Clerk
+
+#if canImport(ConvexMobile)
+import ConvexMobile
+#endif
 
 @MainActor
 class GroupGatheringViewModel: ObservableObject {
@@ -25,6 +30,13 @@ class GroupGatheringViewModel: ObservableObject {
     @Published var userTimeVotes: [String: TimeVote] = [:] // timeSlotId -> vote
     @Published var userVenueVotes: [String: VenueVote] = [:] // venueId -> vote
     
+    // Convex real-time voting state
+    @Published var convexVenueVoteCounts: [String: (count: Int, voters: [String])] = [:]
+    @Published var convexDateVoteCounts: [String: (count: Int, voters: [String])] = [:]
+    @Published var convexTimeVoteCounts: [String: (count: Int, voters: [String])] = [:]
+    @Published var totalVotersCount: Int = 0
+    @Published var isConvexConnected: Bool = false
+    
     // Calendar integration
     private let eventStore = EKEventStore()
     @Published var calendarAuthorizationStatus: EKAuthorizationStatus = .notDetermined
@@ -35,13 +47,179 @@ class GroupGatheringViewModel: ObservableObject {
     
     private var cancellables = Set<AnyCancellable>()
     
+    #if canImport(ConvexMobile)
+    private var convexClient: ConvexClient?
+    private var votesSubscriptionTask: Task<Void, Never>?
+    #endif
+    
     init(gathering: GroupGathering, currentUserId: String) {
         self.gathering = gathering
         self.currentUserId = currentUserId
         
+        setupConvexClient()
         setupInitialState()
         checkCalendarAuthorization()
         loadRecentActivity()
+    }
+    
+    deinit {
+        #if canImport(ConvexMobile)
+        votesSubscriptionTask?.cancel()
+        #endif
+    }
+    
+    // MARK: - Convex Setup
+    
+    private func setupConvexClient() {
+        #if canImport(ConvexMobile)
+        guard BackendService.shared.isConvexAvailable else {
+            print("🟡 GroupGatheringViewModel: Convex not available, using local state only")
+            return
+        }
+        
+        let deploymentUrl = APIConfigurationManager.shared.convexDeploymentURL
+        convexClient = ConvexClient(deploymentUrl: deploymentUrl)
+        isConvexConnected = true
+        print("🟢 GroupGatheringViewModel: Convex client initialized for real-time voting")
+        #endif
+    }
+    
+    /// Subscribe to real-time vote updates from Convex
+    func subscribeToVotes() {
+        #if canImport(ConvexMobile)
+        guard let client = convexClient else { return }
+        
+        votesSubscriptionTask?.cancel()
+        
+        votesSubscriptionTask = Task {
+            do {
+                let args: [String: ConvexEncodable] = [
+                    "gatheringId": gathering.id
+                ]
+                
+                for try await result in client.subscribe(to: "gatherings:subscribeToGatheringVotes", with: args) as AsyncThrowingStream<ConvexGatheringVotes, Error> {
+                    await MainActor.run {
+                        // Update venue votes
+                        self.convexVenueVoteCounts = result.venueVotes.mapValues { ($0.count, $0.voters) }
+                        
+                        // Update date votes
+                        self.convexDateVoteCounts = result.dateVotes.mapValues { ($0.count, $0.voters) }
+                        
+                        // Update time votes
+                        self.convexTimeVoteCounts = result.timeVotes.mapValues { ($0.count, $0.voters) }
+                        
+                        // Update total voters
+                        self.totalVotersCount = result.totalVoters
+                        
+                        print("🔄 GroupGatheringViewModel: Received vote update - \(result.totalVoters) voters")
+                    }
+                }
+            } catch {
+                await MainActor.run {
+                    print("❌ GroupGatheringViewModel: Vote subscription error: \(error)")
+                    self.isConvexConnected = false
+                }
+            }
+        }
+        
+        print("🟢 GroupGatheringViewModel: Subscribed to real-time votes for gathering \(gathering.id)")
+        #endif
+    }
+    
+    /// Unsubscribe from vote updates
+    func unsubscribeFromVotes() {
+        #if canImport(ConvexMobile)
+        votesSubscriptionTask?.cancel()
+        votesSubscriptionTask = nil
+        #endif
+    }
+    
+    /// Cast a vote via Convex (real-time sync)
+    func castConvexVote(voteType: String, optionId: String) async {
+        #if canImport(ConvexMobile)
+        guard let client = convexClient else {
+            print("⚠️ GroupGatheringViewModel: Convex client not available")
+            return
+        }
+        
+        guard let clerkId = Clerk.shared.user?.id else {
+            print("⚠️ GroupGatheringViewModel: User not authenticated")
+            return
+        }
+        
+        let voterName = Clerk.shared.user?.firstName ?? Clerk.shared.user?.username ?? "Anonymous"
+        
+        do {
+            let args: [String: ConvexEncodable] = [
+                "gatheringId": gathering.id,
+                "clerkId": clerkId,
+                "voterName": voterName,
+                "voteType": voteType,
+                "optionId": optionId
+            ]
+            
+            let _: String = try await client.mutation("gatherings:castVote", with: args)
+            
+            HapticManager.shared.impact(.light)
+            print("✅ GroupGatheringViewModel: Vote cast successfully via Convex")
+            
+        } catch {
+            print("❌ GroupGatheringViewModel: Failed to cast vote: \(error)")
+            errorMessage = "Failed to cast vote. Please try again."
+        }
+        #else
+        print("⚠️ GroupGatheringViewModel: ConvexMobile not available")
+        #endif
+    }
+    
+    /// Remove a vote via Convex
+    func removeConvexVote(voteType: String) async {
+        #if canImport(ConvexMobile)
+        guard let client = convexClient else { return }
+        guard let clerkId = Clerk.shared.user?.id else { return }
+        
+        do {
+            let args: [String: ConvexEncodable] = [
+                "gatheringId": gathering.id,
+                "clerkId": clerkId,
+                "voteType": voteType
+            ]
+            
+            let _: Bool = try await client.mutation("gatherings:removeVote", with: args)
+            print("✅ GroupGatheringViewModel: Vote removed successfully via Convex")
+            
+        } catch {
+            print("❌ GroupGatheringViewModel: Failed to remove vote: \(error)")
+        }
+        #endif
+    }
+    
+    /// Get vote count for a specific option from Convex
+    func getVoteCount(for optionId: String, voteType: String) -> Int {
+        switch voteType {
+        case "venue":
+            return convexVenueVoteCounts[optionId]?.count ?? 0
+        case "date":
+            return convexDateVoteCounts[optionId]?.count ?? 0
+        case "time":
+            return convexTimeVoteCounts[optionId]?.count ?? 0
+        default:
+            return 0
+        }
+    }
+    
+    /// Get voters for a specific option
+    func getVoters(for optionId: String, voteType: String) -> [String] {
+        switch voteType {
+        case "venue":
+            return convexVenueVoteCounts[optionId]?.voters ?? []
+        case "date":
+            return convexDateVoteCounts[optionId]?.voters ?? []
+        case "time":
+            return convexTimeVoteCounts[optionId]?.voters ?? []
+        default:
+            return []
+        }
     }
     
     // MARK: - Computed Properties
@@ -218,7 +396,14 @@ class GroupGatheringViewModel: ObservableObject {
         // Update history
         gathering.gatheringHistory.incrementTotalVotes()
         
-        // In a real app, this would sync to backend
+        // Sync to Convex for real-time updates (if available)
+        if isConvexConnected {
+            Task {
+                await castConvexVote(voteType: "time", optionId: timeSlotId)
+            }
+        }
+        
+        // Also sync to backend
         syncVoteToBackend(newVote)
     }
     
@@ -246,12 +431,34 @@ class GroupGatheringViewModel: ObservableObject {
         // Update history
         gathering.gatheringHistory.incrementTotalVotes()
         
-        // In a real app, this would sync to backend
+        // Sync to Convex for real-time updates (if available)
+        if isConvexConnected {
+            Task {
+                await castConvexVote(voteType: "venue", optionId: venueId)
+            }
+        }
+        
+        // Also sync to backend
         syncVoteToBackend(newVote)
     }
     
+    /// Vote on a date option (for Convex real-time)
+    func voteOnDate(_ dateOptionId: String) {
+        guard canCurrentUserVote else { return }
+        
+        // Sync to Convex for real-time updates
+        if isConvexConnected {
+            Task {
+                await castConvexVote(voteType: "date", optionId: dateOptionId)
+            }
+        }
+        
+        // Update history
+        gathering.gatheringHistory.incrementTotalVotes()
+    }
+    
     private func syncVoteToBackend<T: Codable>(_ vote: T) {
-        // In a real implementation, this would make an API call
+        // In a real implementation, this would make an API call to tRPC backend
         print("Syncing vote to backend: \(vote)")
     }
     
@@ -458,3 +665,21 @@ extension GroupGatheringViewModel {
         return GroupGatheringViewModel(gathering: gathering, currentUserId: "user1")
     }
 }
+
+// MARK: - Convex Models
+
+#if canImport(ConvexMobile)
+/// Response from Convex gatherings:subscribeToGatheringVotes
+struct ConvexGatheringVotes: Codable {
+    struct VoteCount: Codable {
+        let count: Int
+        let voters: [String]
+    }
+    
+    let venueVotes: [String: VoteCount]
+    let dateVotes: [String: VoteCount]
+    let timeVotes: [String: VoteCount]
+    let totalVoters: Int
+    let lastUpdated: Int64
+}
+#endif

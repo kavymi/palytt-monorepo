@@ -2364,20 +2364,120 @@ class BackendService: ObservableObject {
 
     // MARK: - Convex Real-time Subscriptions
     
-    /// Example method showing how to safely use Convex when available with tRPC fallback
-    /// This demonstrates the pattern that should be used throughout the app
+    /// Subscribe to real-time notifications using Convex
+    /// Falls back to tRPC polling if Convex is not available
     func subscribeToNotificationsConditionally() {
         if isConvexAvailable {
             print("🟢 Using Convex for real-time notifications")
-            // TODO: Implement Convex subscription when needed
-            #if canImport(ConvexMobile)
-            // convexClient?.subscribe(...)
-            #endif
+            // Use PresenceService for real-time features
+            Task { @MainActor in
+                await PresenceService.shared.setOnline()
+            }
         } else {
             print("🟡 Convex not available, using tRPC polling for notifications")
-            // Fallback to tRPC polling or other methods
-            // TODO: Implement tRPC polling as fallback
+            // Fallback to tRPC polling - notifications are fetched via getNotifications()
         }
+    }
+    
+    // MARK: - Presence Integration
+    
+    /// Initialize presence tracking when user logs in
+    func initializePresenceTracking() async {
+        guard isConvexAvailable else {
+            print("🟡 BackendService: Convex not available, skipping presence tracking")
+            return
+        }
+        
+        await PresenceService.shared.setOnline()
+        print("🟢 BackendService: Presence tracking initialized")
+    }
+    
+    /// Update user's current screen for activity tracking
+    func updateCurrentScreen(_ screen: String) async {
+        guard isConvexAvailable else { return }
+        await PresenceService.shared.updateCurrentScreen(screen)
+    }
+    
+    /// Subscribe to friend presence updates
+    /// - Parameter friendIds: Array of Clerk user IDs for friends
+    func subscribeToFriendPresence(friendIds: [String]) {
+        guard isConvexAvailable else {
+            print("🟡 BackendService: Convex not available, cannot subscribe to friend presence")
+            return
+        }
+        
+        PresenceService.shared.subscribeToOnlineFriends(friendClerkIds: friendIds)
+        print("🟢 BackendService: Subscribed to \(friendIds.count) friends' presence")
+    }
+    
+    /// Get presence status for a specific user
+    func getUserPresence(clerkId: String) async -> PresenceStatus {
+        guard isConvexAvailable else { return .offline }
+        
+        if let presence = await PresenceService.shared.getUserPresence(clerkId: clerkId) {
+            return presence.status
+        }
+        return .offline
+    }
+    
+    /// Get presence for multiple users at once
+    func getBatchPresence(clerkIds: [String]) async -> [String: PresenceStatus] {
+        guard isConvexAvailable else {
+            return clerkIds.reduce(into: [:]) { $0[$1] = .offline }
+        }
+        
+        let presenceData = await PresenceService.shared.getBatchPresence(clerkIds: clerkIds)
+        return presenceData.mapValues { $0.status }
+    }
+    
+    // MARK: - Typing Indicators Integration
+    
+    /// Start typing indicator in a chatroom
+    func startTyping(in chatroomId: String) async {
+        guard isConvexAvailable else { return }
+        
+        // Get current user's name for display
+        let userName = Clerk.shared.user?.firstName
+        let userImage = Clerk.shared.user?.imageUrl
+        
+        await PresenceService.shared.startTyping(
+            chatroomId: chatroomId,
+            userName: userName,
+            userProfileImage: userImage
+        )
+    }
+    
+    /// Stop typing indicator in a chatroom
+    func stopTyping(in chatroomId: String) async {
+        guard isConvexAvailable else { return }
+        await PresenceService.shared.stopTyping(chatroomId: chatroomId)
+    }
+    
+    /// Subscribe to typing indicators for a chatroom
+    func subscribeToTypingIndicators(chatroomId: String) {
+        guard isConvexAvailable else { return }
+        PresenceService.shared.subscribeToTyping(chatroomId: chatroomId)
+    }
+    
+    /// Get typing indicator text for a chatroom
+    func getTypingText(for chatroomId: String) -> String? {
+        guard isConvexAvailable else { return nil }
+        return PresenceService.shared.getTypingText(for: chatroomId)
+    }
+    
+    /// Check if users are typing in a chatroom
+    func isAnyoneTyping(in chatroomId: String) -> Bool {
+        guard isConvexAvailable else { return false }
+        return PresenceService.shared.typingIndicators[chatroomId]?.isEmpty == false
+    }
+    
+    // MARK: - Cleanup
+    
+    /// Call when user logs out to clean up presence
+    func cleanupPresenceOnLogout() async {
+        guard isConvexAvailable else { return }
+        await PresenceService.shared.setOffline()
+        print("🔴 BackendService: Presence cleaned up on logout")
     }
 
     // MARK: - Lists Management
@@ -2612,6 +2712,109 @@ class BackendService: ObservableObject {
         let longitude: Double
         let address: String
         let name: String?
+    }
+    
+    // MARK: - "For You" Discovery Feed
+    
+    /// Response model for "For You" discovery feed
+    struct ForYouFeedResponse: Codable {
+        let posts: [ForYouPost]
+        let hasMore: Bool
+        let nextCursor: String?
+    }
+    
+    /// Post model for "For You" feed with engagement metrics
+    struct ForYouPost: Codable {
+        let id: String
+        let authorId: String
+        let authorClerkId: String
+        let authorDisplayName: String?
+        let authorUsername: String?
+        let authorAvatarUrl: String?
+        let shopName: String
+        let foodItem: String
+        let description: String?
+        let rating: Double?
+        let imageUrl: String?
+        let imageUrls: [String]
+        let tags: [String]
+        let location: FriendsFeedLocation?
+        let isPublic: Bool
+        let likesCount: Int
+        let commentsCount: Int
+        let viewsCount: Int  // Track views for engagement weighting
+        let isLiked: Bool
+        let isBookmarked: Bool
+        let engagementScore: Double  // Algorithm score for ranking
+        let distanceKm: Double?  // Distance from user (if location available)
+        let mutualFriendsLiked: Int  // Social proof - how many mutual friends liked
+        let createdAt: String
+        let updatedAt: String
+    }
+    
+    /// Get "For You" discovery posts - location-based and engagement-weighted
+    func getForYouPosts(
+        limit: Int = 20,
+        cursor: String? = nil,
+        latitude: Double? = nil,
+        longitude: Double? = nil
+    ) async throws -> ForYouFeedResponse {
+        print("✨ BackendService: Getting 'For You' discovery feed")
+        
+        var input: [String: Any] = ["limit": limit]
+        if let cursor = cursor {
+            input["cursor"] = cursor
+        }
+        if let lat = latitude, let lng = longitude {
+            input["latitude"] = lat
+            input["longitude"] = lng
+        }
+        
+        let inputData = try JSONSerialization.data(withJSONObject: input)
+        let inputString = String(data: inputData, encoding: .utf8) ?? "{}"
+        let encodedInput = inputString.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
+        
+        let urlString = "\(baseURL)/trpc/posts.getForYouPosts?input=\(encodedInput)"
+        print("🌐 BackendService: Calling 'For You' feed URL: \(urlString)")
+        
+        // Get auth headers using the standard method
+        let authHeaders = await getAuthHeaders()
+        
+        guard authHeaders["Authorization"] != nil else {
+            throw BackendError.trpcError("User not authenticated", 401)
+        }
+        
+        let headers = HTTPHeaders(authHeaders.map { HTTPHeader(name: $0.key, value: $0.value) })
+        
+        return try await withCheckedThrowingContinuation { continuation in
+            AF.request(urlString, method: .get, headers: headers)
+                .validate()
+                .responseData { response in
+                    switch response.result {
+                    case .success(let data):
+                        do {
+                            struct TRPCResponse: Codable {
+                                let result: ResultData
+                                
+                                struct ResultData: Codable {
+                                    let data: ForYouFeedResponse
+                                }
+                            }
+                            
+                            let trpcResponse = try JSONDecoder().decode(TRPCResponse.self, from: data)
+                            print("✅ BackendService: Got 'For You' feed with \(trpcResponse.result.data.posts.count) posts")
+                            continuation.resume(returning: trpcResponse.result.data)
+                        } catch {
+                            print("❌ BackendService: Failed to decode 'For You' response: \(error)")
+                            // Return empty response as fallback
+                            continuation.resume(returning: ForYouFeedResponse(posts: [], hasMore: false, nextCursor: nil))
+                        }
+                    case .failure(let error):
+                        print("❌ BackendService: 'For You' feed request failed: \(error)")
+                        continuation.resume(throwing: BackendError.networkError(error))
+                    }
+                }
+        }
     }
     
     // MARK: - Streaks

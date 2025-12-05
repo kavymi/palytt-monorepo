@@ -3,11 +3,11 @@
 <plist version="1.0">
 <dict>
     <key>method</key>
-    <string>app-store</string>
+    <string>app-store-connect</string>
     <key>destination</key>
     <string>upload</string>
     <key>teamID</key>
-    <string>$(DEVELOPMENT_TEAM)</string>
+    <string>E2L636Z97D</string>
     <key>uploadBitcode</key>
     <false/>
     <key>uploadSymbols</key>
@@ -20,9 +20,11 @@
     <true/>
     <key>signingStyle</key>
     <string>automatic</string>
-    <key>iCloudContainerEnvironment</key>
-    <string>Production</string>
     <key>manageAppVersionAndBuildNumber</key>
+    <true/>
+    <key>generateAppStoreInformation</key>
+    <true/>
+    <key>testFlightInternalTestingOnly</key>
     <false/>
 </dict>
 </plist>

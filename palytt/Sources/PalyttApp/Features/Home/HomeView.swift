@@ -19,6 +19,7 @@ import Clerk
 struct HomeView: View {
     @EnvironmentObject var appState: AppState
     @State private var showNotifications = false
+    @Namespace private var feedTabAnimation
     
     @ObservedObject private var notificationService = NotificationService.shared
     private let backendService = BackendService.shared
@@ -32,10 +33,33 @@ struct HomeView: View {
         appState.homeViewModel
     }
     
+    // MARK: - Feed Type Selector
+    @ViewBuilder
+    private var feedTypeSelector: some View {
+        HStack(spacing: 8) {
+            ForEach(FeedType.allCases, id: \.self) { feedType in
+                FeedTypeTab(
+                    feedType: feedType,
+                    isSelected: viewModel.selectedFeedType == feedType,
+                    namespace: feedTabAnimation
+                ) {
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                        viewModel.switchFeedType(to: feedType)
+                    }
+                    HapticManager.shared.impact(.light)
+                }
+            }
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 8)
+    }
+    
     @ViewBuilder
     private var feedStatusSection: some View {
-        // Friends feed doesn't need a status indicator - it's the default and only feed
-        EmptyView()
+        VStack(spacing: 12) {
+            // Feed type selector
+            feedTypeSelector
+        }
     }
     
     @ViewBuilder
@@ -61,46 +85,53 @@ struct HomeView: View {
     
     @ViewBuilder
     private var mainContentSection: some View {
-        if (viewModel.isLoading && viewModel.posts.isEmpty) || (!appState.isAuthenticated && viewModel.posts.isEmpty) {
+        let currentPosts = viewModel.currentPosts
+        let hasMorePages = viewModel.currentHasMorePages
+        
+        if (viewModel.isLoading && currentPosts.isEmpty) || (!appState.isAuthenticated && currentPosts.isEmpty) {
             // Initial loading skeleton - show while loading OR while waiting for auth
             ForEach(0..<3, id: \.self) { _ in
                 PostCardSkeleton()
                     .padding(.horizontal)
             }
-        } else if viewModel.posts.isEmpty && !viewModel.isLoading && appState.isAuthenticated {
-            // Empty state - only show when authenticated and not loading
-            EmptyFeedView()
+        } else if currentPosts.isEmpty && !viewModel.isLoading && appState.isAuthenticated {
+            // Empty state - different for each feed type
+            if viewModel.selectedFeedType == .friends {
+                EmptyFeedView()
+            } else {
+                EmptyForYouView()
+            }
         } else {
-                    // Posts grid with staggered animation
-                    ForEach(Array(viewModel.posts.enumerated()), id: \.element.id) { index, post in
-                        PostCard(
-                            post: post,
-                            onLike: { postId in
-                                Task {
-                                    await viewModel.toggleLike(for: postId)
-                                }
-                            },
-                            onBookmark: { postId in
-                                Task {
-                                    await viewModel.toggleBookmark(for: postId)
-                                }
-                            },
-                            onBookmarkNavigate: {
-                                HapticManager.shared.impact(.medium)
-                                appState.selectedTab = .profile
-                            }
-                        )
-                        .padding(.horizontal, 12)
-                        .onAppear {
-                            viewModel.checkForMorePosts(currentPost: post)
+            // Posts grid with staggered animation
+            ForEach(Array(currentPosts.enumerated()), id: \.element.id) { index, post in
+                PostCard(
+                    post: post,
+                    onLike: { postId in
+                        Task {
+                            await viewModel.toggleLike(for: postId)
                         }
-                        .transition(
-                            .asymmetric(
-                                insertion: .opacity.combined(with: .move(edge: .bottom)).combined(with: .scale(scale: 0.95)),
-                                removal: .opacity
-                            )
-                        )
+                    },
+                    onBookmark: { postId in
+                        Task {
+                            await viewModel.toggleBookmark(for: postId)
+                        }
+                    },
+                    onBookmarkNavigate: {
+                        HapticManager.shared.impact(.medium)
+                        appState.selectedTab = .profile
                     }
+                )
+                .padding(.horizontal, 12)
+                .onAppear {
+                    viewModel.checkForMorePosts(currentPost: post)
+                }
+                .transition(
+                    .asymmetric(
+                        insertion: .opacity.combined(with: .move(edge: .bottom)).combined(with: .scale(scale: 0.95)),
+                        removal: .opacity
+                    )
+                )
+            }
             
             // Loading more indicator
             if viewModel.isLoadingMore {
@@ -109,7 +140,7 @@ struct HomeView: View {
             }
             
             // End of content indicator
-            if !viewModel.hasMorePages && !viewModel.posts.isEmpty {
+            if !hasMorePages && !currentPosts.isEmpty {
                 EndOfContentView()
                     .padding(.vertical)
             }
@@ -267,6 +298,40 @@ struct HomeView: View {
     }
 }
 
+// MARK: - Feed Type Tab Component
+
+struct FeedTypeTab: View {
+    let feedType: FeedType
+    let isSelected: Bool
+    let namespace: Namespace.ID
+    let action: () -> Void
+    
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 6) {
+                Image(systemName: feedType.icon)
+                    .font(.system(size: 14, weight: .semibold))
+                Text(feedType.rawValue)
+                    .font(.system(size: 14, weight: .semibold))
+            }
+            .foregroundColor(isSelected ? .white : .secondaryText)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 10)
+            .background {
+                if isSelected {
+                    Capsule()
+                        .fill(Color.primaryBrand)
+                        .matchedGeometryEffect(id: "feedTab", in: namespace)
+                } else {
+                    Capsule()
+                        .fill(Color.appCardBackground)
+                }
+            }
+        }
+        .buttonStyle(.plain)
+    }
+}
+
 // MARK: - Supporting Views
 
 struct EmptyFeedView: View {
@@ -371,6 +436,90 @@ struct EmptyFeedView: View {
         }
         .sheet(isPresented: $showFindFriends) {
             AddFriendsView()
+        }
+    }
+}
+
+struct EmptyForYouView: View {
+    @EnvironmentObject var appState: AppState
+    @State private var iconPulse = false
+    @State private var appeared = false
+    
+    var body: some View {
+        VStack(spacing: 28) {
+            // Animated illustration
+            ZStack {
+                // Outer pulsing ring
+                Circle()
+                    .stroke(Color.purple.opacity(0.15), lineWidth: 2)
+                    .frame(width: 160, height: 160)
+                    .scaleEffect(iconPulse ? 1.1 : 1.0)
+                    .opacity(iconPulse ? 0.5 : 0.8)
+                
+                Circle()
+                    .fill(Color.purple.opacity(0.08))
+                    .frame(width: 140, height: 140)
+                
+                Circle()
+                    .fill(Color.purple.opacity(0.12))
+                    .frame(width: 110, height: 110)
+                
+                Image(systemName: "sparkles")
+                    .font(.system(size: 48, weight: .medium))
+                    .foregroundColor(.purple)
+                    .offset(y: iconPulse ? -3 : 0)
+            }
+            .onAppear {
+                withAnimation(.easeInOut(duration: 2.0).repeatForever(autoreverses: true)) {
+                    iconPulse = true
+                }
+            }
+            
+            VStack(spacing: 14) {
+                Text("Discover new flavors")
+                    .font(.system(size: 22, weight: .bold, design: .rounded))
+                    .foregroundColor(.primaryText)
+                    .multilineTextAlignment(.center)
+                
+                Text("Personalized recommendations are on the way!\nCheck back soon for posts tailored to your taste.")
+                    .font(.system(size: 15))
+                    .foregroundColor(.secondaryText)
+                    .multilineTextAlignment(.center)
+                    .lineSpacing(4)
+                    .padding(.horizontal, 40)
+            }
+            .opacity(appeared ? 1 : 0)
+            .offset(y: appeared ? 0 : 20)
+            
+            // CTA to switch to Friends feed
+            Button(action: {
+                HapticManager.shared.impact(.light)
+                appState.homeViewModel.switchFeedType(to: .friends)
+            }) {
+                HStack(spacing: 8) {
+                    Image(systemName: "person.2.fill")
+                        .font(.system(size: 15, weight: .semibold))
+                    Text("See Friends' Posts")
+                        .font(.system(size: 15, weight: .semibold))
+                }
+                .foregroundColor(.primaryBrand)
+                .padding(.horizontal, 24)
+                .padding(.vertical, 12)
+                .background(
+                    Capsule()
+                        .stroke(Color.primaryBrand, lineWidth: 2)
+                )
+            }
+            .opacity(appeared ? 1 : 0)
+            .offset(y: appeared ? 0 : 30)
+        }
+        .padding(.top, 60)
+        .padding(.bottom, 100)
+        .frame(maxWidth: .infinity)
+        .onAppear {
+            withAnimation(.spring(response: 0.7, dampingFraction: 0.8).delay(0.2)) {
+                appeared = true
+            }
         }
     }
 }

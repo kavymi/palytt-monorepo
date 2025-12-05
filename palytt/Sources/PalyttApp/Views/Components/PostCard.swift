@@ -213,6 +213,10 @@ struct PostCard: View {
             ZStack {
                 carouselBackground
                 carouselImages(geometry: geometry)
+                
+                // Location badge overlay (bottom-left, prominent)
+                locationBadgeOverlay
+                
                 carouselIndicators
                 carouselCounter
                 
@@ -226,6 +230,70 @@ struct PostCard: View {
         .aspectRatio(4/5, contentMode: .fit)
         .clipShape(RoundedRectangle(cornerRadius: 18))
         .shadow(color: .black.opacity(0.08), radius: 8, x: 0, y: 4)
+    }
+    
+    @ViewBuilder
+    private var locationBadgeOverlay: some View {
+        if let shop = post.shop {
+            VStack {
+                Spacer()
+                HStack {
+                    // Prominent location badge
+                    Button(action: {
+                        HapticManager.shared.impact(.medium)
+                        openDirections(to: shop)
+                    }) {
+                        HStack(spacing: 8) {
+                            // Location pin icon with circle background
+                            ZStack {
+                                Circle()
+                                    .fill(Color.primaryBrand)
+                                    .frame(width: 28, height: 28)
+                                
+                                Image(systemName: "mappin.circle.fill")
+                                    .font(.system(size: 16, weight: .semibold))
+                                    .foregroundColor(.white)
+                            }
+                            
+                            VStack(alignment: .leading, spacing: 1) {
+                                Text(shop.name)
+                                    .font(.system(size: 13, weight: .bold))
+                                    .foregroundColor(.white)
+                                    .lineLimit(1)
+                                
+                                if !post.location.address.isEmpty && post.location.address != "Unknown Location" {
+                                    Text(post.location.city)
+                                        .font(.system(size: 10, weight: .medium))
+                                        .foregroundColor(.white.opacity(0.85))
+                                        .lineLimit(1)
+                                }
+                            }
+                            
+                            Image(systemName: "chevron.right")
+                                .font(.system(size: 10, weight: .bold))
+                                .foregroundColor(.white.opacity(0.7))
+                        }
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
+                        .background(
+                            Capsule()
+                                .fill(.ultraThinMaterial)
+                                .background(
+                                    Capsule()
+                                        .fill(Color.black.opacity(0.5))
+                                )
+                                .clipShape(Capsule())
+                        )
+                        .shadow(color: .black.opacity(0.3), radius: 8, x: 0, y: 4)
+                    }
+                    .buttonStyle(.plain)
+                    
+                    Spacer()
+                }
+                .padding(.leading, 12)
+                .padding(.bottom, 56) // Above the indicators
+            }
+        }
     }
     
     private var carouselBackground: some View {
@@ -357,31 +425,57 @@ struct PostCard: View {
     }
     
     private var carouselCounter: some View {
-        Group {
-            if post.mediaURLs.count > 1 {
-                VStack {
-                    HStack {
-                        Spacer()
-                        HStack(spacing: 4) {
-                            Image(systemName: "photo.on.rectangle")
-                                .font(.system(size: 10, weight: .semibold))
-                            Text("\(currentImageIndex + 1)/\(min(post.mediaURLs.count, 6))")
-                                .font(.system(size: 12, weight: .semibold, design: .rounded))
-                        }
-                        .foregroundColor(.white)
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 6)
-                        .background(
-                            Capsule()
-                                .fill(.ultraThinMaterial)
-                                .shadow(color: .black.opacity(0.2), radius: 4, x: 0, y: 2)
-                        )
-                        .padding(.top, 10)
-                        .padding(.trailing, 10)
+        VStack {
+            HStack {
+                // Food item badge (top-left) - shows what the food is
+                if let title = post.title, !title.isEmpty {
+                    HStack(spacing: 6) {
+                        Image(systemName: "fork.knife")
+                            .font(.system(size: 11, weight: .semibold))
+                        Text(title)
+                            .font(.system(size: 12, weight: .bold))
+                            .lineLimit(1)
                     }
-                    Spacer()
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+                    .background(
+                        Capsule()
+                            .fill(.ultraThinMaterial)
+                            .background(
+                                Capsule()
+                                    .fill(Color.black.opacity(0.4))
+                            )
+                            .clipShape(Capsule())
+                    )
+                    .shadow(color: .black.opacity(0.2), radius: 4, x: 0, y: 2)
+                    .padding(.top, 10)
+                    .padding(.leading, 10)
+                }
+                
+                Spacer()
+                
+                // Image counter (top-right)
+                if post.mediaURLs.count > 1 {
+                    HStack(spacing: 4) {
+                        Image(systemName: "photo.on.rectangle")
+                            .font(.system(size: 10, weight: .semibold))
+                        Text("\(currentImageIndex + 1)/\(min(post.mediaURLs.count, 6))")
+                            .font(.system(size: 12, weight: .semibold, design: .rounded))
+                    }
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 6)
+                    .background(
+                        Capsule()
+                            .fill(.ultraThinMaterial)
+                            .shadow(color: .black.opacity(0.2), radius: 4, x: 0, y: 2)
+                    )
+                    .padding(.top, 10)
+                    .padding(.trailing, 10)
                 }
             }
+            Spacer()
         }
     }
     

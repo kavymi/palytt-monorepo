@@ -630,23 +630,4 @@ struct NativeContactPicker: UIViewControllerRepresentable {
     func updateUIViewController(_ uiViewController: CNContactPickerViewController, context: Context) {}
 }
 
-// MARK: - ShareSheet (if not already defined elsewhere)
-
-struct ShareSheet: UIViewControllerRepresentable {
-    let activityItems: [Any]
-    
-    func makeUIViewController(context: Context) -> UIActivityViewController {
-        let controller = UIActivityViewController(activityItems: activityItems, applicationActivities: nil)
-        
-        // Exclude certain activity types if needed
-        controller.excludedActivityTypes = [
-            .assignToContact,
-            .addToReadingList,
-            .openInIBooks
-        ]
-        
-        return controller
-    }
-    
-    func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
-} 
+// Note: ShareSheet is defined in SavedView.swift - using that shared definition 

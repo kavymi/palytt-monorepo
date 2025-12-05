@@ -2,6 +2,25 @@ default_platform(:ios)
 
 platform :ios do
   
+  # Helper to get API key
+  def get_api_key
+    # Get the key path and resolve it relative to the fastlane directory
+    key_path = ENV["APP_STORE_CONNECT_API_KEY_KEY"]
+    # If path is relative, resolve it from the parent directory (project root)
+    if key_path.start_with?("./")
+      key_path = File.expand_path(key_path, File.dirname(__FILE__) + "/..")
+    end
+    key_content = File.read(key_path)
+    
+    app_store_connect_api_key(
+      key_id: ENV["APP_STORE_CONNECT_API_KEY_KEY_ID"],
+      issuer_id: ENV["APP_STORE_CONNECT_API_KEY_ISSUER_ID"],
+      key_content: key_content,
+      duration: 1200,
+      in_house: false
+    )
+  end
+  
   # Test Lanes
   desc "Run all unit tests"
   lane :test_unit do
@@ -89,31 +108,59 @@ platform :ios do
   lane :internal_testing do |options|
     UI.header("🚀 Building for Internal Testing")
     
-    # Ensure clean build
-    clean
+    # Configure API key for App Store Connect
+    api_key = get_api_key
+    
+    # Note: Skipping clear_derived_data to avoid SPM race conditions
+    # The build_app action with clean: true will do a clean build anyway
     
     # Increment build number automatically
     increment_build_number(
-      build_number: latest_testflight_build_number + 1
+      build_number: latest_testflight_build_number(api_key: api_key) + 1
     )
     
     # Get changelog from options or use default
     changelog = options[:changelog] || "Internal testing build - #{Time.now.strftime('%Y-%m-%d %H:%M')}"
     
-    # Build for release
+    # Build for release with automatic signing
+    # Get the absolute path to the API key file
+    key_path = ENV["APP_STORE_CONNECT_API_KEY_KEY"]
+    if key_path.start_with?("./")
+      key_path = File.expand_path(key_path, File.dirname(__FILE__) + "/..")
+    end
+    
+    # Get or create App Store distribution profile
+    get_provisioning_profile(
+      api_key: api_key,
+      app_identifier: "com.palytt.app",
+      platform: "ios"
+    )
+    
+    auth_args = "-allowProvisioningUpdates -authenticationKeyPath '#{key_path}' -authenticationKeyID '#{ENV["APP_STORE_CONNECT_API_KEY_KEY_ID"]}' -authenticationKeyIssuerID '#{ENV["APP_STORE_CONNECT_API_KEY_ISSUER_ID"]}'"
+    
     build_app(
+      project: "Palytt.xcodeproj",
       scheme: "Palytt",
       export_method: "app-store",
-      export_options: "ExportOptions.plist",
       clean: true,
       output_directory: "./build",
       output_name: "Palytt.ipa",
       include_bitcode: false,
-      include_symbols: true
+      include_symbols: true,
+      xcargs: auth_args,
+      export_options: {
+        method: "app-store",
+        signingStyle: "automatic",
+        uploadBitcode: false,
+        uploadSymbols: true,
+        teamID: ENV["TEAM_ID"],
+        destination: "export"
+      }
     )
     
     # Upload to TestFlight for internal testing only
     upload_to_testflight(
+      api_key: api_key,
       skip_waiting_for_build_processing: true,
       distribute_external: false, # Internal testing only
       notify_external_testers: false,

@@ -247,3 +247,5 @@ The token expiry fix has resolved the previous 500 errors, and the app is now wo
 - [HomeViewModel Code](../palytt/Sources/PalyttApp/Features/Home/HomeViewModel.swift)
 
 
+
+

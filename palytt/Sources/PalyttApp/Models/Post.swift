@@ -455,6 +455,119 @@ extension Post {
     }
 }
 
+// MARK: - "For You" Feed Conversion
+
+extension Post {
+    /// Convert a ForYouPost (from discovery feed) to Post model
+    static func from(forYouPost: BackendService.ForYouPost) -> Post {
+        // Parse dates from ISO8601 strings
+        let dateFormatter = ISO8601DateFormatter()
+        let createdAt = dateFormatter.date(from: forYouPost.createdAt) ?? Date()
+        let updatedAt = dateFormatter.date(from: forYouPost.updatedAt) ?? Date()
+        
+        // Convert image URLs
+        var mediaURLs: [URL] = []
+        for urlString in forYouPost.imageUrls {
+            if let url = URL(string: urlString) {
+                mediaURLs.append(url)
+            }
+        }
+        
+        // Add legacy imageUrl if not already included
+        if let imageUrl = forYouPost.imageUrl,
+           !forYouPost.imageUrls.contains(imageUrl),
+           let url = URL(string: imageUrl) {
+            mediaURLs.insert(url, at: 0)
+        }
+        
+        // Create location from backend location
+        let location: Location
+        if let backendLocation = forYouPost.location {
+            location = Location(
+                latitude: backendLocation.latitude,
+                longitude: backendLocation.longitude,
+                address: backendLocation.address,
+                city: extractCity(from: backendLocation.address),
+                country: "Unknown"
+            )
+        } else {
+            location = Location(
+                latitude: 0,
+                longitude: 0,
+                address: "Unknown Location",
+                city: "Unknown",
+                country: "Unknown"
+            )
+        }
+        
+        // Create shop if we have shop information
+        let shop: Shop?
+        if !forYouPost.shopName.isEmpty {
+            let defaultHours = BusinessHours(
+                monday: BusinessHours.DayHours(open: "00:00", close: "23:59", isClosed: false),
+                tuesday: BusinessHours.DayHours(open: "00:00", close: "23:59", isClosed: false),
+                wednesday: BusinessHours.DayHours(open: "00:00", close: "23:59", isClosed: false),
+                thursday: BusinessHours.DayHours(open: "00:00", close: "23:59", isClosed: false),
+                friday: BusinessHours.DayHours(open: "00:00", close: "23:59", isClosed: false),
+                saturday: BusinessHours.DayHours(open: "00:00", close: "23:59", isClosed: false),
+                sunday: BusinessHours.DayHours(open: "00:00", close: "23:59", isClosed: false)
+            )
+            
+            shop = Shop(
+                id: UUID(),
+                name: forYouPost.shopName,
+                description: nil,
+                location: location,
+                phoneNumber: nil,
+                website: nil,
+                hours: defaultHours,
+                cuisineTypes: [],
+                drinkTypes: [],
+                priceRange: .moderate,
+                rating: forYouPost.rating ?? 0.0,
+                reviewsCount: 0,
+                photosCount: 0,
+                menu: nil,
+                ownerId: nil,
+                isVerified: false,
+                featuredImageURL: nil
+            )
+        } else {
+            shop = nil
+        }
+        
+        // Create author from "For You" feed data
+        let postAuthor = User(
+            id: UUID(uuidString: forYouPost.authorId) ?? UUID(),
+            email: "unknown@example.com",
+            username: forYouPost.authorUsername ?? "user_\(forYouPost.authorId.prefix(8))",
+            displayName: forYouPost.authorDisplayName ?? forYouPost.authorUsername ?? "Unknown User",
+            avatarURL: forYouPost.authorAvatarUrl != nil ? URL(string: forYouPost.authorAvatarUrl!) : nil,
+            clerkId: forYouPost.authorClerkId
+        )
+        
+        return Post(
+            id: UUID(uuidString: forYouPost.id) ?? UUID(),
+            convexId: forYouPost.id,
+            userId: UUID(uuidString: forYouPost.authorId) ?? UUID(),
+            author: postAuthor,
+            title: forYouPost.foodItem,
+            caption: forYouPost.description ?? "",
+            mediaURLs: mediaURLs,
+            shop: shop,
+            location: location,
+            menuItems: forYouPost.tags,
+            rating: forYouPost.rating,
+            createdAt: createdAt,
+            updatedAt: updatedAt,
+            likesCount: forYouPost.likesCount,
+            commentsCount: forYouPost.commentsCount,
+            isLiked: forYouPost.isLiked,
+            isSaved: forYouPost.isBookmarked
+        )
+    }
+}
+
 // MARK: - Gathering Link Types
 
 enum GatheringLinkType: String, Codable, CaseIterable {

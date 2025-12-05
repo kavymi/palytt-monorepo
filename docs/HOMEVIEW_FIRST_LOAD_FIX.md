@@ -298,3 +298,5 @@ private var mainContentSection: some View {
 - [Authentication Status](../palytt/docs/architecture/AUTHENTICATION_STATUS.md)
 
 
+
+

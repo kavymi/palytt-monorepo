@@ -113,9 +113,31 @@ async function validateClerkToken(token: string): Promise<AuthenticatedUser | nu
       return null;
     }
     
+    // Get the publishable key to derive the issuer URL
+    // The publishable key contains the Clerk instance URL (base64 encoded after the prefix)
+    const publishableKey = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY || process.env.CLERK_PUBLISHABLE_KEY;
+    
+    // Derive issuer from publishable key if available
+    let issuer: string | undefined;
+    if (publishableKey) {
+      try {
+        // Extract the base64 part after pk_test_ or pk_live_
+        const base64Part = publishableKey.replace(/^pk_(test|live)_/, '');
+        const decoded = Buffer.from(base64Part, 'base64').toString('utf-8').replace(/\0/g, '');
+        // The decoded value is the Clerk frontend API domain (e.g., "natural-walleye-48.clerk.accounts.dev")
+        if (decoded && decoded.includes('clerk')) {
+          issuer = `https://${decoded}`;
+          console.log('🔗 Using Clerk issuer:', issuer);
+        }
+      } catch (e) {
+        console.warn('Could not derive issuer from publishable key');
+      }
+    }
+    
     // Verify the session token using Clerk's backend SDK
     const payload = await verifyToken(token, {
       secretKey,
+      ...(issuer && { issuer }),
     });
     
     // The 'sub' claim contains the Clerk user ID

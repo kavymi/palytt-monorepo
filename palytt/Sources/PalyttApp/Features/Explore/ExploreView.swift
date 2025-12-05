@@ -247,7 +247,18 @@ struct ExploreView: View {
             if selectedTab == 0 {
                 UnifiedMapView()
             } else {
-                ListView(viewModel: viewModel)
+                ScrollView {
+                    VStack(spacing: 0) {
+                        // Trending Section - Social proof and FOMO triggers
+                        TrendingCarouselView()
+                        
+                        Divider()
+                            .padding(.horizontal)
+                        
+                        // Main list content
+                        ListView(viewModel: viewModel)
+                    }
+                }
             }
         }
     }

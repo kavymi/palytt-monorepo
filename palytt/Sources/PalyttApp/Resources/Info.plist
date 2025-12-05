@@ -17,7 +17,7 @@
 	<key>CFBundleShortVersionString</key>
 	<string>$(MARKETING_VERSION)</string>
 	<key>CFBundleVersion</key>
-	<string>$(CURRENT_PROJECT_VERSION)</string>
+	<string>76</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>UIApplicationSceneManifest</key>
@@ -43,7 +43,7 @@
 	<dict/>
 	<key>UIRequiredDeviceCapabilities</key>
 	<array>
-		<string>armv7</string>
+		<string>arm64</string>
 	</array>
 	<key>UISupportedInterfaceOrientations</key>
 	<array>
@@ -130,7 +130,15 @@
 	
 	<!-- APP CATEGORIES -->
 	<key>LSApplicationCategoryType</key>
-	<string>public.app-category.food-and-drink</string>
+	<string>public.app-category.social-networking</string>
+	
+	<!-- APP STORE CONNECT - Support URL (Required) -->
+	<key>ITSAppSupportURL</key>
+	<string>https://palytt.com/support</string>
+	
+	<!-- MINIMUM OS VERSION -->
+	<key>MinimumOSVersion</key>
+	<string>17.0</string>
 	
 </dict>
 </plist>

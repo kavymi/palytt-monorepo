@@ -23,7 +23,6 @@ import UserNotifications
 enum AppTab: Hashable {
     case home
     case explore
-    case create
     case friends
     case profile
 }
