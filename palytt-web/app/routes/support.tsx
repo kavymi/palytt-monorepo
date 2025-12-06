@@ -234,8 +234,8 @@ function SupportPage() {
                         <FormField
                           label="Name"
                           error={
-                            field.state.meta.isTouched
-                              ? field.state.meta.errors[0]
+                            field.state.meta.isTouched && field.state.meta.errors[0]
+                              ? String(field.state.meta.errors[0])
                               : undefined
                           }
                         >
@@ -264,8 +264,8 @@ function SupportPage() {
                         <FormField
                           label="Email"
                           error={
-                            field.state.meta.isTouched
-                              ? field.state.meta.errors[0]
+                            field.state.meta.isTouched && field.state.meta.errors[0]
+                              ? String(field.state.meta.errors[0])
                               : undefined
                           }
                         >
@@ -294,8 +294,8 @@ function SupportPage() {
                         <FormField
                           label="Subject"
                           error={
-                            field.state.meta.isTouched
-                              ? field.state.meta.errors[0]
+                            field.state.meta.isTouched && field.state.meta.errors[0]
+                              ? String(field.state.meta.errors[0])
                               : undefined
                           }
                         >
@@ -324,8 +324,8 @@ function SupportPage() {
                         <FormField
                           label="Message"
                           error={
-                            field.state.meta.isTouched
-                              ? field.state.meta.errors[0]
+                            field.state.meta.isTouched && field.state.meta.errors[0]
+                              ? String(field.state.meta.errors[0])
                               : undefined
                           }
                         >

@@ -38,7 +38,7 @@ export function Navbar() {
             >
               Support
             </Link>
-            <Link to="/#early-access">
+            <a href="/#early-access">
               <motion.button
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
@@ -46,7 +46,7 @@ export function Navbar() {
               >
                 Get Early Access
               </motion.button>
-            </Link>
+            </a>
           </div>
 
           {/* Mobile Menu Button */}
@@ -101,9 +101,9 @@ export function Navbar() {
               Support
             </Link>
             <div className="px-4 pt-2">
-              <Link to="/#early-access" onClick={() => setIsOpen(false)}>
+              <a href="/#early-access" onClick={() => setIsOpen(false)}>
                 <button className="btn-primary w-full">Get Early Access</button>
-              </Link>
+              </a>
             </div>
           </div>
         </motion.div>

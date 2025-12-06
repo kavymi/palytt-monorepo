@@ -1,6 +1,5 @@
 /// <reference types="vite/client" />
 import {
-  Outlet,
   HeadContent,
   Scripts,
   createRootRoute,
