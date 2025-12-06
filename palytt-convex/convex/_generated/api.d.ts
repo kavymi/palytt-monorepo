@@ -13,6 +13,8 @@ import type * as gatherings from "../gatherings.js";
 import type * as notifications from "../notifications.js";
 import type * as presence from "../presence.js";
 import type * as readReceipts from "../readReceipts.js";
+import type * as referralLeaderboard from "../referralLeaderboard.js";
+import type * as sharedPosts from "../sharedPosts.js";
 import type * as typing from "../typing.js";
 
 import type {
@@ -27,6 +29,8 @@ declare const fullApi: ApiFromModules<{
   notifications: typeof notifications;
   presence: typeof presence;
   readReceipts: typeof readReceipts;
+  referralLeaderboard: typeof referralLeaderboard;
+  sharedPosts: typeof sharedPosts;
   typing: typeof typing;
 }>;
 

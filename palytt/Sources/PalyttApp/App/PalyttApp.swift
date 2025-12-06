@@ -19,11 +19,20 @@ import UIKit
 #endif
 
 // MARK: - Shared Types
-enum AppTab: Hashable {
+enum AppTab: Hashable, CaseIterable {
     case home
     case explore
     case friends
     case profile
+    
+    var icon: String {
+        switch self {
+        case .home: return "house.fill"
+        case .explore: return "magnifyingglass"
+        case .friends: return "person.2.fill"
+        case .profile: return "person.fill"
+        }
+    }
 }
 
 @main

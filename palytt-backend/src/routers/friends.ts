@@ -2,6 +2,12 @@ import { z } from 'zod';
 import { router, publicProcedure, protectedProcedure } from '../trpc.js';
 import { prisma, ensureUser } from '../db.js';
 import { createFriendRequestNotification, createFriendRequestAcceptedNotification } from '../services/notificationService.js';
+import {
+  cacheGetOrSet,
+  cacheDeletePattern,
+  CacheKeys,
+  CacheTTL,
+} from '../cache/cache.service.js';
 
 // Helper function to get user UUID from clerkId
 async function getUserIdFromClerkId(clerkId: string): Promise<string> {
@@ -94,6 +100,12 @@ export const friendsRouter = router({
       // Create notification for friend request (using clerkIds for notification service)
       await createFriendRequestNotification(receiverClerkId, senderClerkId, friendRequest.id);
 
+      // Invalidate friends cache for both users
+      await Promise.all([
+        cacheDeletePattern(`${CacheKeys.FRIENDS}${senderUUID}*`),
+        cacheDeletePattern(`${CacheKeys.FRIENDS}${receiverUUID}*`),
+      ]);
+
       return friendRequest;
     }),
 
@@ -176,6 +188,12 @@ export const friendsRouter = router({
 
       // Create notification for friend request acceptance (using clerkIds)
       await createFriendRequestAcceptedNotification(friendRequest.sender.clerkId, userClerkId);
+
+      // Invalidate friends cache for both users
+      await Promise.all([
+        cacheDeletePattern(`${CacheKeys.FRIENDS}${friendRequest.senderId}*`),
+        cacheDeletePattern(`${CacheKeys.FRIENDS}${userUUID}*`),
+      ]);
 
       return updatedFriend;
     }),

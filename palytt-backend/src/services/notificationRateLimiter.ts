@@ -3,11 +3,14 @@
 //  Palytt Backend
 //
 //  Rate limiting and smart timing for notifications
+//  Uses Redis for distributed rate limiting across instances
 //
 //  Copyright © 2025 Palytt Inc. All rights reserved.
 //
 
 import { prisma } from '../db.js';
+import { redis, isRedisAvailable } from '../cache/redis.js';
+import { cacheGet, cacheSet, CacheTTL } from '../cache/cache.service.js';
 
 // Maximum notifications per user per day
 const MAX_NOTIFICATIONS_PER_DAY = 15;
@@ -15,11 +18,16 @@ const MAX_NOTIFICATIONS_PER_DAY = 15;
 // Maximum push notifications per user per hour
 const MAX_PUSH_PER_HOUR = 5;
 
-// Rate limit window durations in milliseconds
-const DAY_MS = 24 * 60 * 60 * 1000;
-const HOUR_MS = 60 * 60 * 1000;
+// Rate limit window durations in seconds
+const DAY_SECONDS = 24 * 60 * 60;
+const HOUR_SECONDS = 60 * 60;
 
-// In-memory rate limit tracking (per user)
+// Redis key prefixes
+const RATE_LIMIT_PREFIX = 'ratelimit:notification:';
+const PUSH_RATE_LIMIT_PREFIX = 'ratelimit:push:';
+const ACTIVITY_PATTERN_PREFIX = 'activity:pattern:';
+
+// In-memory fallback for when Redis is unavailable
 interface UserRateLimits {
   dailyCount: number;
   hourlyPushCount: number;
@@ -27,35 +35,87 @@ interface UserRateLimits {
   hourlyResetAt: number;
 }
 
-const userRateLimits = new Map<string, UserRateLimits>();
+const memoryRateLimits = new Map<string, UserRateLimits>();
 
 /**
- * Get or create rate limit tracking for a user
+ * Get daily notification count for a user from Redis
  */
-function getUserRateLimits(userId: string): UserRateLimits {
+async function getDailyNotificationCount(userId: string): Promise<number> {
+  if (!isRedisAvailable()) {
+    return getMemoryDailyCount(userId);
+  }
+
+  try {
+    const key = `${RATE_LIMIT_PREFIX}daily:${userId}`;
+    const count = await redis.get(key);
+    return count ? parseInt(count, 10) : 0;
+  } catch (error) {
+    console.error('❌ Redis error getting daily count:', error);
+    return getMemoryDailyCount(userId);
+  }
+}
+
+/**
+ * Get hourly push notification count for a user from Redis
+ */
+async function getHourlyPushCount(userId: string): Promise<number> {
+  if (!isRedisAvailable()) {
+    return getMemoryHourlyPushCount(userId);
+  }
+
+  try {
+    const key = `${PUSH_RATE_LIMIT_PREFIX}hourly:${userId}`;
+    const count = await redis.get(key);
+    return count ? parseInt(count, 10) : 0;
+  } catch (error) {
+    console.error('❌ Redis error getting hourly push count:', error);
+    return getMemoryHourlyPushCount(userId);
+  }
+}
+
+/**
+ * Memory fallback: Get daily count
+ */
+function getMemoryDailyCount(userId: string): number {
+  const limits = getOrCreateMemoryLimits(userId);
+  return limits.dailyCount;
+}
+
+/**
+ * Memory fallback: Get hourly push count
+ */
+function getMemoryHourlyPushCount(userId: string): number {
+  const limits = getOrCreateMemoryLimits(userId);
+  return limits.hourlyPushCount;
+}
+
+/**
+ * Memory fallback: Get or create limits
+ */
+function getOrCreateMemoryLimits(userId: string): UserRateLimits {
   const now = Date.now();
-  let limits = userRateLimits.get(userId);
+  let limits = memoryRateLimits.get(userId);
 
   if (!limits) {
     limits = {
       dailyCount: 0,
       hourlyPushCount: 0,
-      dailyResetAt: now + DAY_MS,
-      hourlyResetAt: now + HOUR_MS,
+      dailyResetAt: now + DAY_SECONDS * 1000,
+      hourlyResetAt: now + HOUR_SECONDS * 1000,
     };
-    userRateLimits.set(userId, limits);
+    memoryRateLimits.set(userId, limits);
   }
 
   // Reset daily counter if window expired
   if (now >= limits.dailyResetAt) {
     limits.dailyCount = 0;
-    limits.dailyResetAt = now + DAY_MS;
+    limits.dailyResetAt = now + DAY_SECONDS * 1000;
   }
 
   // Reset hourly counter if window expired
   if (now >= limits.hourlyResetAt) {
     limits.hourlyPushCount = 0;
-    limits.hourlyResetAt = now + HOUR_MS;
+    limits.hourlyResetAt = now + HOUR_SECONDS * 1000;
   }
 
   return limits;
@@ -64,54 +124,92 @@ function getUserRateLimits(userId: string): UserRateLimits {
 /**
  * Check if a notification can be sent to a user (daily limit)
  */
-export function canSendNotification(userId: string): boolean {
-  const limits = getUserRateLimits(userId);
-  return limits.dailyCount < MAX_NOTIFICATIONS_PER_DAY;
+export async function canSendNotification(userId: string): Promise<boolean> {
+  const count = await getDailyNotificationCount(userId);
+  return count < MAX_NOTIFICATIONS_PER_DAY;
 }
 
 /**
  * Check if a push notification can be sent to a user (hourly limit)
  */
-export function canSendPushNotification(userId: string): boolean {
-  const limits = getUserRateLimits(userId);
-  return limits.hourlyPushCount < MAX_PUSH_PER_HOUR;
+export async function canSendPushNotification(userId: string): Promise<boolean> {
+  const count = await getHourlyPushCount(userId);
+  return count < MAX_PUSH_PER_HOUR;
 }
 
 /**
  * Record that a notification was sent
  */
-export function recordNotificationSent(userId: string): void {
-  const limits = getUserRateLimits(userId);
-  limits.dailyCount++;
+export async function recordNotificationSent(userId: string): Promise<void> {
+  if (!isRedisAvailable()) {
+    const limits = getOrCreateMemoryLimits(userId);
+    limits.dailyCount++;
+    return;
+  }
+
+  try {
+    const key = `${RATE_LIMIT_PREFIX}daily:${userId}`;
+    const pipeline = redis.pipeline();
+    pipeline.incr(key);
+    // Set TTL only if key is new (to preserve existing expiry)
+    pipeline.expire(key, DAY_SECONDS, 'NX');
+    await pipeline.exec();
+  } catch (error) {
+    console.error('❌ Redis error recording notification:', error);
+    // Fallback to memory
+    const limits = getOrCreateMemoryLimits(userId);
+    limits.dailyCount++;
+  }
 }
 
 /**
  * Record that a push notification was sent
  */
-export function recordPushNotificationSent(userId: string): void {
-  const limits = getUserRateLimits(userId);
-  limits.hourlyPushCount++;
+export async function recordPushNotificationSent(userId: string): Promise<void> {
+  if (!isRedisAvailable()) {
+    const limits = getOrCreateMemoryLimits(userId);
+    limits.hourlyPushCount++;
+    return;
+  }
+
+  try {
+    const key = `${PUSH_RATE_LIMIT_PREFIX}hourly:${userId}`;
+    const pipeline = redis.pipeline();
+    pipeline.incr(key);
+    // Set TTL only if key is new (to preserve existing expiry)
+    pipeline.expire(key, HOUR_SECONDS, 'NX');
+    await pipeline.exec();
+  } catch (error) {
+    console.error('❌ Redis error recording push notification:', error);
+    // Fallback to memory
+    const limits = getOrCreateMemoryLimits(userId);
+    limits.hourlyPushCount++;
+  }
 }
 
 /**
  * Get current rate limit status for a user
  */
-export function getRateLimitStatus(userId: string): {
+export async function getRateLimitStatus(userId: string): Promise<{
   dailyCount: number;
   dailyLimit: number;
   hourlyPushCount: number;
   hourlyPushLimit: number;
   canSendNotification: boolean;
   canSendPush: boolean;
-} {
-  const limits = getUserRateLimits(userId);
+}> {
+  const [dailyCount, hourlyPushCount] = await Promise.all([
+    getDailyNotificationCount(userId),
+    getHourlyPushCount(userId),
+  ]);
+
   return {
-    dailyCount: limits.dailyCount,
+    dailyCount,
     dailyLimit: MAX_NOTIFICATIONS_PER_DAY,
-    hourlyPushCount: limits.hourlyPushCount,
+    hourlyPushCount,
     hourlyPushLimit: MAX_PUSH_PER_HOUR,
-    canSendNotification: limits.dailyCount < MAX_NOTIFICATIONS_PER_DAY,
-    canSendPush: limits.hourlyPushCount < MAX_PUSH_PER_HOUR,
+    canSendNotification: dailyCount < MAX_NOTIFICATIONS_PER_DAY,
+    canSendPush: hourlyPushCount < MAX_PUSH_PER_HOUR,
   };
 }
 
@@ -126,15 +224,15 @@ interface UserActivityPattern {
   timezone: string | null;
 }
 
-// In-memory cache for user activity patterns
-const userActivityPatterns = new Map<string, UserActivityPattern>();
-
 /**
  * Get user's optimal notification hours based on their activity
+ * Uses Redis caching for performance
  */
 export async function getOptimalNotificationHours(clerkId: string): Promise<number[]> {
-  // Check cache first
-  const cached = userActivityPatterns.get(clerkId);
+  const cacheKey = `${ACTIVITY_PATTERN_PREFIX}${clerkId}`;
+  
+  // Check Redis cache first
+  const cached = await cacheGet<UserActivityPattern>(cacheKey);
   if (cached) {
     return cached.peakHours;
   }
@@ -181,13 +279,14 @@ export async function getOptimalNotificationHours(clerkId: string): Promise<numb
       return [9, 12, 18, 20];
     }
 
-    // Cache the result
-    userActivityPatterns.set(clerkId, {
+    // Cache the result in Redis (1 hour TTL)
+    const pattern: UserActivityPattern = {
       userId: clerkId,
       hourlyActivity,
       peakHours,
       timezone: null,
-    });
+    };
+    await cacheSet(cacheKey, pattern, CacheTTL.LONG);
 
     return peakHours;
   } catch (error) {
@@ -295,19 +394,19 @@ export function getNotificationPriority(
 }
 
 /**
- * Clean up stale rate limit entries (for memory management)
+ * Clean up stale rate limit entries from memory (for memory management)
+ * Redis handles its own cleanup via TTL
  */
 export function cleanupRateLimits(): void {
   const now = Date.now();
-  const staleThreshold = DAY_MS * 2; // Remove entries older than 2 days
+  const staleThreshold = DAY_SECONDS * 2 * 1000; // Remove entries older than 2 days
 
-  for (const [userId, limits] of userRateLimits.entries()) {
+  for (const [userId, limits] of memoryRateLimits.entries()) {
     if (now - limits.dailyResetAt > staleThreshold) {
-      userRateLimits.delete(userId);
+      memoryRateLimits.delete(userId);
     }
   }
 }
 
-// Run cleanup periodically
-setInterval(cleanupRateLimits, HOUR_MS);
-
+// Run cleanup periodically (only for memory fallback)
+setInterval(cleanupRateLimits, HOUR_SECONDS * 1000);

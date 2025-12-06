@@ -2,6 +2,16 @@ import { router, protectedProcedure, publicProcedure } from '../trpc.js';
 import { z } from 'zod';
 import { prisma, ensureUser } from '../db.js';
 import { createPostLikeNotification } from '../services/notificationService.js';
+import {
+  cacheGet,
+  cacheSet,
+  cacheGetOrSet,
+  CacheKeys,
+  CacheTTL,
+  invalidatePostCache,
+  invalidateFeedCaches,
+  broadcastPostInvalidation,
+} from '../cache/cache.service.js';
 
 // Helper function to get user UUID from clerkId
 async function getUserIdFromClerkId(clerkId: string): Promise<string> {
@@ -202,6 +212,9 @@ export const postsRouter = router({
         updatedAt: post.updatedAt.toISOString(),
       };
       
+      // Invalidate feed caches since a new post was created
+      await invalidateFeedCaches();
+      
       return {
         success: true,
         post: transformedPost,
@@ -308,6 +321,15 @@ export const postsRouter = router({
   getById: publicProcedure
     .input(z.object({ id: z.string().uuid() }))
     .query(async ({ input, ctx }) => {
+      // Try to get from cache first (for public data)
+      const cacheKey = `${CacheKeys.POST}${input.id}`;
+      const cachedPost = await cacheGet<any>(cacheKey);
+      
+      // If cached and user is not logged in, return cached version
+      if (cachedPost && !ctx.user) {
+        return cachedPost;
+      }
+      
       const post = await prisma.post.findUnique({
         where: {
           id: input.id,
@@ -345,7 +367,7 @@ export const postsRouter = router({
       }
       
       // Transform to match frontend schema
-      return {
+      const result = {
         id: post.id,
         authorId: post.userId,
         authorClerkId: post.author.clerkId,
@@ -371,6 +393,13 @@ export const postsRouter = router({
         createdAt: post.createdAt.toISOString(),
         updatedAt: post.updatedAt.toISOString(),
       };
+      
+      // Cache the post for future requests (only public posts)
+      if (post.isPublic) {
+        await cacheSet(cacheKey, result, CacheTTL.POST);
+      }
+      
+      return result;
     }),
 
   /**
@@ -454,6 +483,9 @@ export const postsRouter = router({
         // Create notification for post like
         await createPostLikeNotification(input.postId, dbUser.clerkId);
       }
+      
+      // Invalidate post cache since like count changed
+      await invalidatePostCache(input.postId);
       
       return {
         success: true,

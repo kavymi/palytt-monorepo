@@ -1,9 +1,12 @@
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import websocket from '@fastify/websocket';
+import rateLimit from '@fastify/rate-limit';
 import { fastifyTRPCPlugin } from '@trpc/server/adapters/fastify';
 import { createContext } from './trpc.js';
 import { appRouter } from './routers/app.js';
+import { initializeRedis, closeRedis, checkRedisHealth, redis, isRedisAvailable } from './cache/redis.js';
+import { getCacheStats, subscribeToCacheInvalidation } from './cache/cache.service.js';
 
 const isProduction = process.env.NODE_ENV === 'production';
 const isDevelopment = !isProduction && process.env.NODE_ENV !== 'test';
@@ -53,6 +56,31 @@ await server.register(cors, {
   credentials: true,
 });
 
+// Register rate limiting with Redis backend
+await server.register(rateLimit, {
+  global: true,
+  max: isProduction ? 100 : 1000, // requests per window
+  timeWindow: '1 minute',
+  cache: 10000,
+  allowList: ['127.0.0.1', '::1'], // Whitelist localhost
+  redis: isRedisAvailable() ? redis : undefined,
+  keyGenerator: (req) => {
+    // Use user ID if authenticated, otherwise IP
+    const userId = req.headers['x-clerk-user-id'];
+    return userId ? `user:${userId}` : req.ip;
+  },
+  errorResponseBuilder: (_req, context) => {
+    return {
+      code: 'RATE_LIMIT_EXCEEDED',
+      message: `Rate limit exceeded. Try again in ${context.after}`,
+      retryAfter: context.after,
+    };
+  },
+  onExceeded: (req) => {
+    console.warn(`⚠️ Rate limit exceeded for ${req.ip}`);
+  },
+});
+
 // Register WebSocket support for subscriptions
 await server.register(websocket);
 
@@ -71,10 +99,15 @@ await server.register(fastifyTRPCPlugin, {
 
 // Health check endpoint
 server.get('/health', async () => {
+  const redisHealth = await checkRedisHealth();
+  const cacheStats = await getCacheStats();
+  
   return { 
-    status: 'ok', 
+    status: redisHealth.status === 'healthy' ? 'ok' : 'degraded',
     timestamp: new Date().toISOString(),
     uptime: process.uptime(),
+    redis: redisHealth,
+    cache: cacheStats,
   };
 });
 
@@ -93,6 +126,12 @@ server.get('/', async () => {
 // Start server
 const start = async () => {
   try {
+    // Initialize Redis connection
+    await initializeRedis();
+    
+    // Subscribe to cache invalidation events (for multi-instance deployments)
+    await subscribeToCacheInvalidation();
+    
     const port = process.env.PORT ? parseInt(process.env.PORT, 10) : 4000;
     const host = process.env.HOST || '0.0.0.0';
     
@@ -103,6 +142,7 @@ const start = async () => {
 ⚡ tRPC endpoint: http://localhost:${port}/trpc
 🌐 tRPC panel: http://localhost:${port}/trpc/panel
 💓 Health check: http://localhost:${port}/health
+🔴 Redis: ${isRedisAvailable() ? 'connected' : 'not available (using memory fallback)'}
     `);
   } catch (err) {
     server.log.error(err);
@@ -113,12 +153,14 @@ const start = async () => {
 // Handle graceful shutdown
 process.on('SIGTERM', async () => {
   console.log('SIGTERM received, shutting down gracefully...');
+  await closeRedis();
   await server.close();
   process.exit(0);
 });
 
 process.on('SIGINT', async () => {
   console.log('SIGINT received, shutting down gracefully...');
+  await closeRedis();
   await server.close();
   process.exit(0);
 });

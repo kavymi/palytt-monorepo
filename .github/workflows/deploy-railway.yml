@@ -14,6 +14,7 @@ on:
         options:
           - backend
           - web
+          - convex
           - all
 
 env:
@@ -26,6 +27,7 @@ jobs:
     outputs:
       backend: ${{ steps.filter.outputs.backend }}
       web: ${{ steps.filter.outputs.web }}
+      convex: ${{ steps.filter.outputs.convex }}
     steps:
       - uses: actions/checkout@v4
       
@@ -37,6 +39,8 @@ jobs:
               - 'palytt-backend/**'
             web:
               - 'palytt-web/**'
+            convex:
+              - 'palytt-convex/**'
 
   deploy-backend:
     name: Deploy Backend
@@ -93,3 +97,35 @@ jobs:
           railway link --project palytt --service palytt-web --environment production
           railway up --detach
           echo "✅ Web deployment initiated!"
+
+  deploy-convex:
+    name: Deploy Convex Functions
+    needs: changes
+    runs-on: ubuntu-latest
+    if: |
+      (needs.changes.outputs.convex == 'true') ||
+      (github.event_name == 'workflow_dispatch' && (github.event.inputs.service == 'convex' || github.event.inputs.service == 'all'))
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        working-directory: palytt-convex
+        run: npm ci
+
+      - name: Deploy Convex Functions
+        working-directory: palytt-convex
+        env:
+          CONVEX_SELF_HOSTED_URL: https://convex-backend-production-9e36.up.railway.app
+          CONVEX_SELF_HOSTED_ADMIN_KEY: ${{ secrets.CONVEX_ADMIN_KEY }}
+        run: |
+          echo "🔄 Deploying Convex functions..."
+          npx convex dev --once
+          echo "✅ Convex functions deployed!"
+

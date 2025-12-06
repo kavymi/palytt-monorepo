@@ -1,6 +1,15 @@
 import { z } from 'zod';
 import { router, publicProcedure, protectedProcedure } from '../trpc.js';
 import { prisma } from '../db.js';
+import {
+  cacheGet,
+  cacheSet,
+  cacheGetOrSet,
+  CacheKeys,
+  CacheTTL,
+  invalidateUserCache,
+  invalidateUserCacheByClerkId,
+} from '../cache/cache.service.js';
 
 // User model schemas
 const UserSchema = z.object({
@@ -83,19 +92,27 @@ export const usersRouter = router({
   getById: publicProcedure
     .input(z.object({ id: z.string().uuid() }))
     .query(async ({ input }) => {
-      const user = await prisma.user.findUnique({
-        where: { id: input.id },
-      });
+      const cacheKey = `${CacheKeys.USER_PROFILE}${input.id}`;
       
-      if (!user) {
-        throw new Error('User not found');
-      }
-      
-      return {
-        ...user,
-        createdAt: user.createdAt.toISOString(),
-        updatedAt: user.updatedAt.toISOString(),
-      };
+      return cacheGetOrSet(
+        cacheKey,
+        async () => {
+          const user = await prisma.user.findUnique({
+            where: { id: input.id },
+          });
+          
+          if (!user) {
+            throw new Error('User not found');
+          }
+          
+          return {
+            ...user,
+            createdAt: user.createdAt.toISOString(),
+            updatedAt: user.updatedAt.toISOString(),
+          };
+        },
+        CacheTTL.USER_PROFILE
+      );
     }),
 
   /**
@@ -104,19 +121,34 @@ export const usersRouter = router({
   getByClerkId: publicProcedure
     .input(z.object({ clerkId: z.string().min(1) }))
     .query(async ({ input }) => {
-      const user = await prisma.user.findUnique({
-        where: { clerkId: input.clerkId },
-      });
+      const cacheKey = `${CacheKeys.USER_BY_CLERK}${input.clerkId}`;
       
-      if (!user) {
-        throw new Error('User not found');
-      }
-      
-      return {
-        ...user,
-        createdAt: user.createdAt.toISOString(),
-        updatedAt: user.updatedAt.toISOString(),
-      };
+      return cacheGetOrSet(
+        cacheKey,
+        async () => {
+          const user = await prisma.user.findUnique({
+            where: { clerkId: input.clerkId },
+          });
+          
+          if (!user) {
+            throw new Error('User not found');
+          }
+          
+          // Also cache the user ID mapping for future invalidation
+          await cacheSet(`${CacheKeys.USER_PROFILE}${user.id}`, {
+            ...user,
+            createdAt: user.createdAt.toISOString(),
+            updatedAt: user.updatedAt.toISOString(),
+          }, CacheTTL.USER_PROFILE);
+          
+          return {
+            ...user,
+            createdAt: user.createdAt.toISOString(),
+            updatedAt: user.updatedAt.toISOString(),
+          };
+        },
+        CacheTTL.USER_PROFILE
+      );
     }),
 
   /**
@@ -132,6 +164,9 @@ export const usersRouter = router({
         where: { id: input.id },
         data: input.data,
       });
+      
+      // Invalidate user cache
+      await invalidateUserCache(input.id);
       
       return {
         success: true,
@@ -174,6 +209,9 @@ export const usersRouter = router({
           profileImage: profileImage ?? undefined,
         },
       });
+      
+      // Invalidate user cache by Clerk ID
+      await invalidateUserCacheByClerkId(input.clerkId);
       
       return {
         success: true,
