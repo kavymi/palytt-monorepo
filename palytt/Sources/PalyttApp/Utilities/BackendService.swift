@@ -805,6 +805,30 @@ class BackendService: ObservableObject {
         return try await performTRPCRequest(procedure: "users.upsertByGoogleId", input: request, method: .post)
     }
     
+    // MARK: - Account Deletion
+    
+    struct DeleteAccountResponse: Codable {
+        let success: Bool
+        let message: String
+    }
+    
+    /// Delete the current user's account and all associated data
+    /// This is a destructive operation that cannot be undone
+    func deleteAccount() async throws -> DeleteAccountResponse {
+        print("🗑️ BackendService: Initiating account deletion")
+        
+        // Empty struct for mutation with no input
+        struct EmptyInput: Codable {}
+        
+        let response: DeleteAccountResponse = try await performTRPCMutation(
+            procedure: "users.deleteAccount",
+            input: EmptyInput()
+        )
+        
+        print("✅ BackendService: Account deleted successfully")
+        return response
+    }
+    
     // MARK: - Comments Management
     
     struct AddCommentRequest: Codable {
@@ -1300,6 +1324,7 @@ class BackendService: ObservableObject {
     }
     
     struct ConvexCommentResponse: Codable {
+        let success: Bool?
         let comment: ConvexComment
     }
     

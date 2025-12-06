@@ -1316,6 +1316,9 @@ struct SettingsView: View {
     @State private var showBlockedUsers = false
     @State private var showHelpCenter = false
     @State private var showContactUs = false
+    @State private var showDeleteAccountSheet = false
+    @State private var isDeleting = false
+    @State private var deleteError: String?
     
     var body: some View {
         NavigationStack {
@@ -1464,6 +1467,39 @@ struct SettingsView: View {
                                 .background(Color.appCardBackground)
                             }
                             .buttonStyle(PlainButtonStyle())
+                            
+                            Button(action: {
+                                HapticManager.shared.impact(.heavy)
+                                showDeleteAccountSheet = true
+                            }) {
+                                HStack(spacing: 12) {
+                                    Circle()
+                                        .fill(Color.error.opacity(0.15))
+                                        .frame(width: 40, height: 40)
+                                        .overlay(
+                                            Image(systemName: "trash.fill")
+                                                .font(.system(size: 16, weight: .semibold))
+                                                .foregroundColor(.error)
+                                        )
+                                    
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text("Delete Account")
+                                            .font(.subheadline)
+                                            .fontWeight(.semibold)
+                                            .foregroundColor(.error)
+                                        
+                                        Text("Permanently delete your account")
+                                            .font(.caption)
+                                            .foregroundColor(.appSecondaryText)
+                                    }
+                                    
+                                    Spacer()
+                                }
+                                .padding(.vertical, 8)
+                                .padding(.horizontal, 20)
+                                .background(Color.appCardBackground)
+                            }
+                            .buttonStyle(PlainButtonStyle())
                         }
                     }
                     
@@ -1533,6 +1569,232 @@ struct SettingsView: View {
             }
         } message: {
             Text("Are you sure you want to log out of your account?")
+        }
+        .sheet(isPresented: $showDeleteAccountSheet) {
+            DeleteAccountConfirmationView(
+                isDeleting: $isDeleting,
+                deleteError: $deleteError,
+                onDelete: {
+                    Task {
+                        await deleteAccount()
+                    }
+                },
+                onCancel: {
+                    showDeleteAccountSheet = false
+                }
+            )
+            .environmentObject(appState)
+        }
+        .alert("Error", isPresented: .init(
+            get: { deleteError != nil },
+            set: { if !$0 { deleteError = nil } }
+        )) {
+            Button("OK", role: .cancel) { }
+        } message: {
+            Text(deleteError ?? "An error occurred")
+        }
+    }
+    
+    private func deleteAccount() async {
+        isDeleting = true
+        deleteError = nil
+        
+        do {
+            // Delete account from backend
+            _ = try await BackendService.shared.deleteAccount()
+            
+            // Sign out from Clerk
+            try? await clerk.signOut()
+            
+            await MainActor.run {
+                isDeleting = false
+                showDeleteAccountSheet = false
+                appState.isAuthenticated = false
+                appState.currentUser = nil
+                dismiss()
+            }
+        } catch {
+            await MainActor.run {
+                isDeleting = false
+                deleteError = error.localizedDescription
+            }
+        }
+    }
+}
+
+// MARK: - Delete Account Confirmation View
+struct DeleteAccountConfirmationView: View {
+    @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject var appState: AppState
+    
+    @Binding var isDeleting: Bool
+    @Binding var deleteError: String?
+    let onDelete: () -> Void
+    let onCancel: () -> Void
+    
+    @State private var confirmationText = ""
+    @FocusState private var isTextFieldFocused: Bool
+    
+    private let confirmationPhrase = "DELETE"
+    
+    private var canDelete: Bool {
+        confirmationText.uppercased() == confirmationPhrase && !isDeleting
+    }
+    
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(spacing: 24) {
+                    // Warning Icon
+                    VStack(spacing: 16) {
+                        Circle()
+                            .fill(Color.error.opacity(0.15))
+                            .frame(width: 80, height: 80)
+                            .overlay(
+                                Image(systemName: "exclamationmark.triangle.fill")
+                                    .font(.system(size: 36))
+                                    .foregroundColor(.error)
+                            )
+                        
+                        Text("Delete Account")
+                            .font(.title2)
+                            .fontWeight(.bold)
+                            .foregroundColor(.appPrimaryText)
+                        
+                        Text("This action cannot be undone")
+                            .font(.subheadline)
+                            .foregroundColor(.error)
+                            .fontWeight(.medium)
+                    }
+                    .padding(.top, 20)
+                    
+                    // Warning Message
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("What will be deleted:")
+                            .font(.subheadline)
+                            .fontWeight(.semibold)
+                            .foregroundColor(.appPrimaryText)
+                        
+                        VStack(alignment: .leading, spacing: 8) {
+                            DeleteWarningRow(text: "All your posts and content")
+                            DeleteWarningRow(text: "Your profile information")
+                            DeleteWarningRow(text: "All comments and reactions")
+                            DeleteWarningRow(text: "Your friends and followers")
+                            DeleteWarningRow(text: "All messages and conversations")
+                            DeleteWarningRow(text: "Bookmarks and saved items")
+                        }
+                    }
+                    .padding(16)
+                    .background(Color.error.opacity(0.08))
+                    .cornerRadius(12)
+                    .padding(.horizontal, 20)
+                    
+                    // Confirmation Input
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("To confirm, type \"\(confirmationPhrase)\" below:")
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+                            .foregroundColor(.appPrimaryText)
+                        
+                        TextField("Type \(confirmationPhrase) to confirm", text: $confirmationText)
+                            .textFieldStyle(.plain)
+                            .padding(16)
+                            .background(Color.appCardBackground)
+                            .cornerRadius(12)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .stroke(
+                                        confirmationText.isEmpty ? Color.appSecondaryText.opacity(0.3) :
+                                            (canDelete ? Color.error : Color.appSecondaryText.opacity(0.5)),
+                                        lineWidth: 1.5
+                                    )
+                            )
+                            .autocorrectionDisabled()
+                            .textInputAutocapitalization(.characters)
+                            .focused($isTextFieldFocused)
+                    }
+                    .padding(.horizontal, 20)
+                    
+                    // Delete Button
+                    Button(action: {
+                        HapticManager.shared.impact(.warning)
+                        onDelete()
+                    }) {
+                        HStack(spacing: 8) {
+                            if isDeleting {
+                                ProgressView()
+                                    .tint(.white)
+                                    .scaleEffect(0.9)
+                            } else {
+                                Image(systemName: "trash.fill")
+                            }
+                            Text(isDeleting ? "Deleting..." : "Delete My Account")
+                                .fontWeight(.semibold)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 16)
+                        .background(canDelete ? Color.error : Color.error.opacity(0.4))
+                        .foregroundColor(.white)
+                        .cornerRadius(12)
+                    }
+                    .disabled(!canDelete)
+                    .padding(.horizontal, 20)
+                    
+                    // Cancel Button
+                    Button(action: {
+                        HapticManager.shared.impact(.light)
+                        onCancel()
+                    }) {
+                        Text("Cancel")
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+                            .foregroundColor(.primaryBrand)
+                    }
+                    .disabled(isDeleting)
+                    
+                    Spacer(minLength: 40)
+                }
+            }
+            .background(Color.appBackground)
+            .scrollContentBackground(.hidden)
+            #if os(iOS)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbarBackground(Color.appBackground, for: .navigationBar)
+            .toolbarBackground(.visible, for: .navigationBar)
+            #endif
+            .toolbar {
+                #if os(iOS)
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button(action: {
+                        HapticManager.shared.impact(.light)
+                        onCancel()
+                    }) {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundColor(.appSecondaryText)
+                    }
+                    .disabled(isDeleting)
+                }
+                #endif
+            }
+            .interactiveDismissDisabled(isDeleting)
+        }
+    }
+}
+
+// MARK: - Delete Warning Row
+struct DeleteWarningRow: View {
+    let text: String
+    
+    var body: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "xmark.circle.fill")
+                .font(.system(size: 14))
+                .foregroundColor(.error.opacity(0.8))
+            
+            Text(text)
+                .font(.subheadline)
+                .foregroundColor(.appPrimaryText.opacity(0.9))
         }
     }
 }

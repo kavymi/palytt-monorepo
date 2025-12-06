@@ -55,6 +55,7 @@ export const commentsRouter = router({
     .query(async ({ input }: { input: { postId: string; limit: number; cursor?: string } }) => {
       const { postId, limit, cursor } = input;
       
+      // Get all comments for the post (both top-level and replies)
       const comments = await prisma.comment.findMany({
         where: {
           postId,
@@ -83,10 +84,36 @@ export const commentsRouter = router({
         nextCursor = nextItem!.id;
       }
 
-      return {
-        comments,
-        nextCursor,
-      };
+      // Transform comments to iOS expected format
+      const transformedComments = comments.map((comment: any) => ({
+        id: comment.id,
+        _id: comment.id,
+        postId: comment.postId,
+        authorId: comment.authorId,
+        authorClerkId: comment.author.clerkId,
+        content: comment.content,
+        parentCommentId: comment.parentId || null,
+        likes: 0, // TODO: implement comment likes count
+        isActive: true,
+        createdAt: comment.createdAt.getTime(),
+        updatedAt: comment.updatedAt.getTime(),
+        author: {
+          _id: comment.author.id,
+          id: comment.author.id,
+          clerkId: comment.author.clerkId,
+          username: comment.author.username,
+          displayName: comment.author.name,
+          name: comment.author.name,
+          firstName: comment.author.name?.split(' ')[0] || null,
+          lastName: comment.author.name?.split(' ').slice(1).join(' ') || null,
+          avatarUrl: comment.author.profileImage,
+          profileImage: comment.author.profileImage,
+        },
+        replies: [], // Replies will be handled separately by iOS app
+      }));
+
+      // Return as array directly for iOS compatibility
+      return transformedComments;
     }),
 
   // Add a new comment to a post
@@ -94,9 +121,10 @@ export const commentsRouter = router({
     .input(z.object({
       postId: z.string(),
       content: z.string().min(1).max(500),
+      parentCommentId: z.string().optional(),
     }))
-    .mutation(async ({ input, ctx }: { input: { postId: string; content: string }; ctx: Context & { user: NonNullable<Context['user']> } }) => {
-      const { postId, content } = input;
+    .mutation(async ({ input, ctx }: { input: { postId: string; content: string; parentCommentId?: string }; ctx: Context & { user: NonNullable<Context['user']> } }) => {
+      const { postId, content, parentCommentId } = input;
       const userClerkId = ctx.user.clerkId;
 
       // Get current user's UUID
@@ -118,6 +146,7 @@ export const commentsRouter = router({
           postId,
           authorId: userUUID,
           content,
+          parentId: parentCommentId || null,
         },
         include: {
           author: {
@@ -145,7 +174,29 @@ export const commentsRouter = router({
       // Create notification for post comment (using clerkId for notification service)
       await createPostCommentNotification(postId, userClerkId, content);
 
-      return comment;
+      // Return in the format expected by iOS app (ConvexCommentResponse)
+      return {
+        success: true,
+        comment: {
+          _id: comment.id,
+          postId: comment.postId,
+          userId: comment.authorId,
+          authorClerkId: comment.author.clerkId,
+          content: comment.content,
+          parentCommentId: parentCommentId || null,
+          likes: 0,
+          isActive: true,
+          createdAt: comment.createdAt.getTime(),
+          updatedAt: comment.updatedAt.getTime(),
+          author: {
+            _id: comment.author.id,
+            clerkId: comment.author.clerkId,
+            username: comment.author.username,
+            displayName: comment.author.name,
+            avatarUrl: comment.author.profileImage,
+          },
+        },
+      };
     }),
 
   // Delete a comment (only by the author)

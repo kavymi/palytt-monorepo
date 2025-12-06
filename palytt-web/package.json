@@ -7,6 +7,7 @@
   "scripts": {
     "dev": "vite dev",
     "build": "vite build && tsc --noEmit",
+    "build:vercel": "node scripts/vercel-build.mjs",
     "preview": "vite preview",
     "start": "node .output/server/index.mjs",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",

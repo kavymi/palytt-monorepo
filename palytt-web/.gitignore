@@ -4,6 +4,7 @@ node_modules/
 # Build
 .output/
 .vinxi/
+.vercel/output/
 dist/
 app.config.timestamp*.js
 vite.config.timestamp*.js

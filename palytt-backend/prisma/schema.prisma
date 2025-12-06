@@ -128,6 +128,7 @@ model Comment {
   postId        String
   authorId      String
   content       String
+  parentId      String?   // For nested replies
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
   
@@ -135,9 +136,12 @@ model Comment {
   post          Post      @relation(fields: [postId], references: [id], onDelete: Cascade)
   author        User      @relation(fields: [authorId], references: [id], onDelete: Cascade)
   reactions     CommentReaction[]
+  parent        Comment?  @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies       Comment[] @relation("CommentReplies")
 
   @@index([postId])
   @@index([authorId])
+  @@index([parentId])
   @@map("comments")
 }
 

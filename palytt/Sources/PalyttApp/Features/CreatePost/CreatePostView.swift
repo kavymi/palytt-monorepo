@@ -9,6 +9,7 @@
 //
 import SwiftUI
 import PhotosUI
+import MapKit
 #if os(iOS)
 import UIKit
 import AVFoundation
@@ -421,18 +422,6 @@ struct DetailsStepView: View {
                         }
                     }
                     
-                    if viewModel.selectedFoodCategory != nil {
-                        HStack {
-                            Image(systemName: "checkmark.circle.fill")
-                                .foregroundColor(.green)
-                                .font(.caption)
-                            
-                            Text("Category selected: \(viewModel.selectedFoodCategory?.displayName ?? "")")
-                                .font(.caption)
-                                .foregroundColor(.secondaryText)
-                        }
-                        .padding(.top, 4)
-                    }
                 }
                 
                 // Caption with Mentions
@@ -452,36 +441,131 @@ struct DetailsStepView: View {
                     #endif
                 }
                 
-                // Location
-                Button(action: { viewModel.showLocationPicker = true }) {
+                // Location Section with Free-Form Text and Autocomplete
+                VStack(alignment: .leading, spacing: 12) {
                     HStack {
-                        Image(systemName: "location.fill")
-                            .font(.title3)
-                            .foregroundColor(.primaryBrand)
-                            .frame(width: 40, height: 40)
-                            .background(Color.matchaGreen.opacity(0.2))
-                            .cornerRadius(12)
+                        Text("Location")
+                            .font(.headline)
+                            .foregroundColor(.primaryText)
                         
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("Location")
-                                .font(.caption)
-                                .foregroundColor(.secondaryText)
-                            Text(viewModel.selectedLocation?.displayName ?? "Add location")
-                                .font(.subheadline)
-                                .foregroundColor(.primaryText)
-                                .lineLimit(1)
-                        }
-                        
-                        Spacer()
-                        
-                        Image(systemName: "chevron.right")
+                        Text("(optional)")
+                            .font(.caption)
                             .foregroundColor(.tertiaryText)
                     }
-                    .padding()
-                    .background(Color.gray.opacity(0.1))
-                    .cornerRadius(16)
+                    
+                    // Free-form text input with autocomplete
+                    VStack(spacing: 0) {
+                        HStack {
+                            Image(systemName: "location.fill")
+                                .font(.body)
+                                .foregroundColor(.primaryBrand)
+                            
+                            TextField("Type a location or restaurant name...", text: $viewModel.freeFormLocationText)
+                                .textFieldStyle(.plain)
+                                .onChange(of: viewModel.freeFormLocationText) { _, newValue in
+                                    // Clear selected location when user starts typing something different
+                                    if viewModel.selectedLocation != nil && 
+                                       newValue != viewModel.selectedLocation?.displayName {
+                                        viewModel.selectedLocation = nil
+                                    }
+                                    // Trigger autocomplete search
+                                    viewModel.searchLocations(newValue)
+                                }
+                            
+                            if !viewModel.freeFormLocationText.isEmpty {
+                                Button(action: {
+                                    viewModel.clearLocation()
+                                    HapticManager.shared.impact(.light)
+                                }) {
+                                    Image(systemName: "xmark.circle.fill")
+                                        .foregroundColor(.secondaryText)
+                                }
+                            }
+                            
+                            // Search indicator
+                            if viewModel.isSearchingLocations {
+                                ProgressView()
+                                    .scaleEffect(0.8)
+                            }
+                        }
+                        .padding()
+                        .background(Color.gray.opacity(0.1))
+                        .cornerRadius(viewModel.locationSuggestions.isEmpty ? 16 : 0)
+                        .cornerRadius(16, corners: viewModel.locationSuggestions.isEmpty ? [.allCorners] : [.topLeft, .topRight])
+                        
+                        // Autocomplete suggestions dropdown
+                        if !viewModel.locationSuggestions.isEmpty {
+                            VStack(spacing: 0) {
+                                ForEach(viewModel.locationSuggestions.prefix(5), id: \.self) { mapItem in
+                                    Button(action: {
+                                        viewModel.selectLocationSuggestion(mapItem)
+                                    }) {
+                                        HStack(spacing: 12) {
+                                            Image(systemName: iconForMapItem(mapItem))
+                                                .font(.body)
+                                                .foregroundColor(.primaryBrand)
+                                                .frame(width: 24)
+                                            
+                                            VStack(alignment: .leading, spacing: 2) {
+                                                Text(mapItem.name ?? "Unknown")
+                                                    .font(.subheadline)
+                                                    .fontWeight(.medium)
+                                                    .foregroundColor(.primaryText)
+                                                    .lineLimit(1)
+                                                
+                                                if let address = formatPlacemarkAddress(mapItem.placemark) {
+                                                    Text(address)
+                                                        .font(.caption)
+                                                        .foregroundColor(.secondaryText)
+                                                        .lineLimit(1)
+                                                }
+                                            }
+                                            
+                                            Spacer()
+                                            
+                                            Image(systemName: "arrow.up.left")
+                                                .font(.caption)
+                                                .foregroundColor(.tertiaryText)
+                                        }
+                                        .padding(.horizontal)
+                                        .padding(.vertical, 10)
+                                    }
+                                    .buttonStyle(.plain)
+                                    
+                                    if mapItem != viewModel.locationSuggestions.prefix(5).last {
+                                        Divider()
+                                            .padding(.leading, 48)
+                                    }
+                                }
+                            }
+                            .background(Color.gray.opacity(0.08))
+                            .cornerRadius(16, corners: [.bottomLeft, .bottomRight])
+                        }
+                    }
+                    
+                    // Browse more locations button
+                    Button(action: { viewModel.showLocationPicker = true }) {
+                        HStack {
+                            Image(systemName: "map")
+                                .font(.caption)
+                            Text("Browse nearby places")
+                                .font(.caption)
+                        }
+                        .foregroundColor(.primaryBrand)
+                    }
+                    
+                    // Show selected location confirmation
+                    if viewModel.selectedLocation != nil {
+                        HStack(spacing: 6) {
+                            Image(systemName: "checkmark.circle.fill")
+                                .font(.caption)
+                                .foregroundColor(.green)
+                            Text("Location verified")
+                                .font(.caption)
+                                .foregroundColor(.secondaryText)
+                        }
+                    }
                 }
-                .buttonStyle(.plain)
                 
                 Spacer(minLength: 100)
             }
@@ -489,6 +573,12 @@ struct DetailsStepView: View {
         }
         .sheet(isPresented: $viewModel.showLocationPicker) {
             LocationPickerView(selectedLocation: $viewModel.selectedLocation)
+                .onDisappear {
+                    // Update free-form text when location is selected from picker
+                    if let location = viewModel.selectedLocation {
+                        viewModel.freeFormLocationText = location.displayName
+                    }
+                }
         }
         #if os(iOS)
         .onTapGesture {
@@ -496,7 +586,47 @@ struct DetailsStepView: View {
         }
         #endif
     }
+    
+    // Helper function to get icon for map item
+    private func iconForMapItem(_ mapItem: MKMapItem) -> String {
+        if #available(iOS 14.0, *) {
+            if let category = mapItem.pointOfInterestCategory {
+                switch category {
+                case .restaurant, .cafe, .bakery:
+                    return "fork.knife.circle.fill"
+                case .brewery, .winery:
+                    return "wineglass.fill"
+                case .store, .foodMarket:
+                    return "storefront.fill"
+                case .museum, .library:
+                    return "building.columns.fill"
+                case .theater, .movieTheater:
+                    return "theatermasks.fill"
+                case .park, .amusementPark:
+                    return "tree.fill"
+                case .hotel:
+                    return "bed.double.fill"
+                default:
+                    return "mappin.circle.fill"
+                }
+            }
+        }
+        return "mappin.circle.fill"
+    }
+    
+    // Helper function to format placemark address
+    private func formatPlacemarkAddress(_ placemark: MKPlacemark) -> String? {
+        let components = [
+            placemark.thoroughfare,
+            placemark.locality,
+            placemark.administrativeArea
+        ].compactMap { $0 }
+        
+        return components.isEmpty ? nil : components.joined(separator: ", ")
+    }
 }
+
+// Note: RoundedCorner and cornerRadius extension are defined in MentionTextEditor.swift
 
 // MARK: - Review Step View
 struct ReviewStepView: View {
@@ -554,14 +684,21 @@ struct ReviewStepView: View {
                             .font(.body)
                             .foregroundColor(.primaryText)
                         
-                        // Location
-                        if let location = viewModel.selectedLocation {
+                        // Location - show either selected location or free-form text
+                        if viewModel.hasLocationInfo {
                             HStack {
-                                Image(systemName: "location.fill")
+                                Image(systemName: viewModel.selectedLocation != nil ? "location.fill" : "text.cursor")
                                     .foregroundColor(.secondaryText)
-                                Text(location.displayName)
+                                Text(viewModel.locationDisplayText)
                                     .font(.caption)
                                     .foregroundColor(.secondaryText)
+                                
+                                // Show verified badge if location is selected (not just free-form)
+                                if viewModel.selectedLocation != nil {
+                                    Image(systemName: "checkmark.seal.fill")
+                                        .font(.caption2)
+                                        .foregroundColor(.green)
+                                }
                             }
                         }
                         
@@ -1168,6 +1305,9 @@ class CreatePostViewModel: ObservableObject {
     @Published var caption = ""
     @Published var productName = ""
     @Published var selectedLocation: Location?
+    @Published var freeFormLocationText = ""  // Free-form location text input
+    @Published var locationSuggestions: [MKMapItem] = []  // Autocomplete suggestions
+    @Published var isSearchingLocations = false
     @Published var menuItems: [String] = []
     @Published var rating: Double?
     @Published var selectedFoodCategory: FoodCategory?
@@ -1180,9 +1320,74 @@ class CreatePostViewModel: ObservableObject {
     
     private let backendService = BackendService.shared
     private let bunnyNetService = BunnyNetService.shared
+    private let locationManager = LocationManager.shared
+    private var searchTask: Task<Void, Never>?
     
+    // Location is now optional - user can post with free-form text or no location
     var canPost: Bool {
-        !selectedImages.isEmpty && !caption.isEmpty && selectedLocation != nil && rating != nil && selectedFoodCategory != nil
+        !selectedImages.isEmpty && !caption.isEmpty && rating != nil && selectedFoodCategory != nil
+    }
+    
+    // Check if user has any location info (either selected or free-form text)
+    var hasLocationInfo: Bool {
+        selectedLocation != nil || !freeFormLocationText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+    
+    // Get the location string to use for the post
+    var locationDisplayText: String {
+        if let location = selectedLocation {
+            return location.displayName
+        } else if !freeFormLocationText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            return freeFormLocationText
+        }
+        return "Add location (optional)"
+    }
+    
+    // MARK: - Location Search with Debounce
+    
+    func searchLocations(_ query: String) {
+        // Cancel previous search task
+        searchTask?.cancel()
+        
+        guard !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            locationSuggestions = []
+            isSearchingLocations = false
+            return
+        }
+        
+        // Debounce: wait 300ms before searching
+        searchTask = Task {
+            try? await Task.sleep(nanoseconds: 300_000_000)
+            
+            guard !Task.isCancelled else { return }
+            
+            await MainActor.run {
+                isSearchingLocations = true
+            }
+            
+            await locationManager.searchRestaurantsAndPlaces(query)
+            
+            guard !Task.isCancelled else { return }
+            
+            await MainActor.run {
+                locationSuggestions = locationManager.searchResults
+                isSearchingLocations = false
+            }
+        }
+    }
+    
+    func selectLocationSuggestion(_ mapItem: MKMapItem) {
+        let location = locationManager.convertToLocation(from: mapItem)
+        selectedLocation = location
+        freeFormLocationText = location.displayName
+        locationSuggestions = []
+        HapticManager.shared.impact(.light)
+    }
+    
+    func clearLocation() {
+        selectedLocation = nil
+        freeFormLocationText = ""
+        locationSuggestions = []
     }
     
     func removeImage(_ image: UIImage) {
@@ -1205,11 +1410,7 @@ class CreatePostViewModel: ObservableObject {
         errorMessage = nil
         
         do {
-            // Validate inputs
-            guard let location = selectedLocation else {
-                throw NSError(domain: "CreatePost", code: 1, userInfo: [NSLocalizedDescriptionKey: "Please select a location"])
-            }
-            
+            // Validate inputs - location is now optional
             guard let rating = rating else {
                 throw NSError(domain: "CreatePost", code: 2, userInfo: [NSLocalizedDescriptionKey: "Please provide a rating"])
             }
@@ -1230,6 +1431,9 @@ class CreatePostViewModel: ObservableObject {
                 throw NSError(domain: "CreatePost", code: 4, userInfo: [NSLocalizedDescriptionKey: "User not authenticated"])
             }
             
+            // Determine location to use - either selected location or create from free-form text
+            let locationToUse: Location? = selectedLocation ?? createLocationFromFreeFormText()
+            
             // Create post using the correct function parameters
             let postId = try await backendService.createPostViaConvex(
                 userId: clerkId,
@@ -1237,7 +1441,7 @@ class CreatePostViewModel: ObservableObject {
                 content: caption,
                 imageUrl: uniqueImageUrls.first,
                 imageUrls: uniqueImageUrls,
-                location: location,
+                location: locationToUse,
                 tags: menuItems,
                 isPublic: true,
                 metadata: BackendService.ConvexPostMetadata(
@@ -1340,10 +1544,30 @@ class CreatePostViewModel: ObservableObject {
         caption = ""
         productName = ""
         selectedLocation = nil
+        freeFormLocationText = ""
+        locationSuggestions = []
         menuItems = []
         rating = nil
         selectedFoodCategory = nil
         mentions = []
+    }
+    
+    /// Creates a Location object from free-form text when no location is selected
+    private func createLocationFromFreeFormText() -> Location? {
+        let trimmedText = freeFormLocationText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedText.isEmpty else { return nil }
+        
+        // Create a basic location with the free-form text as the address
+        // Use default coordinates (0, 0) to indicate no specific location
+        return Location(
+            name: trimmedText,
+            latitude: 0,
+            longitude: 0,
+            address: trimmedText,
+            city: "",
+            state: nil,
+            country: ""
+        )
     }
 }
 

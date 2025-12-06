@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { router, publicProcedure } from '../trpc.js';
+import { router, publicProcedure, protectedProcedure } from '../trpc.js';
 import { prisma } from '../db.js';
 
 // User model schemas
@@ -441,6 +441,120 @@ export const usersRouter = router({
     }),
 
   /**
+   * Search users by query string
+   * Used by iOS app for @mentions autocomplete
+   */
+  search: publicProcedure
+    .input(z.object({
+      query: z.string().min(1),
+      limit: z.number().int().positive().max(20).default(10),
+    }))
+    .query(async ({ input }) => {
+      const { query, limit } = input;
+      
+      const users = await prisma.user.findMany({
+        where: {
+          OR: [
+            { name: { contains: query, mode: 'insensitive' as const } },
+            { username: { contains: query, mode: 'insensitive' as const } },
+          ],
+        },
+        take: limit,
+        orderBy: { followerCount: 'desc' },
+        select: {
+          id: true,
+          clerkId: true,
+          username: true,
+          name: true,
+          profileImage: true,
+          bio: true,
+          followerCount: true,
+          followingCount: true,
+          postsCount: true,
+          isVerified: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+      });
+      
+      // Return array of users directly for iOS compatibility
+      return users.map((user: any) => ({
+        _id: user.id,
+        id: user.id,
+        clerkId: user.clerkId,
+        username: user.username,
+        displayName: user.name,
+        name: user.name,
+        firstName: user.name?.split(' ')[0] || null,
+        lastName: user.name?.split(' ').slice(1).join(' ') || null,
+        avatarUrl: user.profileImage,
+        profileImage: user.profileImage,
+        bio: user.bio,
+        followerCount: user.followerCount,
+        followingCount: user.followingCount,
+        postsCount: user.postsCount,
+        isVerified: user.isVerified || false,
+        createdAt: user.createdAt.toISOString(),
+        updatedAt: user.updatedAt.toISOString(),
+      }));
+    }),
+
+  /**
+   * Get suggested users for discovery
+   */
+  getSuggested: publicProcedure
+    .input(z.object({
+      limit: z.number().int().positive().max(50).default(10),
+      excludeUserId: z.string().optional(),
+    }))
+    .query(async ({ input }) => {
+      const { limit, excludeUserId } = input;
+      
+      const users = await prisma.user.findMany({
+        where: excludeUserId ? {
+          clerkId: { not: excludeUserId },
+        } : undefined,
+        take: limit,
+        orderBy: { followerCount: 'desc' },
+        select: {
+          id: true,
+          clerkId: true,
+          username: true,
+          name: true,
+          profileImage: true,
+          bio: true,
+          followerCount: true,
+          followingCount: true,
+          postsCount: true,
+          isVerified: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+      });
+      
+      // Return array of users directly for iOS compatibility
+      return users.map((user: any) => ({
+        _id: user.id,
+        id: user.id,
+        clerkId: user.clerkId,
+        username: user.username,
+        displayName: user.name,
+        name: user.name,
+        firstName: user.name?.split(' ')[0] || null,
+        lastName: user.name?.split(' ').slice(1).join(' ') || null,
+        avatarUrl: user.profileImage,
+        profileImage: user.profileImage,
+        bio: user.bio,
+        followerCount: user.followerCount,
+        followingCount: user.followingCount,
+        postsCount: user.postsCount,
+        isVerified: user.isVerified || false,
+        createdAt: user.createdAt.toISOString(),
+        updatedAt: user.updatedAt.toISOString(),
+      }));
+    }),
+
+  /**
    * Alias for upsert - iOS app calls this endpoint name
    */
   upsertByClerkId: publicProcedure
@@ -485,6 +599,129 @@ export const usersRouter = router({
           updatedAt: user.updatedAt.toISOString(),
         },
         created: isNew,
+      };
+    }),
+
+  /**
+   * Delete user account and all associated data
+   * This is a protected endpoint that requires authentication
+   * The user can only delete their own account
+   */
+  deleteAccount: protectedProcedure
+    .mutation(async ({ ctx }) => {
+      const { user } = ctx;
+      const clerkId = user.clerkId;
+      
+      console.log(`🗑️ Starting account deletion for user: ${clerkId}`);
+      
+      // Find the user in the database
+      const dbUser = await prisma.user.findUnique({
+        where: { clerkId },
+        select: { id: true, email: true, username: true },
+      });
+      
+      if (!dbUser) {
+        throw new Error('User not found');
+      }
+      
+      const userId = dbUser.id;
+      
+      // Delete all user-related data in the correct order (respecting foreign key constraints)
+      // Using a transaction to ensure atomicity
+      await prisma.$transaction(async (tx) => {
+        // 1. Delete notifications (both sent and received)
+        await tx.notification.deleteMany({
+          where: { OR: [{ userId }, { actorId: userId }] },
+        });
+        
+        // 2. Delete messages sent by user
+        await tx.message.deleteMany({
+          where: { senderId: userId },
+        });
+        
+        // 3. Delete chatroom memberships
+        await tx.chatroomMember.deleteMany({
+          where: { userId },
+        });
+        
+        // 4. Delete comment reactions
+        await tx.commentReaction.deleteMany({
+          where: { userId },
+        });
+        
+        // 5. Delete comments
+        await tx.comment.deleteMany({
+          where: { authorId: userId },
+        });
+        
+        // 6. Delete likes
+        await tx.like.deleteMany({
+          where: { userId },
+        });
+        
+        // 7. Delete bookmarks
+        await tx.bookmark.deleteMany({
+          where: { userId },
+        });
+        
+        // 8. Delete list posts and lists
+        await tx.listPost.deleteMany({
+          where: { list: { userId } },
+        });
+        await tx.list.deleteMany({
+          where: { userId },
+        });
+        
+        // 9. Delete follows (both as follower and following)
+        await tx.follow.deleteMany({
+          where: { OR: [{ followerId: userId }, { followingId: userId }] },
+        });
+        
+        // 10. Delete friend requests (both sent and received)
+        await tx.friendRequest.deleteMany({
+          where: { OR: [{ senderId: userId }, { receiverId: userId }] },
+        });
+        
+        // 11. Delete friendships
+        await tx.friendship.deleteMany({
+          where: { OR: [{ userId }, { friendId: userId }] },
+        });
+        
+        // 12. Delete user blocks (both as blocker and blocked)
+        await tx.userBlock.deleteMany({
+          where: { OR: [{ blockerId: userId }, { blockedId: userId }] },
+        });
+        
+        // 13. Delete posts by the user
+        // First delete all related data for user's posts
+        const userPostIds = await tx.post.findMany({
+          where: { authorId: userId },
+          select: { id: true },
+        });
+        const postIds = userPostIds.map(p => p.id);
+        
+        if (postIds.length > 0) {
+          await tx.comment.deleteMany({ where: { postId: { in: postIds } } });
+          await tx.like.deleteMany({ where: { postId: { in: postIds } } });
+          await tx.bookmark.deleteMany({ where: { postId: { in: postIds } } });
+          await tx.listPost.deleteMany({ where: { postId: { in: postIds } } });
+        }
+        
+        await tx.post.deleteMany({
+          where: { authorId: userId },
+        });
+        
+        // 14. Finally, delete the user
+        await tx.user.delete({
+          where: { id: userId },
+        });
+      });
+      
+      console.log(`✅ Successfully deleted account for user: ${clerkId}`);
+      
+      return {
+        success: true,
+        message: 'Account deleted successfully',
       };
     }),
 });
