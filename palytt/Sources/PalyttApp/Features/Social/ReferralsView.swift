@@ -30,6 +30,11 @@ struct ReferralsView: View {
                         // Stats Section
                         statsSection
                         
+                        // Rewards Section
+                        if !viewModel.rewards.isEmpty || viewModel.unclaimedRewardsCount > 0 {
+                            rewardsSection
+                        }
+                        
                         // Friends Who Joined
                         if !viewModel.friendsJoined.isEmpty {
                             friendsJoinedSection
@@ -157,6 +162,63 @@ struct ReferralsView: View {
             RoundedRectangle(cornerRadius: 12)
                 .fill(Color.cardBackground)
         )
+    }
+    
+    // MARK: - Rewards Section
+    
+    private var rewardsSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Text("Your Rewards")
+                    .font(.headline)
+                    .foregroundColor(.primaryText)
+                
+                Spacer()
+                
+                if viewModel.unclaimedRewardsCount > 0 {
+                    Text("\(viewModel.unclaimedRewardsCount) unclaimed")
+                        .font(.caption)
+                        .fontWeight(.semibold)
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 4)
+                        .background(Color.orange)
+                        .cornerRadius(10)
+                }
+            }
+            
+            if viewModel.rewards.isEmpty {
+                HStack {
+                    Image(systemName: "gift")
+                        .font(.title2)
+                        .foregroundColor(.secondaryText)
+                    
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Invite friends to earn rewards!")
+                            .font(.subheadline)
+                            .foregroundColor(.primaryText)
+                        Text("1 referral = Streak Freeze")
+                            .font(.caption)
+                            .foregroundColor(.secondaryText)
+                    }
+                    
+                    Spacer()
+                }
+                .padding(16)
+                .background(
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(Color.cardBackground)
+                )
+            } else {
+                ForEach(viewModel.rewards) { reward in
+                    RewardCard(reward: reward) {
+                        Task {
+                            await viewModel.claimReward(reward.id)
+                        }
+                    }
+                }
+            }
+        }
     }
     
     // MARK: - Friends Joined Section
@@ -332,6 +394,91 @@ struct ReferredFriend: Identifiable, Codable {
     let joinedAt: String?
 }
 
+// MARK: - Reward Card
+
+struct RewardCard: View {
+    let reward: BackendService.ReferralRewardItem
+    let onClaim: () -> Void
+    
+    var body: some View {
+        HStack(spacing: 12) {
+            // Reward Icon
+            ZStack {
+                Circle()
+                    .fill(rewardColor.opacity(0.15))
+                    .frame(width: 50, height: 50)
+                
+                Image(systemName: reward.rewardIcon)
+                    .font(.system(size: 20))
+                    .foregroundColor(rewardColor)
+            }
+            
+            // Reward Info
+            VStack(alignment: .leading, spacing: 4) {
+                Text(reward.rewardDescription)
+                    .font(.subheadline)
+                    .fontWeight(.semibold)
+                    .foregroundColor(.primaryText)
+                
+                Text("Milestone: \(reward.milestone) referral\(reward.milestone > 1 ? "s" : "")")
+                    .font(.caption)
+                    .foregroundColor(.secondaryText)
+            }
+            
+            Spacer()
+            
+            // Claim Button or Status
+            if reward.isClaimable {
+                Button(action: {
+                    HapticManager.shared.impact(.medium)
+                    onClaim()
+                }) {
+                    Text("Claim")
+                        .font(.caption)
+                        .fontWeight(.bold)
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 8)
+                        .background(Color.primaryBrand)
+                        .cornerRadius(16)
+                }
+            } else {
+                HStack(spacing: 4) {
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundColor(.green)
+                    Text("Claimed")
+                        .font(.caption)
+                        .foregroundColor(.green)
+                }
+            }
+        }
+        .padding(12)
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(Color.cardBackground)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12)
+                        .strokeBorder(reward.isClaimable ? Color.orange.opacity(0.3) : Color.clear, lineWidth: 2)
+                )
+        )
+    }
+    
+    private var rewardColor: Color {
+        switch reward.type {
+        case "STREAK_FREEZE":
+            return .cyan
+        case "PREMIUM_WEEK", "PREMIUM_MONTH":
+            return .purple
+        case "BADGE":
+            return .orange
+        case "VIP_STATUS":
+            return .yellow
+        default:
+            return .primaryBrand
+        }
+    }
+}
+
 // MARK: - Referrals View Model
 
 @MainActor
@@ -339,6 +486,8 @@ class ReferralsViewModel: ObservableObject {
     @Published var referralCode: String?
     @Published var stats: ReferralStats?
     @Published var friendsJoined: [ReferredFriend] = []
+    @Published var rewards: [BackendService.ReferralRewardItem] = []
+    @Published var unclaimedRewardsCount: Int = 0
     @Published var isLoading = false
     @Published var copied = false
     
@@ -363,11 +512,39 @@ class ReferralsViewModel: ObservableObject {
             
             friendsJoined = statsResponse.friends
             
+            // Load rewards
+            await loadRewards()
+            
         } catch {
             print("❌ ReferralsViewModel: Failed to load referral data: \(error)")
         }
         
         isLoading = false
+    }
+    
+    func loadRewards() async {
+        do {
+            let rewardsResponse = try await backendService.getReferralRewards()
+            rewards = rewardsResponse.rewards
+            unclaimedRewardsCount = rewardsResponse.unclaimedCount
+        } catch {
+            print("❌ ReferralsViewModel: Failed to load rewards: \(error)")
+        }
+    }
+    
+    func claimReward(_ rewardId: String) async {
+        do {
+            let result = try await backendService.claimReferralReward(rewardId)
+            if result.success {
+                HapticManager.shared.impact(.success)
+                // Reload rewards to update the UI
+                await loadRewards()
+            } else {
+                print("⚠️ ReferralsViewModel: Failed to claim reward: \(result.message)")
+            }
+        } catch {
+            print("❌ ReferralsViewModel: Error claiming reward: \(error)")
+        }
     }
     
     func copyReferralCode() {

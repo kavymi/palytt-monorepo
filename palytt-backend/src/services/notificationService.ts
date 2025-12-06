@@ -10,6 +10,14 @@
 
 import { prisma } from '../db.js';
 import { syncNotificationToConvex, recordFriendActivity, type ConvexNotificationType } from './convexSync.js';
+import { sendPushForNotification } from './pushNotificationService.js';
+import {
+  canSendNotification,
+  canSendPushNotification,
+  recordNotificationSent,
+  recordPushNotificationSent,
+  getNotificationPriority,
+} from './notificationRateLimiter.js';
 import type pkg from '@prisma/client';
 type NotificationType = pkg.NotificationType;
 
@@ -22,8 +30,258 @@ export interface NotificationData {
   [key: string]: any;
 }
 
+// ============================================
+// NOTIFICATION BATCHING SYSTEM
+// ============================================
+
+// Batching window in milliseconds (15 minutes)
+const BATCH_WINDOW_MS = 15 * 60 * 1000;
+
+// Types that should be batched
+const BATCHABLE_TYPES: NotificationType[] = ['POST_LIKE', 'COMMENT'];
+
+interface BatchedNotification {
+  userClerkId: string;
+  postId: string;
+  type: NotificationType;
+  senders: Array<{ senderId: string; senderName: string }>;
+  postTitle: string;
+  firstCreatedAt: Date;
+  timeoutId: NodeJS.Timeout;
+}
+
+// In-memory batch storage (keyed by `${userClerkId}:${postId}:${type}`)
+const notificationBatches = new Map<string, BatchedNotification>();
+
+/**
+ * Generates a batch key for identifying similar notifications
+ */
+function getBatchKey(userClerkId: string, postId: string, type: NotificationType): string {
+  return `${userClerkId}:${postId}:${type}`;
+}
+
+/**
+ * Generates batched notification message
+ * Examples:
+ * - "Sarah liked your post"
+ * - "Sarah and John liked your post"
+ * - "Sarah and 3 others liked your post"
+ */
+function generateBatchedMessage(
+  type: NotificationType,
+  senders: Array<{ senderName: string }>,
+  postTitle: string
+): { title: string; message: string } {
+  const count = senders.length;
+  const firstName = senders[0]?.senderName || 'Someone';
+
+  if (type === 'POST_LIKE') {
+    if (count === 1) {
+      return {
+        title: `❤️ ${firstName} liked your post`,
+        message: `${firstName} loved "${postTitle}"`,
+      };
+    } else if (count === 2) {
+      const secondName = senders[1]?.senderName || 'someone';
+      return {
+        title: `❤️ ${firstName} and ${secondName} liked your post`,
+        message: `Your post is getting love! 🔥`,
+      };
+    } else {
+      const othersCount = count - 1;
+      return {
+        title: `🔥 ${firstName} and ${othersCount} others liked your post`,
+        message: `Your post "${postTitle}" is trending!`,
+      };
+    }
+  }
+
+  if (type === 'COMMENT') {
+    if (count === 1) {
+      return {
+        title: `💬 ${firstName} commented`,
+        message: `${firstName} commented on "${postTitle}"`,
+      };
+    } else if (count === 2) {
+      const secondName = senders[1]?.senderName || 'someone';
+      return {
+        title: `💬 ${firstName} and ${secondName} commented`,
+        message: `Join the conversation on "${postTitle}"`,
+      };
+    } else {
+      const othersCount = count - 1;
+      return {
+        title: `🔥 ${count} new comments`,
+        message: `${firstName} and ${othersCount} others are discussing "${postTitle}"`,
+      };
+    }
+  }
+
+  // Fallback for other types
+  return {
+    title: `✨ New activity`,
+    message: `You have ${count} new interactions on "${postTitle}"`,
+  };
+}
+
+/**
+ * Flushes a batched notification - sends the consolidated notification
+ */
+async function flushBatch(batchKey: string): Promise<void> {
+  const batch = notificationBatches.get(batchKey);
+  if (!batch) return;
+
+  // Remove from batches
+  notificationBatches.delete(batchKey);
+
+  try {
+    const { title, message } = generateBatchedMessage(
+      batch.type,
+      batch.senders,
+      batch.postTitle
+    );
+
+    // Get user database ID
+    const user = await prisma.user.findUnique({
+      where: { clerkId: batch.userClerkId },
+      select: { id: true },
+    });
+
+    if (!user) {
+      console.warn(`User not found for batched notification: ${batch.userClerkId}`);
+      return;
+    }
+
+    // Create consolidated notification
+    const notification = await prisma.notification.create({
+      data: {
+        userId: user.id,
+        type: batch.type,
+        title,
+        message,
+        data: {
+          postId: batch.postId,
+          senderIds: batch.senders.map((s) => s.senderId),
+          senderNames: batch.senders.map((s) => s.senderName),
+          senderId: batch.senders[0]?.senderId,
+          senderName: batch.senders[0]?.senderName,
+          batchCount: batch.senders.length,
+          postTitle: batch.postTitle,
+        },
+      },
+    });
+
+    console.log(
+      `✅ Batched notification sent to ${batch.userClerkId}: ${batch.type} with ${batch.senders.length} senders`
+    );
+
+    // Sync to Convex for real-time delivery
+    syncNotificationToConvex(
+      notification.id,
+      batch.userClerkId,
+      batch.type as ConvexNotificationType,
+      title,
+      message,
+      batch.senders[0]?.senderId,
+      batch.senders[0]?.senderName,
+      {
+        postId: batch.postId,
+        userId: batch.senders[0]?.senderId,
+      }
+    ).catch((err) => {
+      console.warn('⚠️ Failed to sync batched notification to Convex:', err);
+    });
+  } catch (error) {
+    console.error('❌ Failed to flush batched notification:', error);
+  }
+}
+
+/**
+ * Adds a notification to the batch or creates a new batch
+ * Returns true if batched, false if sent immediately
+ */
+async function addToBatchOrSend(
+  userClerkId: string,
+  type: NotificationType,
+  senderId: string,
+  senderName: string,
+  postId: string,
+  postTitle: string
+): Promise<boolean> {
+  // Only batch certain notification types
+  if (!BATCHABLE_TYPES.includes(type)) {
+    return false;
+  }
+
+  const batchKey = getBatchKey(userClerkId, postId, type);
+  const existingBatch = notificationBatches.get(batchKey);
+
+  if (existingBatch) {
+    // Add to existing batch (avoid duplicates from same sender)
+    const alreadyInBatch = existingBatch.senders.some((s) => s.senderId === senderId);
+    if (!alreadyInBatch) {
+      existingBatch.senders.push({ senderId, senderName });
+    }
+    console.log(
+      `📦 Added to batch: ${batchKey} (now ${existingBatch.senders.length} senders)`
+    );
+    return true;
+  }
+
+  // Create new batch with timeout
+  const timeoutId = setTimeout(() => {
+    flushBatch(batchKey);
+  }, BATCH_WINDOW_MS);
+
+  const newBatch: BatchedNotification = {
+    userClerkId,
+    postId,
+    type,
+    senders: [{ senderId, senderName }],
+    postTitle,
+    firstCreatedAt: new Date(),
+    timeoutId,
+  };
+
+  notificationBatches.set(batchKey, newBatch);
+  console.log(`📦 Created new batch: ${batchKey}`);
+
+  return true;
+}
+
+/**
+ * Forces all pending batches to flush immediately
+ * Useful for testing or graceful shutdown
+ */
+export async function flushAllBatches(): Promise<void> {
+  const batchKeys = Array.from(notificationBatches.keys());
+  for (const batchKey of batchKeys) {
+    const batch = notificationBatches.get(batchKey);
+    if (batch) {
+      clearTimeout(batch.timeoutId);
+      await flushBatch(batchKey);
+    }
+  }
+  console.log(`📦 Flushed ${batchKeys.length} notification batches`);
+}
+
+/**
+ * Gets the current batch status (for debugging/monitoring)
+ */
+export function getBatchStatus(): { activeBatches: number; totalPending: number } {
+  let totalPending = 0;
+  for (const batch of notificationBatches.values()) {
+    totalPending += batch.senders.length;
+  }
+  return {
+    activeBatches: notificationBatches.size,
+    totalPending,
+  };
+}
+
 /**
  * Creates a notification for a user
+ * Includes rate limiting and smart push notification delivery
  * Also syncs to Convex for real-time delivery
  */
 export async function createNotification(
@@ -36,6 +294,12 @@ export async function createNotification(
   try {
     // Don't send notifications to yourself
     if (data.senderId && data.senderId === userClerkId) {
+      return;
+    }
+
+    // Check daily rate limit
+    if (!canSendNotification(userClerkId)) {
+      console.log(`⏸️ Rate limited: skipping notification for ${userClerkId} (daily limit)`);
       return;
     }
 
@@ -61,10 +325,28 @@ export async function createNotification(
       },
     });
 
+    // Record that we sent a notification (for rate limiting)
+    recordNotificationSent(userClerkId);
+
     console.log(`✅ Notification created for user ${userClerkId}: ${type} - ${title}`);
 
-    // Also push to Convex for real-time delivery
-    // This runs async and doesn't block the main operation
+    // Determine if we should send a push notification based on priority
+    const priority = getNotificationPriority(type, {
+      senderIsFriend: data.isFriend,
+    });
+
+    // Send push notification if allowed and within rate limits
+    if (priority.shouldSendPush && canSendPushNotification(userClerkId)) {
+      sendPushForNotification(userClerkId, type, title, message, data)
+        .then(() => {
+          recordPushNotificationSent(userClerkId);
+        })
+        .catch((err) => {
+          console.warn('⚠️ Failed to send push notification (non-blocking):', err);
+        });
+    }
+
+    // Also push to Convex for real-time delivery (always - this is in-app)
     syncNotificationToConvex(
       notification.id,
       userClerkId,
@@ -90,6 +372,7 @@ export async function createNotification(
 
 /**
  * Creates a notification when someone likes a post
+ * Uses batching to consolidate multiple likes into "X and Y others liked your post"
  * Also records activity for real-time friend feed
  */
 export async function createPostLikeNotification(
@@ -117,6 +400,11 @@ export async function createPostLikeNotification(
       return;
     }
 
+    // Don't send notifications to yourself
+    if (post.author.clerkId === likerUserId) {
+      return;
+    }
+
     // Get liker details
     const liker = await prisma.user.findUnique({
       where: { clerkId: likerUserId },
@@ -133,21 +421,34 @@ export async function createPostLikeNotification(
     const likerName = liker.name || liker.username || 'Someone';
     const postTitle = post.title || 'your post';
 
-    await createNotification(
+    // Try to add to batch - if batching is enabled for this type
+    const batched = await addToBatchOrSend(
       post.author.clerkId,
       'POST_LIKE',
-      `${likerName} liked your post`,
-      `${likerName} liked "${postTitle}"`,
-      {
-        postId,
-        senderId: likerUserId,
-        senderName: likerName,
-        likerName,
-        postTitle
-      }
+      likerUserId,
+      likerName,
+      postId,
+      postTitle
     );
 
-    // Record activity for friend feed (non-blocking)
+    // If not batched, send immediately (fallback) with engaging copy
+    if (!batched) {
+      await createNotification(
+        post.author.clerkId,
+        'POST_LIKE',
+        `❤️ ${likerName} liked your post`,
+        `${likerName} loved "${postTitle}"`,
+        {
+          postId,
+          senderId: likerUserId,
+          senderName: likerName,
+          likerName,
+          postTitle
+        }
+      );
+    }
+
+    // Record activity for friend feed (non-blocking, always immediate)
     recordFriendActivity(
       likerUserId,
       likerName,
@@ -165,6 +466,7 @@ export async function createPostLikeNotification(
 
 /**
  * Creates a notification when someone comments on a post
+ * Uses batching to consolidate multiple comments into "X and Y others commented on your post"
  * Also records activity for real-time friend feed
  */
 export async function createPostCommentNotification(
@@ -193,6 +495,11 @@ export async function createPostCommentNotification(
       return;
     }
 
+    // Don't send notifications to yourself
+    if (post.author.clerkId === commenterId) {
+      return;
+    }
+
     // Get commenter details
     const commenter = await prisma.user.findUnique({
       where: { clerkId: commenterId },
@@ -212,22 +519,35 @@ export async function createPostCommentNotification(
       ? commentContent.substring(0, 50) + '...' 
       : commentContent;
 
-    await createNotification(
+    // Try to add to batch - if batching is enabled for this type
+    const batched = await addToBatchOrSend(
       post.author.clerkId,
       'COMMENT',
-      `${commenterName} commented on your post`,
-      `${commenterName} commented: "${truncatedComment}"`,
-      {
-        postId,
-        senderId: commenterId,
-        senderName: commenterName,
-        commenterName,
-        postTitle,
-        commentContent: truncatedComment
-      }
+      commenterId,
+      commenterName,
+      postId,
+      postTitle
     );
 
-    // Record activity for friend feed (non-blocking)
+    // If not batched, send immediately (fallback)
+    if (!batched) {
+      await createNotification(
+        post.author.clerkId,
+        'COMMENT',
+        `💬 ${commenterName} commented`,
+        `${commenterName}: "${truncatedComment}"`,
+        {
+          postId,
+          senderId: commenterId,
+          senderName: commenterName,
+          commenterName,
+          postTitle,
+          commentContent: truncatedComment
+        }
+      );
+    }
+
+    // Record activity for friend feed (non-blocking, always immediate)
     recordFriendActivity(
       commenterId,
       commenterName,

@@ -12,11 +12,10 @@ import SwiftUI
 import Clerk
 import Foundation
 import UserNotifications
+import UIKit
 // import PostHog // Temporarily commented until we can integrate via Xcode properly
 #if !targetEnvironment(simulator)
-#if !targetEnvironment(simulator)
 // import ConvexMobile // temporarily disabled
-#endif
 #endif
 
 // MARK: - Shared Types
@@ -29,6 +28,7 @@ enum AppTab: Hashable {
 
 @main
 struct PalyttApp: App {
+    @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     @State private var clerk = Clerk.shared
     @StateObject private var appState = AppState()
     @State private var showSplashScreen = true
@@ -140,6 +140,37 @@ struct PalyttApp: App {
             .onChange(of: clerk.user) {
                 updateAuthenticationState()
             }
+            .onOpenURL { url in
+                handleDeepLink(url)
+            }
+        }
+    }
+    
+    // MARK: - Deep Link Handling
+    
+    /// Handle deep links for referral invites and other app URLs
+    private func handleDeepLink(_ url: URL) {
+        print("📨 PalyttApp: Received deep link: \(url)")
+        
+        // Handle palytt.app/invite/CODE or palytt://invite/CODE
+        if url.pathComponents.contains("invite"),
+           let code = url.pathComponents.last, code != "invite" {
+            // Store pending referral code to apply after signup
+            UserDefaults.standard.set(code.uppercased(), forKey: "pendingReferralCode")
+            print("📨 PalyttApp: Stored pending referral code: \(code.uppercased())")
+            
+            // If user is already authenticated, apply the code immediately
+            if appState.isAuthenticated {
+                Task {
+                    do {
+                        let result = try await BackendService.shared.applyReferralCode(code)
+                        UserDefaults.standard.removeObject(forKey: "pendingReferralCode")
+                        print("📨 PalyttApp: Applied referral code immediately: \(result.message)")
+                    } catch {
+                        print("⚠️ PalyttApp: Failed to apply referral code: \(error)")
+                    }
+                }
+            }
         }
     }
     
@@ -214,12 +245,23 @@ struct PalyttApp: App {
             
             // Update app state with synced user data if needed
             await MainActor.run {
-                // You can update appState.currentUser with backend data if needed
-                // appState.currentUser = User(from: syncedUser)
+                // Trigger home feed fetch after successful backend sync
+                // This ensures posts load immediately after first-time login
+                if appState.homeViewModel.posts.isEmpty {
+                    print("🏠 PalyttApp: Backend sync complete, triggering home feed fetch")
+                    appState.homeViewModel.fetchPosts()
+                }
             }
         } catch {
             print("⚠️ Failed to sync user with backend: \(error)")
             // App continues to work with Clerk data even if backend sync fails
+            // Still try to fetch posts since auth may be working
+            await MainActor.run {
+                if appState.homeViewModel.posts.isEmpty && !appState.homeViewModel.isLoading {
+                    print("🏠 PalyttApp: Backend sync failed, but attempting home feed fetch anyway")
+                    appState.homeViewModel.fetchPostsWhenReady()
+                }
+            }
         }
     }
     

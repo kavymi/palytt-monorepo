@@ -710,7 +710,8 @@ struct UnifiedAuthView: View {
                 switch signUpAttempt.status {
                 case .complete:
                     // Success - app state will update automatically
-                    break
+                    // Apply pending referral code if available (from deep link)
+                    await applyPendingReferralCode()
                 case .missingRequirements:
                     showErrorMessage("Additional information required. Please complete your profile.")
                 default:
@@ -792,6 +793,31 @@ struct UnifiedAuthView: View {
             username: displayUsername,
             displayName: "Preview User"
         )
+    }
+    
+    /// Apply pending referral code after successful signup (from deep link)
+    private func applyPendingReferralCode() async {
+        guard let pendingCode = UserDefaults.standard.string(forKey: "pendingReferralCode") else {
+            return
+        }
+        
+        print("📨 UnifiedAuthView: Applying pending referral code: \(pendingCode)")
+        
+        do {
+            let result = try await BackendService.shared.applyReferralCode(pendingCode)
+            UserDefaults.standard.removeObject(forKey: "pendingReferralCode")
+            
+            if result.success {
+                print("✅ UnifiedAuthView: Referral code applied successfully: \(result.message)")
+                HapticManager.shared.impact(.success)
+            } else {
+                print("⚠️ UnifiedAuthView: Referral code not applied: \(result.message)")
+            }
+        } catch {
+            print("❌ UnifiedAuthView: Failed to apply referral code: \(error)")
+            // Remove the pending code anyway to avoid repeated attempts
+            UserDefaults.standard.removeObject(forKey: "pendingReferralCode")
+        }
     }
 }
 

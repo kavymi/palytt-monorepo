@@ -450,96 +450,98 @@ struct CommentsView: View {
                     
                     // Comments
                     if viewModel.comments.isEmpty && viewModel.isLoading {
-                                // Show skeleton loaders while loading comments
-                                CommentsSectionSkeleton()
-                            } else if viewModel.comments.isEmpty {
-                                // Empty state with logo
-                                VStack(spacing: 20) {
-                                    Image("palytt-logo")
-                                        .resizable()
-                                        .aspectRatio(contentMode: .fit)
-                                        .frame(width: 60, height: 60)
-                                        .opacity(0.6)
-                                    
-                                    VStack(spacing: 8) {
-                                        Text("No comments yet")
-                                            .font(.headline)
-                                            .foregroundColor(.primaryText)
-                                        
-                                        Text("Be the first to share your thoughts!")
-                                            .font(.subheadline)
-                                            .foregroundColor(.warmAccentText)
-                                            .multilineTextAlignment(.center)
+                        // Show skeleton loaders while loading comments
+                        CommentsSectionSkeleton()
+                    } else if viewModel.comments.isEmpty {
+                        // Empty state with engaging prompts
+                        EmptyCommentsView(onTap: {
+                            isTextFieldFocused = true
+                        })
+                        .frame(maxWidth: .infinity, minHeight: 200)
+                        .padding()
+                    } else {
+                        ForEach(viewModel.comments) { comment in
+                            CommentRow(
+                                comment: comment,
+                                onReply: { 
+                                    isReplying = comment
+                                    isTextFieldFocused = true
+                                },
+                                onLike: { viewModel.toggleLike(comment) }
+                            )
+                            .padding(.horizontal)
+                            .id(comment.id)
+                            
+                            // Replies
+                            if !comment.replies.isEmpty {
+                                VStack(alignment: .leading, spacing: 12) {
+                                    ForEach(comment.replies) { reply in
+                                        CommentRow(
+                                            comment: reply,
+                                            isReply: true,
+                                            onReply: { 
+                                                isReplying = comment
+                                                isTextFieldFocused = true
+                                            },
+                                            onLike: { viewModel.toggleLike(reply) }
+                                        )
+                                        .padding(.leading, 44)
+                                        .padding(.horizontal)
                                     }
-                                }
-                                .frame(maxWidth: .infinity, minHeight: 200)
-                                .padding()
-                            } else {
-                                ForEach(viewModel.comments) { comment in
-                                    CommentRow(
-                                        comment: comment,
-                                        onReply: { 
-                                            isReplying = comment
-                                            isTextFieldFocused = true
-                                        },
-                                        onLike: { viewModel.toggleLike(comment) }
-                                    )
-                                    .padding(.horizontal)
-                                    .id(comment.id)
-                                    
-                                    // Replies
-                                    if !comment.replies.isEmpty {
-                                        VStack(alignment: .leading, spacing: 12) {
-                                            ForEach(comment.replies) { reply in
-                                                CommentRow(
-                                                    comment: reply,
-                                                    isReply: true,
-                                                    onReply: { 
-                                                        isReplying = comment
-                                                        isTextFieldFocused = true
-                                                    },
-                                                    onLike: { viewModel.toggleLike(reply) }
-                                                )
-                                                .padding(.leading, 44)
-                                                .padding(.horizontal)
-                                            }
-                                        }
-                                    }
-                                }
-                                
-                                // Show skeleton for loading more comments
-                                if viewModel.isLoading && !viewModel.comments.isEmpty {
-                                    VStack(spacing: 16) {
-                                        CommentSkeletonRow()
-                                        CommentSkeletonRow()
-                                    }
-                                    .padding(.vertical)
                                 }
                             }
                         }
-                        .padding(.vertical)
+                        
+                        // Show skeleton for loading more comments
+                        if viewModel.isLoading && !viewModel.comments.isEmpty {
+                            VStack(spacing: 16) {
+                                CommentSkeletonRow()
+                                CommentSkeletonRow()
+                            }
+                            .padding(.vertical)
+                        }
                     }
-                    .onChange(of: viewModel.comments.count) { oldValue, newValue in
-                        if let lastComment = viewModel.comments.last {
-                            withAnimation {
-                                proxy.scrollTo(lastComment.id, anchor: .bottom)
-                            }
-                        }
+                }
+                .padding(.vertical)
+            }
+            .onChange(of: viewModel.comments.count) { oldValue, newValue in
+                if let lastComment = viewModel.comments.last {
+                    withAnimation {
+                        proxy.scrollTo(lastComment.id, anchor: .bottom)
                     }
                 }
             }
         }
-        
-        private func onMentionSelected(_ user: User) {
-            // Handle mention selection (replace @mention text in comment)
-            print("Selected mention: @\(user.username)")
+    }
+    
+    private func onMentionSelected(_ user: User) {
+        // Find the last @ symbol and replace partial mention with full username
+        if let atIndex = newComment.lastIndex(of: "@") {
+            let beforeMention = String(newComment[..<atIndex])
+            newComment = beforeMention + "@\(user.username) "
+        } else {
+            // Fallback: just append the mention
+            newComment += "@\(user.username) "
+        }
+        // Clear suggestions after selection
+        mentionSuggestions = []
+    }
+    
+    private func searchUsers(query: String) async {
+        guard !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            mentionSuggestions = []
+            return
         }
         
-                        // TODO: Fix scope issue with mentionSuggestions
-        private func searchUsers(query: String) async {
-            // Temporarily disabled until scope issue is resolved
-            print("User search requested for: \(query)")
+        do {
+            let users = try await BackendService.shared.searchUsers(query: query, limit: 5)
+            mentionSuggestions = users.map { $0.toUser() }
+        } catch {
+            print("⚠️ Failed to search users for mentions: \(error)")
+            mentionSuggestions = []
         }
+    }
+}
 
 // MARK: - Post Summary View
 struct PostSummaryView: View {
@@ -566,6 +568,25 @@ struct PostSummaryView: View {
     }
 }
 
+// MARK: - Comment Reaction Types
+enum CommentReactionType: String, CaseIterable {
+    case fire = "fire"
+    case love = "love"
+    case laugh = "laugh"
+    case sad = "sad"
+    case wow = "wow"
+    
+    var emoji: String {
+        switch self {
+        case .fire: return "🔥"
+        case .love: return "❤️"
+        case .laugh: return "😂"
+        case .sad: return "😢"
+        case .wow: return "😮"
+        }
+    }
+}
+
 // MARK: - Comment Row
 struct CommentRow: View {
     let comment: Comment
@@ -575,6 +596,8 @@ struct CommentRow: View {
     
     @State private var isLiked: Bool = false
     @State private var showMenu = false
+    @State private var showReactionPicker = false
+    @State private var selectedReaction: CommentReactionType? = nil
     
     var body: some View {
         HStack(alignment: .top, spacing: 10) {
@@ -612,9 +635,9 @@ struct CommentRow: View {
                     .foregroundColor(.primaryText)
                     .fixedSize(horizontal: false, vertical: true)
                 
-                // Actions
-                HStack(spacing: 16) {
-                    // Like Button
+                // Actions with Reactions
+                HStack(spacing: 12) {
+                    // Reaction Button (long press for picker, tap for like)
                     Button(action: {
                         HapticManager.shared.impact(.light)
                         withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
@@ -637,6 +660,44 @@ struct CommentRow: View {
                         }
                     }
                     .scaleEffect(isLiked ? 1.1 : 1.0)
+                    .simultaneousGesture(
+                        LongPressGesture(minimumDuration: 0.5)
+                            .onEnded { _ in
+                                HapticManager.shared.impact(.medium)
+                                withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                                    showReactionPicker = true
+                                }
+                            }
+                    )
+                    
+                    // Quick Reaction Buttons (shown on long press)
+                    if showReactionPicker {
+                        HStack(spacing: 8) {
+                            ForEach(CommentReactionType.allCases, id: \.self) { reaction in
+                                Button(action: {
+                                    HapticManager.shared.impact(.light)
+                                    withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
+                                        selectedReaction = reaction
+                                        showReactionPicker = false
+                                    }
+                                    // TODO: Call backend to toggle reaction
+                                }) {
+                                    Text(reaction.emoji)
+                                        .font(.system(size: 20))
+                                        .scaleEffect(selectedReaction == reaction ? 1.3 : 1.0)
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(
+                            Capsule()
+                                .fill(Color.cardBackground)
+                                .shadow(color: .black.opacity(0.1), radius: 8, x: 0, y: 2)
+                        )
+                        .transition(.scale.combined(with: .opacity))
+                    }
                     
                     // Reply Button
                     Button(action: {
@@ -653,6 +714,14 @@ struct CommentRow: View {
         }
         .onAppear {
             isLiked = comment.isLiked
+        }
+        .onTapGesture {
+            // Dismiss reaction picker when tapping elsewhere
+            if showReactionPicker {
+                withAnimation(.spring(response: 0.2, dampingFraction: 0.8)) {
+                    showReactionPicker = false
+                }
+            }
         }
     }
 }
@@ -776,6 +845,79 @@ struct CommentInputView: View {
     private func updateTextWithMention(_ user: User) {
         // This will be handled by MentionTextEditor, but we can add additional logic here if needed
     }
+}
+
+// MARK: - Empty Comments View
+struct EmptyCommentsView: View {
+    let onTap: () -> Void
+    
+    // Engagement prompts that rotate
+    private let prompts: [(title: String, subtitle: String, icon: String)] = [
+        ("Start the conversation", "Share your experience or ask a question", "bubble.left.and.bubble.right"),
+        ("Be the first to comment!", "Your thoughts could spark a great discussion", "sparkles"),
+        ("What do you think?", "Join the conversation and share your opinion", "text.bubble"),
+        ("Share your take", "Help others by sharing your perspective", "lightbulb")
+    ]
+    
+    @State private var currentPromptIndex = 0
+    
+    private var currentPrompt: (title: String, subtitle: String, icon: String) {
+        prompts[currentPromptIndex % prompts.count]
+    }
+    
+    var body: some View {
+        Button(action: {
+            HapticManager.shared.impact(.light)
+            onTap()
+        }) {
+            VStack(spacing: 16) {
+                // Animated icon
+                ZStack {
+                    Circle()
+                        .fill(Color.primaryBrand.opacity(0.1))
+                        .frame(width: 80, height: 80)
+                    
+                    Image(systemName: currentPrompt.icon)
+                        .font(.system(size: 32))
+                        .foregroundColor(.primaryBrand)
+                }
+                
+                VStack(spacing: 8) {
+                    Text(currentPrompt.title)
+                        .font(.headline)
+                        .fontWeight(.semibold)
+                        .foregroundColor(.primaryText)
+                    
+                    Text(currentPrompt.subtitle)
+                        .font(.subheadline)
+                        .foregroundColor(.secondaryText)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 32)
+                }
+                
+                // Call-to-action hint
+                HStack(spacing: 4) {
+                    Image(systemName: "hand.tap")
+                        .font(.caption)
+                    Text("Tap to comment")
+                        .font(.caption)
+                }
+                .foregroundColor(.tertiaryText)
+                .padding(.top, 8)
+            }
+            .padding(.vertical, 24)
+        }
+        .buttonStyle(.plain)
+        .onAppear {
+            // Randomly select a prompt for variety
+            currentPromptIndex = Int.random(in: 0..<prompts.count)
+        }
+    }
+}
+
+#Preview("Empty Comments") {
+    EmptyCommentsView(onTap: {})
+        .padding()
 }
 
 #Preview {

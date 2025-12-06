@@ -2,6 +2,16 @@ import { z } from 'zod';
 import { router, protectedProcedure, publicProcedure } from '../trpc.js';
 import { prisma } from '../db.js';
 import crypto from 'crypto';
+import { createNotification } from '../services/notificationService.js';
+
+// Reward tiers configuration - milestones and their rewards
+const REWARD_TIERS = [
+  { milestone: 1, type: 'STREAK_FREEZE' as const, amount: 1, description: 'Streak Freeze x1' },
+  { milestone: 3, type: 'STREAK_FREEZE' as const, amount: 2, description: 'Streak Freeze x2' },
+  { milestone: 5, type: 'BADGE' as const, amount: 1, description: 'Social Butterfly Badge' },
+  { milestone: 10, type: 'PREMIUM_WEEK' as const, amount: 1, description: 'Premium Week' },
+  { milestone: 25, type: 'VIP_STATUS' as const, amount: 1, description: 'VIP Ambassador Status' },
+];
 
 // Helper function to get user UUID from clerkId
 async function getUserIdFromClerkId(clerkId: string): Promise<string> {
@@ -227,29 +237,62 @@ export const referralsRouter = router({
         data: { referredBy: referrer.clerkId },
       });
 
+      // Get current referral count before incrementing
+      const referrerData = await prisma.user.findUnique({
+        where: { id: referrer.id },
+        select: { referralRewardsCount: true, name: true, username: true },
+      });
+
+      const currentCount = referrerData?.referralRewardsCount || 0;
+      const newCount = currentCount + 1;
+
       // Update the referrer's reward count
       await prisma.user.update({
         where: { id: referrer.id },
         data: {
-          referralRewardsCount: {
-            increment: 1,
-          },
+          referralRewardsCount: newCount,
         },
       });
 
-      // Create notification for the referrer
-      await prisma.notification.create({
-        data: {
-          userId: referrer.id,
-          type: 'GENERAL',
-          title: 'Friend Joined!',
-          message: 'Someone you invited has joined Palytt!',
-          data: {
-            type: 'referral_completed',
-            refereeId: newUser.id,
-          },
-        },
-      });
+      // Check and grant milestone rewards
+      for (const tier of REWARD_TIERS) {
+        if (newCount === tier.milestone) {
+          // Grant the reward
+          await prisma.referralReward.create({
+            data: {
+              userId: referrer.id,
+              type: tier.type,
+              amount: tier.amount,
+              milestone: tier.milestone,
+            },
+          });
+
+          // Send notification about the reward
+          await createNotification(
+            referrer.clerkId,
+            'GENERAL',
+            '🎁 Referral Reward Unlocked!',
+            `You earned ${tier.description} for ${tier.milestone} referral${tier.milestone > 1 ? 's' : ''}!`,
+            {
+              type: 'referral_reward',
+              rewardType: tier.type,
+              milestone: tier.milestone,
+            }
+          );
+        }
+      }
+
+      // Create notification for the referrer about the new friend
+      await createNotification(
+        referrer.clerkId,
+        'GENERAL',
+        'Friend Joined!',
+        'Someone you invited has joined Palytt!',
+        {
+          type: 'referral_completed',
+          refereeId: newUser.id,
+        }
+      );
 
       return {
         success: true,
@@ -306,6 +349,134 @@ export const referralsRouter = router({
       return {
         link: inviteLink,
         code: user.referralCode,
+      };
+    }),
+
+  /**
+   * Get invite metadata for Open Graph previews
+   */
+  getInviteMetadata: publicProcedure
+    .input(z.object({
+      code: z.string().min(1),
+    }))
+    .query(async ({ input }) => {
+      const user = await prisma.user.findUnique({
+        where: { referralCode: input.code.toUpperCase() },
+        select: { name: true, username: true, profileImage: true },
+      });
+
+      return {
+        title: user ? `${user.name || user.username} invited you to Palytt` : 'Join Palytt',
+        description: 'Discover amazing food experiences with friends',
+        image: user?.profileImage || 'https://palytt.app/og-image.png',
+      };
+    }),
+
+  /**
+   * Get the current user's referral rewards
+   */
+  getMyRewards: protectedProcedure
+    .query(async ({ ctx }) => {
+      const userClerkId = ctx.user.clerkId;
+      const userUUID = await getUserIdFromClerkId(userClerkId);
+
+      const rewards = await prisma.referralReward.findMany({
+        where: { userId: userUUID },
+        orderBy: { createdAt: 'desc' },
+      });
+
+      // Count unclaimed rewards
+      const unclaimedCount = rewards.filter(r => !r.claimedAt).length;
+
+      return {
+        rewards: rewards.map(r => ({
+          id: r.id,
+          type: r.type,
+          amount: r.amount,
+          milestone: r.milestone,
+          claimedAt: r.claimedAt?.toISOString() || null,
+          expiresAt: r.expiresAt?.toISOString() || null,
+          createdAt: r.createdAt.toISOString(),
+        })),
+        unclaimedCount,
+      };
+    }),
+
+  /**
+   * Claim a referral reward
+   */
+  claimReward: protectedProcedure
+    .input(z.object({
+      rewardId: z.string().uuid(),
+    }))
+    .mutation(async ({ input, ctx }) => {
+      const userClerkId = ctx.user.clerkId;
+      const userUUID = await getUserIdFromClerkId(userClerkId);
+
+      // Find the reward
+      const reward = await prisma.referralReward.findFirst({
+        where: {
+          id: input.rewardId,
+          userId: userUUID,
+          claimedAt: null,
+        },
+      });
+
+      if (!reward) {
+        return {
+          success: false,
+          message: 'Reward not found or already claimed',
+        };
+      }
+
+      // Check if expired
+      if (reward.expiresAt && reward.expiresAt < new Date()) {
+        return {
+          success: false,
+          message: 'Reward has expired',
+        };
+      }
+
+      // Apply reward effect based on type
+      if (reward.type === 'STREAK_FREEZE') {
+        await prisma.user.update({
+          where: { id: userUUID },
+          data: {
+            streakFreezeCount: {
+              increment: reward.amount,
+            },
+          },
+        });
+      }
+      // For PREMIUM_WEEK, PREMIUM_MONTH, BADGE, VIP_STATUS - 
+      // these would be handled by the app logic when displaying user status
+
+      // Mark reward as claimed
+      await prisma.referralReward.update({
+        where: { id: input.rewardId },
+        data: { claimedAt: new Date() },
+      });
+
+      return {
+        success: true,
+        message: `${reward.type} reward claimed successfully!`,
+        rewardType: reward.type,
+        amount: reward.amount,
+      };
+    }),
+
+  /**
+   * Get available reward tiers (for displaying progress)
+   */
+  getRewardTiers: publicProcedure
+    .query(async () => {
+      return {
+        tiers: REWARD_TIERS.map(tier => ({
+          milestone: tier.milestone,
+          type: tier.type,
+          amount: tier.amount,
+          description: tier.description,
+        })),
       };
     }),
 });

@@ -19,6 +19,7 @@ class NativeNotificationManager: NSObject, ObservableObject {
     
     @Published var isAuthorized = false
     @Published var authorizationStatus: UNAuthorizationStatus = .notDetermined
+    @Published var deviceToken: String?
     
     private let center = UNUserNotificationCenter.current()
     
@@ -49,6 +50,8 @@ class NativeNotificationManager: NSObject, ObservableObject {
             
             if granted {
                 await checkAuthorizationStatus()
+                // Register for remote notifications after permission is granted
+                await registerForRemoteNotifications()
             }
             
             return granted
@@ -68,11 +71,67 @@ class NativeNotificationManager: NSObject, ObservableObject {
             
             print("📱 NativeNotificationManager: Authorization status: \(settings.authorizationStatus.description)")
         }
+        
+        // Register for remote notifications if authorized
+        if settings.authorizationStatus == .authorized || settings.authorizationStatus == .provisional {
+            await registerForRemoteNotifications()
+        }
+    }
+    
+    // MARK: - Remote Notification Registration
+    
+    /// Register for remote notifications with APNs
+    func registerForRemoteNotifications() async {
+        await MainActor.run {
+            print("📱 NativeNotificationManager: Registering for remote notifications")
+            UIApplication.shared.registerForRemoteNotifications()
+        }
+    }
+    
+    /// Handle successful device token registration
+    func didRegisterForRemoteNotifications(deviceToken: Data) {
+        let tokenString = deviceToken.map { String(format: "%02.2hhx", $0) }.joined()
+        self.deviceToken = tokenString
+        print("📱 NativeNotificationManager: Device token received: \(tokenString.prefix(20))...")
+        
+        // Send token to backend
+        Task {
+            await sendDeviceTokenToBackend(token: tokenString)
+        }
+    }
+    
+    /// Handle failed device token registration
+    func didFailToRegisterForRemoteNotifications(error: Error) {
+        print("❌ NativeNotificationManager: Failed to register for remote notifications: \(error)")
+    }
+    
+    /// Send device token to backend for push notification delivery
+    private func sendDeviceTokenToBackend(token: String) async {
+        do {
+            try await BackendService.shared.registerDeviceToken(token: token)
+            print("✅ NativeNotificationManager: Device token sent to backend")
+        } catch {
+            print("❌ NativeNotificationManager: Failed to send device token to backend: \(error)")
+        }
+    }
+    
+    /// Unregister device token from backend (call on logout)
+    func unregisterDeviceToken() async {
+        guard let token = deviceToken else { return }
+        
+        do {
+            try await BackendService.shared.unregisterDeviceToken(token: token)
+            self.deviceToken = nil
+            print("✅ NativeNotificationManager: Device token unregistered from backend")
+        } catch {
+            print("❌ NativeNotificationManager: Failed to unregister device token: \(error)")
+        }
     }
     
     // MARK: - Notification Creation
     
     /// Send a native iOS notification for a received app notification
+    /// Supports rich content including images and thread grouping
     func sendNativeNotification(for notification: BackendService.BackendNotification) async {
         guard isAuthorized else {
             print("⚠️ NativeNotificationManager: Not authorized to send notifications")
@@ -102,6 +161,19 @@ class NativeNotificationManager: NSObject, ObservableObject {
         // Add category for interactive notifications
         content.categoryIdentifier = getNotificationCategory(for: notification.type)
         
+        // Thread identifier for grouping related notifications
+        content.threadIdentifier = getThreadIdentifier(for: notification)
+        
+        // Mark friend requests and messages as time-sensitive for Focus breakthrough
+        if notification.type == .friendRequest || notification.type == .message {
+            content.interruptionLevel = .timeSensitive
+        }
+        
+        // Add rich content (image attachment) if available
+        if let attachment = await createImageAttachment(for: notification) {
+            content.attachments = [attachment]
+        }
+        
         // Create request with unique identifier
         let request = UNNotificationRequest(
             identifier: notification._id,
@@ -117,8 +189,108 @@ class NativeNotificationManager: NSObject, ObservableObject {
         }
     }
     
+    // MARK: - Rich Notification Content
+    
+    /// Creates an image attachment for the notification
+    /// - For post interactions: shows the post image thumbnail
+    /// - For social notifications: shows the sender's profile picture
+    private func createImageAttachment(for notification: BackendService.BackendNotification) async -> UNNotificationAttachment? {
+        // Note: Image attachments require postImage or profileImage in the notification data
+        // Currently NotificationMetadata doesn't include these fields
+        // This will be enabled once the backend includes image URLs in notifications
+        
+        // For now, skip image attachments
+        return nil
+    }
+    
+    /// Downloads an image and creates a notification attachment
+    private func downloadAndCreateAttachment(from url: URL, identifier: String) async -> UNNotificationAttachment? {
+        do {
+            let (data, response) = try await URLSession.shared.data(from: url)
+            
+            // Verify it's an image
+            guard let mimeType = (response as? HTTPURLResponse)?.mimeType,
+                  mimeType.hasPrefix("image/") else {
+                return nil
+            }
+            
+            // Determine file extension from MIME type
+            let fileExtension: String
+            switch mimeType {
+            case "image/jpeg", "image/jpg":
+                fileExtension = "jpg"
+            case "image/png":
+                fileExtension = "png"
+            case "image/gif":
+                fileExtension = "gif"
+            case "image/webp":
+                fileExtension = "webp"
+            default:
+                fileExtension = "jpg"
+            }
+            
+            // Create temporary file
+            let tempDirectory = FileManager.default.temporaryDirectory
+            let fileName = "\(identifier)_attachment.\(fileExtension)"
+            let fileURL = tempDirectory.appendingPathComponent(fileName)
+            
+            // Write data to file
+            try data.write(to: fileURL)
+            
+            // Create attachment with options for thumbnail
+            let options: [String: Any] = [
+                UNNotificationAttachmentOptionsThumbnailClippingRectKey: CGRect(x: 0, y: 0, width: 1, height: 1).dictionaryRepresentation,
+                UNNotificationAttachmentOptionsThumbnailHiddenKey: false
+            ]
+            
+            let attachment = try UNNotificationAttachment(
+                identifier: "\(identifier)_image",
+                url: fileURL,
+                options: options
+            )
+            
+            print("📸 NativeNotificationManager: Created image attachment for notification")
+            return attachment
+            
+        } catch {
+            print("⚠️ NativeNotificationManager: Failed to create image attachment: \(error)")
+            return nil
+        }
+    }
+    
+    /// Generates a thread identifier for grouping related notifications
+    /// - Post interactions on the same post are grouped together
+    /// - Messages from the same conversation are grouped
+    /// - Friend requests are grouped together
+    private func getThreadIdentifier(for notification: BackendService.BackendNotification) -> String {
+        switch notification.type {
+        case .postLike, .postComment, .commentLike:
+            // Group by post
+            if let postId = notification.metadata?.postId {
+                return "post_\(postId)"
+            }
+        case .friendRequest, .friendRequestAccepted:
+            // Group all friend-related notifications
+            return "friends"
+        case .message:
+            // Group by conversation/sender
+            if let senderId = notification.senderId {
+                return "messages_\(senderId)"
+            }
+        case .newFollower:
+            // Group all follow notifications
+            return "followers"
+        default:
+            break
+        }
+        
+        // Default: group by notification type
+        return "general_\(notification.type.rawValue)"
+    }
+    
     /// Send a native notification for friend requests
-    func sendFriendRequestNotification(from senderName: String, requestId: String) async {
+    /// Includes sender's profile picture as rich content
+    func sendFriendRequestNotification(from senderName: String, requestId: String, senderProfileImage: String? = nil) async {
         guard isAuthorized else { return }
         
         if UIApplication.shared.applicationState == .active {
@@ -139,6 +311,19 @@ class NativeNotificationManager: NSObject, ObservableObject {
         
         content.categoryIdentifier = "FRIEND_REQUEST"
         
+        // Group with other friend notifications
+        content.threadIdentifier = "friends"
+        
+        // Friend requests are time-sensitive
+        content.interruptionLevel = .timeSensitive
+        
+        // Add sender's profile picture if available
+        if let profileImageURL = senderProfileImage,
+           let url = URL(string: profileImageURL),
+           let attachment = await downloadAndCreateAttachment(from: url, identifier: "friend_request_\(requestId)") {
+            content.attachments = [attachment]
+        }
+        
         let request = UNNotificationRequest(
             identifier: "friend_request_\(requestId)",
             content: content,
@@ -150,6 +335,61 @@ class NativeNotificationManager: NSObject, ObservableObject {
             print("✅ NativeNotificationManager: Sent friend request notification")
         } catch {
             print("❌ NativeNotificationManager: Failed to send friend request notification: \(error)")
+        }
+    }
+    
+    /// Send a rich notification with custom image
+    /// Useful for batched notifications ("Sarah and 3 others liked your post")
+    func sendRichNotification(
+        identifier: String,
+        title: String,
+        body: String,
+        imageURL: String? = nil,
+        category: String = "GENERAL",
+        threadId: String? = nil,
+        userInfo: [String: Any] = [:],
+        isTimeSensitive: Bool = false
+    ) async {
+        guard isAuthorized else { return }
+        
+        if UIApplication.shared.applicationState == .active {
+            return
+        }
+        
+        let content = UNMutableNotificationContent()
+        content.title = title
+        content.body = body
+        content.sound = .default
+        content.badge = NSNumber(value: await getUnreadCount())
+        content.userInfo = userInfo
+        content.categoryIdentifier = category
+        
+        if let threadId = threadId {
+            content.threadIdentifier = threadId
+        }
+        
+        if isTimeSensitive {
+            content.interruptionLevel = .timeSensitive
+        }
+        
+        // Add image attachment if provided
+        if let imageURLString = imageURL,
+           let url = URL(string: imageURLString),
+           let attachment = await downloadAndCreateAttachment(from: url, identifier: identifier) {
+            content.attachments = [attachment]
+        }
+        
+        let request = UNNotificationRequest(
+            identifier: identifier,
+            content: content,
+            trigger: nil
+        )
+        
+        do {
+            try await center.add(request)
+            print("✅ NativeNotificationManager: Sent rich notification: \(title)")
+        } catch {
+            print("❌ NativeNotificationManager: Failed to send rich notification: \(error)")
         }
     }
     

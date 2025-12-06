@@ -251,5 +251,39 @@ export default defineSchema({
     .index("by_created_at", ["createdAt"])
     .index("by_expires_at", ["expiresAt"])
     .index("by_activity_type", ["activityType"]),
+
+  // ============================================
+  // REFERRAL LEADERBOARD
+  // ============================================
+  
+  /**
+   * Real-time referral leaderboard
+   * - Tracks user referral counts for weekly/monthly/all-time rankings
+   * - Updates in real-time when referrals are completed
+   */
+  referralLeaderboard: defineTable({
+    // User identification (Clerk ID)
+    clerkId: v.string(),
+    
+    // Display info (cached for UI)
+    displayName: v.string(),
+    profileImage: v.optional(v.string()),
+    
+    // Referral counts
+    totalReferrals: v.number(),
+    weeklyReferrals: v.number(),
+    monthlyReferrals: v.number(),
+    
+    // Last update timestamp
+    lastUpdated: v.number(),
+    
+    // Week/month tracking for resetting counts
+    currentWeek: v.optional(v.number()), // ISO week number
+    currentMonth: v.optional(v.number()), // Month (1-12)
+  })
+    .index("by_clerk_id", ["clerkId"])
+    .index("by_total", ["totalReferrals"])
+    .index("by_weekly", ["weeklyReferrals"])
+    .index("by_monthly", ["monthlyReferrals"]),
 });
 

@@ -315,6 +315,62 @@ class HomeViewModel: ObservableObject {
         }
     }
     
+    // MARK: - Session-Aware Fetch with Retry Logic
+    
+    /// Fetch posts when Clerk session is ready, with exponential backoff retry
+    /// This handles the race condition when auth state changes before session is fully initialized
+    func fetchPostsWhenReady(maxRetries: Int = 5) {
+        // In preview mode, data is already loaded
+        if isPreviewMode {
+            return
+        }
+        
+        // Cancel any existing session wait task
+        sessionWaitTask?.cancel()
+        
+        // Set loading state immediately for UX
+        isLoading = true
+        
+        sessionWaitTask = Task { [weak self] in
+            guard let self = self else { return }
+            
+            for attempt in 0..<maxRetries {
+                // Check if task was cancelled
+                if Task.isCancelled { return }
+                
+                // Check if session is ready
+                if Clerk.shared.session != nil {
+                    print("🔐 HomeViewModel: Session ready on attempt \(attempt + 1), fetching posts")
+                    await MainActor.run {
+                        // Reset isLoading before calling fetchPosts to avoid the guard check
+                        self.isLoading = false
+                        self.fetchPosts()
+                    }
+                    return
+                }
+                
+                // Exponential backoff: 200ms, 400ms, 600ms, 800ms, 1000ms
+                let delayMs = UInt64(200_000_000 * (attempt + 1))
+                print("⏳ HomeViewModel: Waiting for session, attempt \(attempt + 1)/\(maxRetries)")
+                try? await Task.sleep(nanoseconds: delayMs)
+            }
+            
+            // Final attempt after all retries
+            if !Task.isCancelled {
+                print("⚠️ HomeViewModel: Session not ready after \(maxRetries) attempts, attempting fetch anyway")
+                await MainActor.run {
+                    // Reset isLoading before calling fetchPosts to avoid the guard check
+                    self.isLoading = false
+                    // Try to fetch anyway - backend will handle auth errors
+                    self.fetchPosts()
+                }
+            }
+        }
+    }
+    
+    // Task for session wait with retry
+    private var sessionWaitTask: Task<Void, Never>?
+    
     func fetchPosts() {
         guard !isLoading else { return }
         
@@ -325,6 +381,14 @@ class HomeViewModel: ObservableObject {
         
         // Check for BackendService (required for friends feed)
         guard backendService != nil else { return }
+        
+        // ✅ Check for Clerk session before attempting to fetch
+        // This prevents 401 errors when Clerk isn't fully initialized yet
+        guard Clerk.shared.session != nil else {
+            print("⏳ HomeViewModel: fetchPosts called but no Clerk session, deferring to fetchPostsWhenReady")
+            fetchPostsWhenReady()
+            return
+        }
         
         // Cancel any existing loading task
         loadingTask?.cancel()
@@ -659,6 +723,7 @@ class HomeViewModel: ObservableObject {
     func clearPosts() {
         // Cancel any ongoing tasks
         loadingTask?.cancel()
+        sessionWaitTask?.cancel()
         
         // Cancel specific request types
         initialFetchCancellable?.cancel()

@@ -21,6 +21,29 @@ async function ensureUserIdFromClerkId(clerkId: string): Promise<string> {
   return user.id;
 }
 
+// Helper function to get reaction counts for a comment
+async function getReactionCounts(commentId: string): Promise<Record<string, number>> {
+  const reactions = await prisma.commentReaction.groupBy({
+    by: ['emoji'],
+    where: { commentId },
+    _count: { emoji: true },
+  });
+
+  const reactionCounts: Record<string, number> = {
+    fire: 0,
+    love: 0,
+    laugh: 0,
+    sad: 0,
+    wow: 0,
+  };
+
+  for (const reaction of reactions) {
+    reactionCounts[reaction.emoji] = reaction._count.emoji;
+  }
+
+  return reactionCounts;
+}
+
 export const commentsRouter = router({
   // Get comments for a specific post
   getComments: publicProcedure
@@ -170,14 +193,98 @@ export const commentsRouter = router({
       return { success: true };
     }),
 
-  // Toggle like on a comment (if we want to support comment likes)
+  // Toggle reaction on a comment (emoji reactions)
+  toggleReaction: protectedProcedure
+    .input(z.object({
+      commentId: z.string(),
+      emoji: z.enum(['fire', 'love', 'laugh', 'sad', 'wow']),
+    }))
+    .mutation(async ({ input, ctx }: { input: { commentId: string; emoji: string }; ctx: Context & { user: NonNullable<Context['user']> } }) => {
+      const { commentId, emoji } = input;
+      const userClerkId = ctx.user.clerkId;
+
+      // Get current user's UUID
+      const userUUID = await ensureUserIdFromClerkId(userClerkId);
+
+      // Check if the comment exists
+      const comment = await prisma.comment.findUnique({
+        where: { id: commentId },
+        select: { id: true, authorId: true },
+      });
+
+      if (!comment) {
+        throw new Error('Comment not found');
+      }
+
+      // Check if user already has this reaction
+      const existingReaction = await prisma.commentReaction.findUnique({
+        where: {
+          commentId_userId_emoji: {
+            commentId,
+            userId: userUUID,
+            emoji,
+          },
+        },
+      });
+
+      if (existingReaction) {
+        // Remove the reaction
+        await prisma.commentReaction.delete({
+          where: { id: existingReaction.id },
+        });
+
+        // Get updated reaction counts
+        const reactions = await getReactionCounts(commentId);
+
+        return {
+          success: true,
+          added: false,
+          reactions,
+        };
+      } else {
+        // Add the reaction
+        await prisma.commentReaction.create({
+          data: {
+            commentId,
+            userId: userUUID,
+            emoji,
+          },
+        });
+
+        // Get updated reaction counts
+        const reactions = await getReactionCounts(commentId);
+
+        return {
+          success: true,
+          added: true,
+          reactions,
+        };
+      }
+    }),
+
+  // Get reactions for a comment
+  getReactions: publicProcedure
+    .input(z.object({
+      commentId: z.string(),
+    }))
+    .query(async ({ input }: { input: { commentId: string } }) => {
+      const { commentId } = input;
+
+      const reactions = await getReactionCounts(commentId);
+      return { reactions };
+    }),
+
+  // Legacy toggle like - now uses reaction system with 'love' emoji
   toggleLike: protectedProcedure
     .input(z.object({
       commentId: z.string(),
     }))
-    .mutation(async ({ input }: { input: { commentId: string } }) => {
+    .mutation(async ({ input, ctx }: { input: { commentId: string }; ctx: Context & { user: NonNullable<Context['user']> } }) => {
       const { commentId } = input;
-      // Note: userId available from ctx.user.clerkId if needed for future functionality
+      const userClerkId = ctx.user.clerkId;
+
+      // Get current user's UUID
+      const userUUID = await ensureUserIdFromClerkId(userClerkId);
 
       // Check if the comment exists
       const comment = await prisma.comment.findUnique({
@@ -189,12 +296,54 @@ export const commentsRouter = router({
         throw new Error('Comment not found');
       }
 
-      // For now, we'll return a simple response since comment likes aren't in the schema
-      // This can be extended later if comment likes are added to the database schema
-      return { 
-        success: true, 
-        message: 'Comment like functionality not yet implemented in database schema' 
-      };
+      // Check if user already has a 'love' reaction (heart = like)
+      const existingReaction = await prisma.commentReaction.findUnique({
+        where: {
+          commentId_userId_emoji: {
+            commentId,
+            userId: userUUID,
+            emoji: 'love',
+          },
+        },
+      });
+
+      if (existingReaction) {
+        // Remove the reaction
+        await prisma.commentReaction.delete({
+          where: { id: existingReaction.id },
+        });
+
+        // Count total love reactions
+        const likesCount = await prisma.commentReaction.count({
+          where: { commentId, emoji: 'love' },
+        });
+
+        return {
+          success: true,
+          isLiked: false,
+          likesCount,
+        };
+      } else {
+        // Add the reaction
+        await prisma.commentReaction.create({
+          data: {
+            commentId,
+            userId: userUUID,
+            emoji: 'love',
+          },
+        });
+
+        // Count total love reactions
+        const likesCount = await prisma.commentReaction.count({
+          where: { commentId, emoji: 'love' },
+        });
+
+        return {
+          success: true,
+          isLiked: true,
+          likesCount,
+        };
+      }
     }),
 
   // Get comments by a specific user

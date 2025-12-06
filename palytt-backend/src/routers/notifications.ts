@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { router, protectedProcedure } from '../trpc.js';
 import { prisma, ensureUser } from '../db.js';
+import { registerDeviceToken, unregisterDeviceToken } from '../services/pushNotificationService.js';
 
 // Type for notification data JSON field
 interface NotificationData {
@@ -355,5 +356,66 @@ export const notificationsRouter = router({
       }, {} as Record<string, any[]>);
 
       return { grouped };
+    }),
+
+  // ============================================
+  // DEVICE TOKEN MANAGEMENT (for Push Notifications)
+  // ============================================
+
+  // Register a device token for push notifications
+  registerDeviceToken: protectedProcedure
+    .input(z.object({
+      token: z.string().min(1),
+      platform: z.enum(['IOS', 'ANDROID', 'WEB']).default('IOS'),
+    }))
+    .mutation(async ({ input, ctx }) => {
+      const { token, platform } = input;
+      const userClerkId = ctx.user.clerkId;
+
+      await registerDeviceToken(userClerkId, token, platform);
+
+      return { success: true, message: 'Device token registered' };
+    }),
+
+  // Unregister a device token (e.g., on logout)
+  unregisterDeviceToken: protectedProcedure
+    .input(z.object({
+      token: z.string().min(1),
+    }))
+    .mutation(async ({ input }) => {
+      const { token } = input;
+
+      await unregisterDeviceToken(token);
+
+      return { success: true, message: 'Device token unregistered' };
+    }),
+
+  // Get all device tokens for the current user (for debugging)
+  getDeviceTokens: protectedProcedure
+    .query(async ({ ctx }) => {
+      const userClerkId = ctx.user.clerkId;
+
+      const user = await prisma.user.findUnique({
+        where: { clerkId: userClerkId },
+        select: { id: true },
+      });
+
+      if (!user) {
+        return { tokens: [] };
+      }
+
+      const tokens = await prisma.deviceToken.findMany({
+        where: { userId: user.id },
+        select: {
+          id: true,
+          platform: true,
+          isActive: true,
+          lastUsedAt: true,
+          createdAt: true,
+        },
+        orderBy: { lastUsedAt: 'desc' },
+      });
+
+      return { tokens };
     }),
 });

@@ -82,6 +82,13 @@ export const postsRouter = router({
           name: z.string().optional(),
         }).optional(),
         isPublic: z.boolean().default(true),
+        mentions: z.array(z.object({
+          type: z.string(),
+          text: z.string(),
+          targetId: z.string(),
+          start: z.number(),
+          end: z.number(),
+        })).optional(),
       })
     )
     .mutation(async ({ input, ctx }) => {
@@ -117,6 +124,7 @@ export const postsRouter = router({
           locationLatitude: input.location?.latitude,
           locationLongitude: input.location?.longitude,
           isPublic: input.isPublic,
+          mentions: input.mentions || [],  // Store mentions as JSON
         },
         include: {
           author: true,
@@ -189,6 +197,7 @@ export const postsRouter = router({
         isPublic: post.isPublic,
         likesCount: post.likesCount,
         commentsCount: post.commentsCount,
+        mentions: input.mentions || [],  // Include mentions in response
         createdAt: post.createdAt.toISOString(),
         updatedAt: post.updatedAt.toISOString(),
       };
@@ -277,6 +286,7 @@ export const postsRouter = router({
         isPublic: post.isPublic,
         likesCount: post.likesCount,
         commentsCount: post.commentsCount,
+        mentions: post.mentions || [],  // Include mentions
         createdAt: post.createdAt.toISOString(),
         updatedAt: post.updatedAt.toISOString(),
       }));

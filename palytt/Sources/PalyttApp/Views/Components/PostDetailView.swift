@@ -372,14 +372,17 @@ struct PostDetailView: View {
                     .multilineTextAlignment(.leading)
             }
             
-            // Post Caption
+            // Post Caption with tappable mentions
             if !post.caption.isEmpty {
-                Text(post.caption)
-                    .font(.body)
-                    .foregroundColor(.primaryText)
-                    .lineLimit(nil)
-                    .multilineTextAlignment(.leading)
-                    .lineSpacing(2)
+                MentionText(
+                    text: post.caption,
+                    mentions: post.mentions,
+                    font: .body,
+                    textColor: .primaryText,
+                    lineLimit: nil
+                )
+                .multilineTextAlignment(.leading)
+                .lineSpacing(2)
             }
             
             // Menu Items/Tags

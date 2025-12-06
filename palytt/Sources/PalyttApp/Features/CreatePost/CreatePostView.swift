@@ -181,6 +181,8 @@ struct MediaStepView: View {
     @State private var showImagePicker = false
     @State private var showCamera = false
     @State private var showNativePicker = false
+    @State private var showImageEditor = false
+    @State private var editingImageIndex: Int = 0
     
     var body: some View {
         VStack(spacing: 24) {
@@ -232,7 +234,7 @@ struct MediaStepView: View {
                         GridItem(.flexible(), spacing: 8),
                         GridItem(.flexible(), spacing: 8)
                     ], spacing: 12) {
-                        ForEach(viewModel.selectedImages, id: \.self) { image in
+                        ForEach(Array(viewModel.selectedImages.enumerated()), id: \.element) { index, image in
                             ZStack(alignment: .topTrailing) {
                                 #if os(iOS)
                                 Image(uiImage: image)
@@ -240,6 +242,12 @@ struct MediaStepView: View {
                                     .aspectRatio(3/4, contentMode: .fill)
                                     .frame(maxWidth: .infinity)
                                     .clipShape(RoundedRectangle(cornerRadius: 12))
+                                    .onTapGesture {
+                                        // Open image editor
+                                        editingImageIndex = index
+                                        showImageEditor = true
+                                        HapticManager.shared.impact(.light)
+                                    }
                                 #else
                                 Image(nsImage: image)
                                     .resizable()
@@ -248,14 +256,48 @@ struct MediaStepView: View {
                                     .clipShape(RoundedRectangle(cornerRadius: 12))
                                 #endif
                                 
-                                Button(action: {
-                                    HapticManager.shared.impact(.light)
-                                    viewModel.removeImage(image)
-                                }) {
-                                    Image(systemName: "xmark.circle.fill")
-                                        .font(.title3)
-                                        .foregroundColor(.white)
-                                        .background(Circle().fill(Color.black.opacity(0.6)))
+                                // Action buttons overlay
+                                VStack {
+                                    HStack {
+                                        Spacer()
+                                        // Remove button
+                                        Button(action: {
+                                            HapticManager.shared.impact(.light)
+                                            viewModel.removeImage(image)
+                                        }) {
+                                            Image(systemName: "xmark.circle.fill")
+                                                .font(.title3)
+                                                .foregroundColor(.white)
+                                                .background(Circle().fill(Color.black.opacity(0.6)))
+                                        }
+                                    }
+                                    
+                                    Spacer()
+                                    
+                                    // Edit button
+                                    #if os(iOS)
+                                    HStack {
+                                        Button(action: {
+                                            editingImageIndex = index
+                                            showImageEditor = true
+                                            HapticManager.shared.impact(.light)
+                                        }) {
+                                            HStack(spacing: 4) {
+                                                Image(systemName: "slider.horizontal.3")
+                                                    .font(.caption)
+                                                Text("Edit")
+                                                    .font(.caption)
+                                                    .fontWeight(.medium)
+                                            }
+                                            .foregroundColor(.white)
+                                            .padding(.horizontal, 10)
+                                            .padding(.vertical, 6)
+                                            .background(Color.black.opacity(0.6))
+                                            .clipShape(Capsule())
+                                        }
+                                        Spacer()
+                                    }
+                                    #endif
                                 }
                                 .padding(8)
                             }
@@ -293,6 +335,16 @@ struct MediaStepView: View {
         .sheet(isPresented: $showNativePicker) {
             NativePhotoPicker(selectedImages: $viewModel.selectedImages)
         }
+        #if os(iOS)
+        .fullScreenCover(isPresented: $showImageEditor) {
+            if editingImageIndex < viewModel.selectedImages.count {
+                ImageEditorView(image: Binding(
+                    get: { viewModel.selectedImages[editingImageIndex] },
+                    set: { viewModel.selectedImages[editingImageIndex] = $0 }
+                ))
+            }
+        }
+        #endif
     }
 }
 
@@ -383,30 +435,21 @@ struct DetailsStepView: View {
                     }
                 }
                 
-                // Caption
+                // Caption with Mentions
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("How's your drink?")
+                    Text("How's your experience?")
                         .font(.headline)
                         .foregroundColor(.primaryText)
                     
-                    TextEditor(text: $viewModel.caption)
-                        #if os(iOS)
-                        .focused($isCaptionFocused)
-                        #endif
-                        .frame(minHeight: 120)
-                        .padding(12)
-                        .background(Color.gray.opacity(0.1))
-                        .cornerRadius(16)
-                        .scrollContentBackground(.hidden)
-                        .overlay(alignment: .topLeading) {
-                            if viewModel.caption.isEmpty {
-                                Text("Share your thoughts...")
-                                    .foregroundColor(.tertiaryText)
-                                    .padding(.horizontal, 16)
-                                    .padding(.vertical, 20)
-                                    .allowsHitTesting(false)
-                            }
-                        }
+                    MentionTextEditor(
+                        text: $viewModel.caption,
+                        mentions: $viewModel.mentions,
+                        placeholder: "Share your thoughts... Tag @friends or #topics",
+                        minHeight: 120
+                    )
+                    #if os(iOS)
+                    .focused($isCaptionFocused)
+                    #endif
                 }
                 
                 // Location
@@ -1133,6 +1176,7 @@ class CreatePostViewModel: ObservableObject {
     @Published var isLoading = false
     @Published var isSuccess = false
     @Published var errorMessage: String?
+    @Published var mentions: [Mention] = []  // Mentions in the caption
     
     private let backendService = BackendService.shared
     private let bunnyNetService = BunnyNetService.shared
@@ -1299,6 +1343,7 @@ class CreatePostViewModel: ObservableObject {
         menuItems = []
         rating = nil
         selectedFoodCategory = nil
+        mentions = []
     }
 }
 

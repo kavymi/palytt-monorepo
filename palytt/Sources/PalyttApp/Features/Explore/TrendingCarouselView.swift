@@ -345,8 +345,8 @@ class TrendingViewModel: ObservableObject {
         error = nil
         
         // Get user's location for nearby trending
-        let locationManager = LocationManager.shared
-        let userLocation = locationManager.currentLocation
+        // TODO: Use location for filtering trending posts when backend endpoint is ready
+        _ = LocationManager.shared.currentLocation
         
         do {
             // TODO: Create backend endpoint for trending posts
@@ -391,4 +391,5 @@ class TrendingViewModel: ObservableObject {
     .padding()
     .background(Color.appBackground)
 }
+
 

@@ -12,6 +12,7 @@ import Foundation
 import Clerk
 
 /// Protocol for authentication providers
+@MainActor
 protocol AuthProviderProtocol {
     func getToken() async throws -> String
     func getHeaders() async throws -> [String: String]
@@ -28,11 +29,11 @@ final class AuthProvider: AuthProviderProtocol {
     
     private let clerk = Clerk.shared
     
-    // Token caching - use short expiry since Clerk tokens expire quickly (60 seconds default)
+    // Token caching - use very short expiry since Clerk tokens expire quickly (60 seconds default)
     private var cachedToken: String?
     private var tokenFetchTime: Date?
-    // Clerk session tokens expire in ~60 seconds, so cache for max 30 seconds
-    private let tokenCacheMaxAge: TimeInterval = 30
+    // Clerk session tokens expire in ~60 seconds, so cache for max 15 seconds to avoid using near-expired tokens
+    private let tokenCacheMaxAge: TimeInterval = 15
     
     // MARK: - Singleton
     
@@ -46,17 +47,19 @@ final class AuthProvider: AuthProviderProtocol {
     /// - Returns: Valid JWT token from Clerk
     /// - Throws: APIError if token cannot be obtained
     func getToken() async throws -> String {
-        // Check if we have a recently fetched token (within 30 seconds)
+        // Check if we have a recently fetched token (within cache max age)
         // This avoids excessive API calls while still keeping tokens fresh
         if let token = cachedToken,
            let fetchTime = tokenFetchTime,
            Date().timeIntervalSince(fetchTime) < tokenCacheMaxAge {
+            print("✅ AuthProvider: Using cached token (age: \(Date().timeIntervalSince(fetchTime))s)")
             return token
         }
         
         // Get fresh token from Clerk
         guard let session = clerk.session else {
             print("⚠️ AuthProvider: No active Clerk session")
+            print("⚠️ AuthProvider: Clerk user exists: \(clerk.user != nil)")
             clearCache()
             throw APIError.authenticationRequired
         }
@@ -65,6 +68,7 @@ final class AuthProvider: AuthProviderProtocol {
             // ✅ Always get a fresh token from Clerk - it handles its own caching
             // The getToken() call will return a cached token if still valid,
             // or refresh it automatically if expired
+            print("🔄 AuthProvider: Requesting token from Clerk session...")
             let tokenResource = try await session.getToken()
             
             guard let token = tokenResource?.jwt else {
@@ -77,13 +81,15 @@ final class AuthProvider: AuthProviderProtocol {
             cachedToken = token
             tokenFetchTime = Date()
             
-            print("✅ AuthProvider: Got fresh token from Clerk")
+            print("✅ AuthProvider: Got fresh token from Clerk (length: \(token.count) chars)")
             return token
         } catch {
             // Clear cache on error
             clearCache()
             
             print("❌ AuthProvider: Failed to get token: \(error)")
+            print("❌ AuthProvider: Error type: \(type(of: error))")
+            print("❌ AuthProvider: Error description: \(error.localizedDescription)")
             
             // Map Clerk errors to API errors
             if error.localizedDescription.contains("expired") {
@@ -127,6 +133,13 @@ final class AuthProvider: AuthProviderProtocol {
     func clearCache() {
         cachedToken = nil
         tokenFetchTime = nil
+    }
+    
+    /// Force refresh the token, bypassing cache
+    /// Use this when you receive a 401 error and need a fresh token
+    func forceRefreshToken() async throws -> String {
+        clearCache()
+        return try await getToken()
     }
     
     // MARK: - User ID Helper (for x-clerk-user-id header if needed)

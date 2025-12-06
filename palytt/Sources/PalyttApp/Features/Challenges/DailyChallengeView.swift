@@ -798,3 +798,4 @@ struct ChallengeStatItem: View {
     .background(Color.appBackground)
 }
 
+

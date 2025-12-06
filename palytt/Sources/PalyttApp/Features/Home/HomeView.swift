@@ -21,6 +21,9 @@ struct HomeView: View {
     @State private var showNotifications = false
     @Namespace private var feedTabAnimation
     
+    // Track Clerk session state for reliable auth detection
+    @State private var hasClerkSession: Bool = Clerk.shared.session != nil
+    
     @ObservedObject private var notificationService = NotificationService.shared
     private let backendService = BackendService.shared
     // @StateObject private var realtimeService = RealtimeService.shared
@@ -88,14 +91,24 @@ struct HomeView: View {
         let currentPosts = viewModel.currentPosts
         let hasMorePages = viewModel.currentHasMorePages
         
-        if (viewModel.isLoading && currentPosts.isEmpty) || (!appState.isAuthenticated && currentPosts.isEmpty) {
-            // Initial loading skeleton - show while loading OR while waiting for auth
+        // Compute whether we should show loading skeleton
+        // Show skeleton when:
+        // 1. Actively loading with no posts
+        // 2. Not authenticated yet and no posts
+        // 3. Authenticated but session not ready yet (first-login race condition)
+        let isWaitingForAuth = !appState.isAuthenticated && currentPosts.isEmpty
+        let isWaitingForSession = appState.isAuthenticated && !hasClerkSession && currentPosts.isEmpty
+        let isActivelyLoading = viewModel.isLoading && currentPosts.isEmpty
+        let shouldShowSkeleton = isActivelyLoading || isWaitingForAuth || isWaitingForSession
+        
+        if shouldShowSkeleton {
+            // Initial loading skeleton - show while loading OR while waiting for auth/session
             ForEach(0..<3, id: \.self) { _ in
                 PostCardSkeleton()
                     .padding(.horizontal)
             }
-        } else if currentPosts.isEmpty && !viewModel.isLoading && appState.isAuthenticated {
-            // Empty state - different for each feed type
+        } else if currentPosts.isEmpty && !viewModel.isLoading && appState.isAuthenticated && hasClerkSession {
+            // Empty state - only show when fully authenticated with session AND not loading
             if viewModel.selectedFeedType == .friends {
                 EmptyFeedView()
             } else {
@@ -194,13 +207,30 @@ struct HomeView: View {
                 // Track user action
                 // AnalyticsManager.shared.trackFeatureUsed("home_refresh", context: ["trigger": "pull_to_refresh"])
             }
-            .onAppear {
-                // ✅ Always attempt to fetch posts on first appear
-                // If authenticated, fetch immediately
-                // If not authenticated yet, show loading and wait for auth
-                if appState.isAuthenticated {
-                    // User is already authenticated - fetch posts if needed
+            .task {
+                // ✅ Use .task instead of .onAppear for async operations
+                // This runs when the view appears and handles the async nature better
+                
+                // Check the ACTUAL Clerk session state, not the cached @State variable
+                let actualClerkSession = Clerk.shared.session != nil
+                
+                // Update the cached state to match reality
+                if actualClerkSession != hasClerkSession {
+                    hasClerkSession = actualClerkSession
+                }
+                
+                print("🔐 HomeView: task - isAuthenticated: \(appState.isAuthenticated), hasSession: \(actualClerkSession), posts: \(viewModel.posts.count), isLoading: \(viewModel.isLoading)")
+                
+                // Only fetch if BOTH authenticated AND Clerk session is ready
+                // If not ready yet, show loading and wait for session/auth
+                if appState.isAuthenticated && actualClerkSession {
+                    // User is authenticated AND session is ready - fetch posts if needed
+                    print("🔐 HomeView: task - authenticated with session, fetching posts if needed")
                     viewModel.fetchPostsIfNeeded()
+                } else if appState.isAuthenticated && !actualClerkSession {
+                    // User is authenticated but session not ready yet - use retry mechanism
+                    print("🔐 HomeView: task - authenticated but no session yet, waiting for session")
+                    viewModel.fetchPostsWhenReady()
                 } else if viewModel.posts.isEmpty {
                     // Not authenticated yet - show loading state
                     // The onChange handler will trigger fetch when auth is ready
@@ -230,12 +260,24 @@ struct HomeView: View {
             // ✅ Refresh when user authentication state changes (e.g., after Clerk loads)
             .onChange(of: appState.isAuthenticated) { oldValue, newValue in
                 if newValue {
-                    // User just became authenticated - fetch posts immediately
-                    print("🔐 HomeView: User authenticated, fetching posts")
-                    viewModel.fetchPosts()
+                    // User just became authenticated - fetch posts with session readiness check
+                    print("🔐 HomeView: User authenticated, fetching posts when session ready")
+                    viewModel.fetchPostsWhenReady()
                 } else if !newValue {
                     // User logged out - clear posts
                     viewModel.clearPosts()
+                }
+            }
+            // ✅ Monitor Clerk session state for reliable first-login detection
+            .onReceive(Timer.publish(every: 0.5, on: .main, in: .common).autoconnect()) { _ in
+                let currentSessionState = Clerk.shared.session != nil
+                if currentSessionState != hasClerkSession {
+                    hasClerkSession = currentSessionState
+                    // Session state changed - if we now have a session and are authenticated, fetch posts
+                    if currentSessionState && appState.isAuthenticated && viewModel.posts.isEmpty && !viewModel.isLoading {
+                        print("🔐 HomeView: Clerk session now ready, fetching posts")
+                        viewModel.fetchPosts()
+                    }
                 }
             }
             // .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("RealtimeLiveUpdate"))) { notification in

@@ -34,6 +34,7 @@ model User {
   likes         Like[]
   bookmarks     Bookmark[]
   lists         List[]
+  commentReactions CommentReaction[]
 
   // Social Relations
   friendsSent        Friend[]  @relation("FriendSender")
@@ -47,6 +48,7 @@ model User {
 
   // Notification Relations
   notifications      Notification[]
+  deviceTokens       DeviceToken[]
 
   // Gathering Invite Relations
   gatheringInvitesSent     GatheringInvite[] @relation("GatheringInvitesSent")
@@ -55,6 +57,7 @@ model User {
   // Referral Relations
   referralsSent            Referral[]        @relation("ReferralsSent")
   referralsReceived        Referral[]        @relation("ReferralsReceived")
+  referralRewards          ReferralReward[]
 
   // Referral tracking
   referralCode             String?           @unique  // User's own referral code
@@ -66,6 +69,10 @@ model User {
   longestStreak            Int               @default(0)  // Best streak ever achieved
   lastPostDate             DateTime?         // Date of last post (for streak calculation)
   streakFreezeCount        Int               @default(0)  // Number of streak freezes available
+
+  // Activity tracking for re-engagement notifications
+  lastActiveAt             DateTime          @default(now())  // Last time user was active in the app
+  reengagementSentAt       DateTime?         // Last time a re-engagement notification was sent
 
   @@map("users")
 }
@@ -100,6 +107,9 @@ model Post {
   // Visibility
   isPublic      Boolean   @default(true)
   isDeleted     Boolean   @default(false)
+  
+  // Mentions (@users, @places, #hashtags) stored as JSON
+  mentions      Json?     // Array of {type, text, targetId, start, end}
 
   // Relations
   author        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -124,10 +134,28 @@ model Comment {
   // Relations
   post          Post      @relation(fields: [postId], references: [id], onDelete: Cascade)
   author        User      @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  reactions     CommentReaction[]
 
   @@index([postId])
   @@index([authorId])
   @@map("comments")
+}
+
+model CommentReaction {
+  id            String    @id @default(uuid())
+  commentId     String
+  userId        String
+  emoji         String    // "fire", "love", "laugh", "sad", "wow"
+  createdAt     DateTime  @default(now())
+
+  // Relations
+  comment       Comment   @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([commentId, userId, emoji])  // One reaction type per user per comment
+  @@index([commentId])
+  @@index([userId])
+  @@map("comment_reactions")
 }
 
 model Like {
@@ -403,4 +431,63 @@ enum ReferralStatus {
   USED        // Code used, referee signed up
   REWARDED    // Reward has been given to referrer
   EXPIRED     // Code expired (optional time limit)
+}
+
+// ============================================
+// REFERRAL REWARDS
+// ============================================
+
+model ReferralReward {
+  id            String      @id @default(uuid())
+  userId        String
+  type          RewardType
+  amount        Int         @default(1)
+  milestone     Int         // Referral count that triggered this reward
+  claimedAt     DateTime?   // When the reward was claimed/used
+  expiresAt     DateTime?   // Optional expiration date
+  createdAt     DateTime    @default(now())
+
+  // Relations
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([type])
+  @@map("referral_rewards")
+}
+
+enum RewardType {
+  STREAK_FREEZE   // Adds streak freeze to user
+  PREMIUM_WEEK    // Premium features for a week
+  PREMIUM_MONTH   // Premium features for a month
+  BADGE           // Unlocks a special badge
+  VIP_STATUS      // VIP Ambassador status
+}
+
+// ============================================
+// DEVICE TOKENS (for Push Notifications)
+// ============================================
+
+model DeviceToken {
+  id            String       @id @default(uuid())
+  userId        String
+  token         String       @unique  // APNs device token
+  platform      Platform     @default(IOS)
+  isActive      Boolean      @default(true)
+  lastUsedAt    DateTime     @default(now())
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  // Relations
+  user          User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([token])
+  @@index([isActive])
+  @@map("device_tokens")
+}
+
+enum Platform {
+  IOS
+  ANDROID
+  WEB
 } 

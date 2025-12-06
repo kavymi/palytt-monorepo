@@ -28,6 +28,9 @@ struct Post: Identifiable, Codable, Equatable {
     var isLiked: Bool
     var isSaved: Bool
     
+    // Mentions in the caption (@users, @places, #hashtags)
+    var mentions: [Mention] = []
+    
     // Group gathering integration
     var linkedGatheringId: String? // ID of the gathering this post is linked to
     var gatheringLinkType: GatheringLinkType? // Type of gathering link
@@ -55,6 +58,7 @@ struct Post: Identifiable, Codable, Equatable {
         commentsCount: Int = 0,
         isLiked: Bool = false,
         isSaved: Bool = false,
+        mentions: [Mention] = [],
         linkedGatheringId: String? = nil,
         gatheringLinkType: GatheringLinkType? = nil,
         gatheringHashtag: String? = nil,
@@ -78,6 +82,7 @@ struct Post: Identifiable, Codable, Equatable {
         self.commentsCount = commentsCount
         self.isLiked = isLiked
         self.isSaved = isSaved
+        self.mentions = mentions
         self.linkedGatheringId = linkedGatheringId
         self.gatheringLinkType = gatheringLinkType
         self.gatheringHashtag = gatheringHashtag

@@ -267,99 +267,177 @@ struct NotificationRowView: View {
     let notification: PalyttNotification
     @StateObject private var notificationService = NotificationService.shared
     @State private var isPressed = false
+    @State private var offset: CGFloat = 0
+    @State private var showingDeleteConfirm = false
+    
+    // Swipe thresholds
+    private let swipeThreshold: CGFloat = 80
+    private let deleteThreshold: CGFloat = 150
     
     var body: some View {
-        Button(action: {
-            handleNotificationTap()
-        }) {
-            HStack(spacing: 12) {
-                // Notification icon
-                notificationIcon
-                
-                // Content
-                VStack(alignment: .leading, spacing: 4) {
-                    HStack {
-                        // Sender info and action
-                        Text(notification.senderName)
-                            .font(.system(size: 15, weight: .semibold))
-                            .foregroundColor(.primaryText) +
-                        Text(" \(notification.actionText)")
-                            .font(.system(size: 15, weight: .regular))
-                            .foregroundColor(.secondaryText)
-                        
-                        Spacer()
-                        
-                        // Time
-                        Text(notification.timeAgo)
+        ZStack {
+            // Swipe action backgrounds
+            HStack {
+                // Left swipe action - Mark as read
+                HStack {
+                    Image(systemName: notification.isRead ? "envelope.open" : "checkmark.circle.fill")
+                        .font(.system(size: 20, weight: .semibold))
+                        .foregroundColor(.white)
+                    if offset > swipeThreshold {
+                        Text(notification.isRead ? "Unread" : "Read")
                             .font(.caption)
-                            .foregroundColor(.tertiaryText)
-                    }
-                    
-                    // Additional content based on notification type
-                    if let postTitle = notification.data?.postTitle, !postTitle.isEmpty {
-                        Text(postTitle)
-                            .font(.system(size: 14))
-                            .foregroundColor(.secondaryText)
-                            .lineLimit(2)
-                    }
-                    
-                    // Username if available
-                    if let username = notification.senderUsername {
-                        Text("@\(username)")
-                            .font(.caption)
-                            .foregroundColor(.tertiaryText)
+                            .fontWeight(.medium)
+                            .foregroundColor(.white)
                     }
                 }
+                .frame(width: max(0, offset))
+                .background(Color.primaryBrand)
                 
-                // Post image if available
-                if let postImageURL = notification.postImageURL {
-                    AsyncImage(url: postImageURL) { image in
-                        image
-                            .resizable()
-                            .aspectRatio(contentMode: .fill)
-                    } placeholder: {
-                        RoundedRectangle(cornerRadius: 8)
-                            .fill(Color.cardBackground)
-                    }
-                    .frame(width: 44, height: 44)
-                    .clipShape(RoundedRectangle(cornerRadius: 8))
-                }
+                Spacer()
                 
-                // Unread indicator
-                if !notification.isRead {
-                    Circle()
-                        .fill(Color.primaryBrand)
-                        .frame(width: 8, height: 8)
-                }
+                // Right swipe action - Delete (not implemented - just visual)
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 12)
-            .background(
-                RoundedRectangle(cornerRadius: 0)
-                    .fill(notification.isRead ? Color.clear : Color.primaryBrand.opacity(0.05))
+            
+            // Main notification content
+            Button(action: {
+                handleNotificationTap()
+            }) {
+                HStack(spacing: 12) {
+                    // Notification icon with batch count indicator
+                    notificationIcon
+                    
+                    // Content
+                    VStack(alignment: .leading, spacing: 4) {
+                        HStack {
+                            // Sender info and action with batch indicator
+                            if let batchCount = notification.data?.getValue(for: "batchCount", as: Int.self), batchCount > 1 {
+                                // Batched notification display
+                                Text(notification.title)
+                                    .font(.system(size: 15, weight: .semibold))
+                                    .foregroundColor(.primaryText)
+                            } else {
+                                // Regular notification display
+                                Text(notification.senderName)
+                                    .font(.system(size: 15, weight: .semibold))
+                                    .foregroundColor(.primaryText) +
+                                Text(" \(notification.actionText)")
+                                    .font(.system(size: 15, weight: .regular))
+                                    .foregroundColor(.secondaryText)
+                            }
+                            
+                            Spacer()
+                            
+                            // Time
+                            Text(notification.timeAgo)
+                                .font(.caption)
+                                .foregroundColor(.tertiaryText)
+                        }
+                        
+                        // Additional content based on notification type
+                        if let postTitle = notification.data?.postTitle, !postTitle.isEmpty {
+                            Text(postTitle)
+                                .font(.system(size: 14))
+                                .foregroundColor(.secondaryText)
+                                .lineLimit(2)
+                        }
+                        
+                        // Username if available (for single sender)
+                        if let username = notification.senderUsername,
+                           notification.data?.getValue(for: "batchCount", as: Int.self) == nil {
+                            Text("@\(username)")
+                                .font(.caption)
+                                .foregroundColor(.tertiaryText)
+                        }
+                    }
+                    
+                    // Post image if available
+                    if let postImageURL = notification.postImageURL {
+                        AsyncImage(url: postImageURL) { image in
+                            image
+                                .resizable()
+                                .aspectRatio(contentMode: .fill)
+                        } placeholder: {
+                            RoundedRectangle(cornerRadius: 8)
+                                .fill(Color.cardBackground)
+                        }
+                        .frame(width: 44, height: 44)
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                    }
+                    
+                    // Unread indicator
+                    if !notification.isRead {
+                        Circle()
+                            .fill(Color.primaryBrand)
+                            .frame(width: 8, height: 8)
+                    }
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 12)
+                .background(
+                    RoundedRectangle(cornerRadius: 0)
+                        .fill(notification.isRead ? Color.clear : Color.primaryBrand.opacity(0.05))
+                )
+            }
+            .buttonStyle(PlainButtonStyle())
+            .offset(x: offset)
+            .gesture(
+                DragGesture()
+                    .onChanged { value in
+                        // Only allow right swipe (positive translation)
+                        if value.translation.width > 0 {
+                            offset = min(value.translation.width, deleteThreshold)
+                        }
+                    }
+                    .onEnded { value in
+                        withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                            if offset > swipeThreshold {
+                                // Trigger mark as read/unread
+                                Task {
+                                    HapticManager.shared.impact(.medium)
+                                    await notificationService.markAsRead(notificationIds: [notification.id])
+                                }
+                            }
+                            offset = 0
+                        }
+                    }
             )
             .scaleEffect(isPressed ? 0.98 : 1.0)
             .animation(.easeInOut(duration: 0.1), value: isPressed)
         }
-        .buttonStyle(PlainButtonStyle())
         .onLongPressGesture(minimumDuration: 0) { pressing in
             isPressed = pressing
         } perform: {
-            // Long press action - mark as read
-            if !notification.isRead {
+            // Long press shows context menu
+            HapticManager.shared.impact(.light)
+        }
+        .contextMenu {
+            // Mark as read/unread
+            Button(action: {
                 Task {
                     await notificationService.markAsRead(notificationIds: [notification.id])
                 }
+            }) {
+                Label(notification.isRead ? "Mark as Unread" : "Mark as Read", 
+                      systemImage: notification.isRead ? "envelope.badge" : "checkmark.circle")
             }
-        }
-        .contextMenu {
-            if !notification.isRead {
+            
+            // View related content
+            if notification.data?.postId != nil {
                 Button(action: {
-                    Task {
-                        await notificationService.markAsRead(notificationIds: [notification.id])
+                    handleNotificationTap()
+                }) {
+                    Label("View Post", systemImage: "photo")
+                }
+            }
+            
+            if notification.data?.senderId != nil {
+                Button(action: {
+                    // Navigate to profile
+                    if let senderId = notification.data?.senderId {
+                        print("Navigate to profile: \(senderId)")
                     }
                 }) {
-                    Label("Mark as Read", systemImage: "checkmark.circle")
+                    Label("View Profile", systemImage: "person.circle")
                 }
             }
         }

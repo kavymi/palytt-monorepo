@@ -366,6 +366,17 @@ class AchievementService: ObservableObject {
             return min(achievement.requirement.targetValue, context.totalPosts)
         case "social_butterfly":
             return min(achievement.requirement.targetValue, context.totalLikes + context.totalComments)
+        // Comment achievements
+        case "first_comment":
+            return context.commentsGiven > 0 ? 1 : 0
+        case "conversation_starter":
+            return min(achievement.requirement.targetValue, context.maxRepliesOnComment)
+        case "comment_engager":
+            return min(achievement.requirement.targetValue, context.commentsGiven)
+        case "insightful_commenter":
+            return min(achievement.requirement.targetValue, context.maxLikesOnComment)
+        case "reply_master":
+            return min(achievement.requirement.targetValue, context.repliesGiven)
         default:
             return 0
         }
@@ -377,6 +388,17 @@ class AchievementService: ObservableObject {
             return min(achievement.requirement.targetValue, context.totalFriends)
         case "community_leader":
             return min(achievement.requirement.targetValue, context.totalFollowers)
+        // Referral achievements
+        case "first_referral":
+            return min(achievement.requirement.targetValue, context.totalReferrals)
+        case "social_butterfly_referral":
+            return min(achievement.requirement.targetValue, context.totalReferrals)
+        case "community_builder":
+            return min(achievement.requirement.targetValue, context.totalReferrals)
+        case "palytt_ambassador":
+            return min(achievement.requirement.targetValue, context.totalReferrals)
+        case "viral_inviter":
+            return min(achievement.requirement.targetValue, context.totalReferrals)
         default:
             return 0
         }
@@ -462,11 +484,23 @@ struct AchievementContext {
     let currentStreak: Int
     let recentActions: [AchievementAction]
     
+    // Comment-specific metrics
+    let commentsGiven: Int
+    let repliesGiven: Int
+    let maxRepliesOnComment: Int
+    let maxLikesOnComment: Int
+    
+    // Referral metrics
+    let totalReferrals: Int
+    
     static let empty = AchievementContext(
         totalPosts: 0, totalLikes: 0, totalComments: 0,
         totalFriends: 0, totalFollowers: 0,
         uniqueCuisines: [], uniqueRestaurants: [],
-        currentStreak: 0, recentActions: []
+        currentStreak: 0, recentActions: [],
+        commentsGiven: 0, repliesGiven: 0,
+        maxRepliesOnComment: 0, maxLikesOnComment: 0,
+        totalReferrals: 0
     )
 }
 
@@ -534,6 +568,67 @@ struct DefaultAchievements {
             rarity: .common
         ),
         
+        // Comment Achievements
+        Achievement(
+            id: "first_comment",
+            title: "First Words",
+            description: "Leave your first comment",
+            category: .community,
+            type: .counter,
+            requirement: AchievementRequirement(type: .counter, targetValue: 1, timeframe: nil, criteria: ["type": "comment"]),
+            reward: AchievementReward(type: .badge, value: 10, title: "First Words Badge", description: "You've joined the conversation!"),
+            iconName: "bubble.left.fill",
+            rarity: .common
+        ),
+        
+        Achievement(
+            id: "conversation_starter",
+            title: "Conversation Starter",
+            description: "Get 5 replies on a single comment",
+            category: .community,
+            type: .counter,
+            requirement: AchievementRequirement(type: .counter, targetValue: 5, timeframe: nil, criteria: ["type": "comment_replies"]),
+            reward: AchievementReward(type: .badge, value: 50, title: "Conversation Starter Badge", description: "Your comments spark discussions!"),
+            iconName: "bubble.left.and.bubble.right.fill",
+            rarity: .rare
+        ),
+        
+        Achievement(
+            id: "comment_engager",
+            title: "Community Engager",
+            description: "Leave 50 comments total",
+            category: .community,
+            type: .counter,
+            requirement: AchievementRequirement(type: .counter, targetValue: 50, timeframe: nil, criteria: ["type": "comments_total"]),
+            reward: AchievementReward(type: .title, value: 0, title: "Active Commenter", description: "You're always part of the conversation!"),
+            iconName: "text.bubble.fill",
+            rarity: .uncommon
+        ),
+        
+        Achievement(
+            id: "insightful_commenter",
+            title: "Insightful Voice",
+            description: "Get 10 likes on a single comment",
+            category: .community,
+            type: .counter,
+            requirement: AchievementRequirement(type: .counter, targetValue: 10, timeframe: nil, criteria: ["type": "comment_likes"]),
+            reward: AchievementReward(type: .badge, value: 75, title: "Insightful Badge", description: "People love what you have to say!"),
+            iconName: "lightbulb.fill",
+            rarity: .epic
+        ),
+        
+        Achievement(
+            id: "reply_master",
+            title: "Reply Master",
+            description: "Reply to 25 different comments",
+            category: .community,
+            type: .counter,
+            requirement: AchievementRequirement(type: .counter, targetValue: 25, timeframe: nil, criteria: ["type": "replies_given"]),
+            reward: AchievementReward(type: .badge, value: 40, title: "Reply Master Badge", description: "You keep conversations going!"),
+            iconName: "arrowshape.turn.up.left.fill",
+            rarity: .uncommon
+        ),
+        
         Achievement(
             id: "people_person",
             title: "People Person",
@@ -594,6 +689,68 @@ struct DefaultAchievements {
             requirement: AchievementRequirement(type: .combo, targetValue: 100, timeframe: nil, criteria: ["photos": "required", "reviews": "detailed"]),
             reward: AchievementReward(type: .title, value: 0, title: "Legendary Critic", description: "Your reviews are legendary!"),
             iconName: "star.fill",
+            rarity: .legendary,
+            isSecret: true
+        ),
+        
+        // Referral Achievements
+        Achievement(
+            id: "first_referral",
+            title: "First Invite",
+            description: "Invite your first friend to join Palytt",
+            category: .social,
+            type: .counter,
+            requirement: AchievementRequirement(type: .counter, targetValue: 1, timeframe: nil, criteria: ["type": "referral"]),
+            reward: AchievementReward(type: .badge, value: 100, title: "Referral Badge", description: "You're spreading the word!"),
+            iconName: "person.badge.plus",
+            rarity: .common
+        ),
+        
+        Achievement(
+            id: "social_butterfly_referral",
+            title: "Social Butterfly",
+            description: "Successfully refer 5 friends to Palytt",
+            category: .social,
+            type: .counter,
+            requirement: AchievementRequirement(type: .counter, targetValue: 5, timeframe: nil, criteria: ["type": "referral"]),
+            reward: AchievementReward(type: .badge, value: 500, title: "Social Butterfly Badge", description: "Your friends love Palytt thanks to you!"),
+            iconName: "sparkles",
+            rarity: .uncommon
+        ),
+        
+        Achievement(
+            id: "community_builder",
+            title: "Community Builder",
+            description: "Successfully refer 10 friends to Palytt",
+            category: .community,
+            type: .counter,
+            requirement: AchievementRequirement(type: .counter, targetValue: 10, timeframe: nil, criteria: ["type": "referral"]),
+            reward: AchievementReward(type: .feature, value: 3, title: "Streak Freeze x3", description: "Protect your posting streak!"),
+            iconName: "building.2.fill",
+            rarity: .rare
+        ),
+        
+        Achievement(
+            id: "palytt_ambassador",
+            title: "Palytt Ambassador",
+            description: "Successfully refer 25 friends to Palytt",
+            category: .special,
+            type: .counter,
+            requirement: AchievementRequirement(type: .counter, targetValue: 25, timeframe: nil, criteria: ["type": "referral"]),
+            reward: AchievementReward(type: .title, value: 0, title: "Palytt Ambassador", description: "You're a true community champion!"),
+            iconName: "crown.fill",
+            rarity: .legendary
+        ),
+        
+        Achievement(
+            id: "viral_inviter",
+            title: "Viral Inviter",
+            description: "Successfully refer 50 friends to Palytt",
+            category: .special,
+            type: .counter,
+            requirement: AchievementRequirement(type: .counter, targetValue: 50, timeframe: nil, criteria: ["type": "referral"]),
+            reward: AchievementReward(type: .cosmetic, value: 0, title: "Golden Profile Frame", description: "Stand out with a golden profile frame!"),
+            iconName: "flame.fill",
             rarity: .legendary,
             isSecret: true
         )

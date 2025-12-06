@@ -1,6 +1,7 @@
 import { initTRPC } from '@trpc/server';
 import type { CreateFastifyContextOptions } from '@trpc/server/adapters/fastify';
 import { verifyToken } from '@clerk/backend';
+import { updateUserActivity } from './services/reengagementService.js';
 
 /**
  * User interface for authenticated context
@@ -80,11 +81,17 @@ export const middleware = t.middleware;
 
 /**
  * Authentication middleware
+ * Also updates user activity for re-engagement tracking
  */
 const isAuthed = middleware(async ({ ctx, next }) => {
   if (!ctx.user) {
     throw new Error('Unauthorized - Please sign in');
   }
+  
+  // Update user activity for re-engagement notifications (non-blocking)
+  updateUserActivity(ctx.user.clerkId).catch(() => {
+    // Silently ignore errors - activity tracking should not block requests
+  });
   
   return next({
     ctx: {

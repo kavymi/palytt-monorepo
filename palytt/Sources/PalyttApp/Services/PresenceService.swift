@@ -195,7 +195,7 @@ class PresenceService: ObservableObject {
     
     /// Set current user as online and start heartbeat
     func setOnline() async {
-        guard let clerkId = getCurrentClerkId() else {
+        guard getCurrentClerkId() != nil else {
             print("⚠️ PresenceService: No Clerk ID available")
             return
         }

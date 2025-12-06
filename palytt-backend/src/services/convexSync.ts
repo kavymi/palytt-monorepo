@@ -70,7 +70,8 @@ interface ConvexActivityPayload {
 }
 
 // Convex deployment URL from environment
-const CONVEX_DEPLOYMENT_URL = process.env.CONVEX_DEPLOYMENT_URL || 'https://clear-goose-685.convex.cloud';
+// Default to Railway self-hosted Convex in production
+const CONVEX_DEPLOYMENT_URL = process.env.CONVEX_DEPLOYMENT_URL || 'https://convex-backend-production-9e36.up.railway.app';
 
 /**
  * Push a notification to Convex for real-time delivery

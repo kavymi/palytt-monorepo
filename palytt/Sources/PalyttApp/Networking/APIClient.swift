@@ -20,6 +20,7 @@ enum APIHTTPMethod: String {
 }
 
 /// Protocol for API client
+@MainActor
 protocol APIClientProtocol {
     func call<T: Encodable, R: Decodable>(
         procedure: String,
@@ -34,6 +35,7 @@ protocol APIClientProtocol {
 }
 
 /// Low-level HTTP client for making tRPC API calls
+@MainActor
 final class APIClient: APIClientProtocol {
     
     // MARK: - Properties
@@ -48,11 +50,11 @@ final class APIClient: APIClientProtocol {
     
     init(
         baseURL: URL,
-        authProvider: AuthProviderProtocol = AuthProvider.shared,
+        authProvider: AuthProviderProtocol? = nil,
         session: URLSession = .shared
     ) {
         self.baseURL = baseURL
-        self.authProvider = authProvider
+        self.authProvider = authProvider ?? AuthProvider.shared
         self.session = session
         
         // Configure JSON encoder
@@ -302,6 +304,7 @@ private struct TRPCErrorData: Decodable {
 
 #if DEBUG
 /// Mock API client for testing
+@MainActor
 final class MockAPIClient: APIClientProtocol {
     var shouldFail = false
     var mockError: APIError?

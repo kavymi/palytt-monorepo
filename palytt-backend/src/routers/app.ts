@@ -11,6 +11,8 @@ import { placesRouter } from './places.js';
 import { listsRouter } from './lists.js';
 import { gatheringsRouter } from './gatherings.js';
 import { referralsRouter } from './referrals.js';
+import { reengagementRouter } from './reengagement.js';
+import { engagementRouter } from './engagement.js';
 
 /**
  * Main app router
@@ -30,6 +32,8 @@ export const appRouter = router({
   lists: listsRouter,
   gatherings: gatheringsRouter,
   referrals: referralsRouter,
+  reengagement: reengagementRouter,
+  engagement: engagementRouter,
   // Add more routers here:
   // auth: authRouter,
   // shops: shopsRouter,

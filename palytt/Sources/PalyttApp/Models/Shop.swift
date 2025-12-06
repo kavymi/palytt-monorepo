@@ -242,4 +242,13 @@ enum PriceRange: Int, CaseIterable, Codable {
         case .luxury: return "Luxury"
         }
     }
+}
+
+// MARK: - Shop Review Model
+struct ShopReview: Identifiable {
+    let id: String
+    let authorName: String
+    let rating: Int
+    let text: String
+    let createdAt: Date
 } 

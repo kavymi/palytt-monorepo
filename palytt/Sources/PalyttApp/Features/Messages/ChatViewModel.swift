@@ -410,7 +410,7 @@ class ChatViewModel: ObservableObject {
     
     /// Mark visible messages as read (called when scrolling/viewing)
     func markVisibleMessagesAsRead(_ visibleMessageIds: [String]) {
-        guard let chatroomId = chatroomId else { return }
+        guard chatroomId != nil else { return }
         let currentUserId = Clerk.shared.user?.id ?? ""
         
         // Filter to only messages we didn't send

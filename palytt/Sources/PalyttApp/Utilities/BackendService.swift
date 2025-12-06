@@ -176,15 +176,44 @@ class BackendService: ObservableObject {
         let baseHeaders = ["Content-Type": "application/json"]
         
         // Use AuthProvider to get proper JWT token from Clerk
+        // First attempt
         do {
             let headers = try await AuthProvider.shared.getHeadersWithUserId()
             print("✅ BackendService: Got auth headers with token")
             return headers
         } catch {
-            print("⚠️ BackendService: Failed to get auth headers: \(error.localizedDescription)")
+            print("⚠️ BackendService: First attempt to get auth headers failed: \(error.localizedDescription)")
             print("⚠️ BackendService: Clerk user exists: \(Clerk.shared.user != nil)")
             print("⚠️ BackendService: Clerk session exists: \(Clerk.shared.session != nil)")
-            // Return base headers if authentication fails - let the backend handle unauthorized requests
+            
+            // If first attempt fails, try forcing a token refresh
+            do {
+                print("🔄 BackendService: Attempting to force refresh token...")
+                _ = try await AuthProvider.shared.forceRefreshToken()
+                let headers = try await AuthProvider.shared.getHeadersWithUserId()
+                print("✅ BackendService: Got auth headers after force refresh")
+                return headers
+            } catch {
+                print("❌ BackendService: Failed to get auth headers after refresh: \(error.localizedDescription)")
+                // Return base headers if all attempts fail - let the backend handle unauthorized requests
+                return baseHeaders
+            }
+        }
+    }
+    
+    /// Get fresh auth headers, forcing a token refresh
+    /// Use this when retrying after a 401 error
+    private func getFreshAuthHeaders() async -> [String: String] {
+        let baseHeaders = ["Content-Type": "application/json"]
+        
+        do {
+            // Force refresh the token
+            _ = try await AuthProvider.shared.forceRefreshToken()
+            let headers = try await AuthProvider.shared.getHeadersWithUserId()
+            print("✅ BackendService: Got FRESH auth headers after token refresh")
+            return headers
+        } catch {
+            print("⚠️ BackendService: Failed to get fresh auth headers: \(error.localizedDescription)")
             return baseHeaders
         }
     }
@@ -482,10 +511,28 @@ class BackendService: ObservableObject {
     }
     
     struct LikeResponse: Codable {
-        let liked: Bool
-        let totalLikes: Int
-        let likesCount: Int
+        let success: Bool
         let isLiked: Bool
+        let likesCount: Int
+        
+        // Computed properties for backward compatibility
+        var liked: Bool { isLiked }
+        var totalLikes: Int { likesCount }
+        
+        // Custom initializer for creating responses manually
+        init(success: Bool, isLiked: Bool, likesCount: Int) {
+            self.success = success
+            self.isLiked = isLiked
+            self.likesCount = likesCount
+        }
+        
+        // Codable initializer
+        init(from decoder: Decoder) throws {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            success = try container.decode(Bool.self, forKey: .success)
+            isLiked = try container.decode(Bool.self, forKey: .isLiked)
+            likesCount = try container.decode(Int.self, forKey: .likesCount)
+        }
     }
     
     struct BookmarkResponse: Codable {
@@ -1051,15 +1098,11 @@ class BackendService: ObservableObject {
         let input = ["postId": postId]
         
         // Use the correct tRPC mutation endpoint "posts.toggleLike"
-        let response: ToggleLikeResponse = try await performTRPCMutation(procedure: "posts.toggleLike", input: input)
+        // The backend returns { success, isLiked, likesCount } which matches LikeResponse
+        let response: LikeResponse = try await performTRPCMutation(procedure: "posts.toggleLike", input: input)
         
-        // Convert to expected LikeResponse format
-        return LikeResponse(
-            liked: response.liked,
-            totalLikes: response.totalLikes,
-            likesCount: response.totalLikes,
-            isLiked: response.liked
-        )
+        print("✅ BackendService: Like toggled - isLiked: \(response.isLiked), likesCount: \(response.likesCount)")
+        return response
     }
     
     func toggleBookmark(postId: String) async throws -> BookmarkResponse {
@@ -1135,15 +1178,22 @@ class BackendService: ObservableObject {
             let commentId: String
         }
         
+        // Backend response for comment likes (not fully implemented yet)
+        struct CommentLikeResponse: Codable {
+            let success: Bool
+            let message: String?
+        }
+        
         let request = ToggleCommentLikeRequest(commentId: commentId)
         
-        let response: ConvexLikeResponse = try await performTRPCMutation(procedure: "comments.toggleLike", input: request)
+        let response: CommentLikeResponse = try await performTRPCMutation(procedure: "comments.toggleLike", input: request)
         
+        // Comment likes aren't fully implemented in the backend yet
+        // Return a placeholder response
         return LikeResponse(
-            liked: response.liked,
-            totalLikes: response.totalLikes,
-            likesCount: response.totalLikes,
-            isLiked: response.liked
+            success: response.success,
+            isLiked: response.success, // Assume liked if successful
+            likesCount: 0 // Backend doesn't track comment likes yet
         )
     }
     
@@ -1585,6 +1635,42 @@ class BackendService: ObservableObject {
     func deleteAllNotifications(userId: String) async throws -> NotificationActionResponse {
         let request = ["userId": userId]
         return try await performTRPCMutation(procedure: "notifications.deleteAllNotifications", input: request)
+    }
+    
+    // MARK: - Device Token Management (Push Notifications)
+    
+    struct DeviceTokenResponse: Codable {
+        let success: Bool
+        let message: String
+    }
+    
+    /// Register a device token for push notifications
+    func registerDeviceToken(token: String, platform: String = "IOS") async throws {
+        struct RegisterTokenRequest: Codable {
+            let token: String
+            let platform: String
+        }
+        
+        let request = RegisterTokenRequest(token: token, platform: platform)
+        let _: DeviceTokenResponse = try await performTRPCMutation(
+            procedure: "notifications.registerDeviceToken",
+            input: request
+        )
+        print("✅ BackendService: Device token registered successfully")
+    }
+    
+    /// Unregister a device token (call on logout)
+    func unregisterDeviceToken(token: String) async throws {
+        struct UnregisterTokenRequest: Codable {
+            let token: String
+        }
+        
+        let request = UnregisterTokenRequest(token: token)
+        let _: DeviceTokenResponse = try await performTRPCMutation(
+            procedure: "notifications.unregisterDeviceToken",
+            input: request
+        )
+        print("✅ BackendService: Device token unregistered successfully")
     }
     
     func createNotification(
@@ -2295,12 +2381,20 @@ class BackendService: ObservableObject {
     private func performTRPCRequest<T: Codable, R: Codable>(
         procedure: String,
         input: T,
-        method: HTTPMethod
+        method: HTTPMethod,
+        retryCount: Int = 0
     ) async throws -> R {
-        let headers = await getAuthHeaders()
+        // Get auth headers (fresh if this is a retry)
+        let headers: [String: String]
+        if retryCount > 0 {
+            print("🔄 BackendService: Retrying tRPC request '\(procedure)' with fresh token (attempt \(retryCount + 1))")
+            headers = await getFreshAuthHeaders()
+        } else {
+            headers = await getAuthHeaders()
+        }
         
-        return try await withCheckedThrowingContinuation { continuation in
-            let url = "\(baseURL)/trpc/\(procedure)"
+        return try await withCheckedThrowingContinuation { [weak self] continuation in
+            let url = "\(self?.baseURL ?? "")/trpc/\(procedure)"
             
             // Use appropriate parameter encoding based on HTTP method
             let request: DataRequest
@@ -2335,19 +2429,52 @@ class BackendService: ObservableObject {
             }
             
             request
-                .validate()
-                .responseDecodable(of: TRPCResponse<R>.self) { response in
+                .responseData { response in
+                    // Check for 401/500 status codes before parsing - token might be expired
+                    if let statusCode = response.response?.statusCode {
+                        if statusCode == 401 || statusCode == 500 {
+                            // Check if we should retry with fresh token
+                            if retryCount < 1 {
+                                print("⚠️ BackendService: Got \(statusCode) for '\(procedure)', will retry with fresh token")
+                                Task {
+                                    do {
+                                        let result: R = try await self?.performTRPCRequest(
+                                            procedure: procedure,
+                                            input: input,
+                                            method: method,
+                                            retryCount: retryCount + 1
+                                        ) ?? { throw BackendError.trpcError("Failed to retry", statusCode) }()
+                                        continuation.resume(returning: result)
+                                    } catch {
+                                        continuation.resume(throwing: error)
+                                    }
+                                }
+                                return
+                            }
+                        }
+                    }
+                    
+                    // Proceed with normal response handling
                     switch response.result {
-                    case .success(let trpcResponse):
-                        if let result = trpcResponse.result.data {
-                            continuation.resume(returning: result)
-                        } else if let error = trpcResponse.error {
-                            print("❌ BackendService: tRPC error: \(error.message) (code: \(error.code))")
-                            let backendError = BackendError.trpcError(error.message, error.code)
-                            continuation.resume(throwing: backendError)
-                        } else {
-                            print("❌ BackendService: Invalid tRPC response structure")
-                            continuation.resume(throwing: BackendError.invalidResponse)
+                    case .success(let data):
+                        do {
+                            let trpcResponse = try JSONDecoder().decode(TRPCResponse<R>.self, from: data)
+                            if let result = trpcResponse.result.data {
+                                continuation.resume(returning: result)
+                            } else if let error = trpcResponse.error {
+                                print("❌ BackendService: tRPC error: \(error.message) (code: \(error.code))")
+                                let backendError = BackendError.trpcError(error.message, error.code)
+                                continuation.resume(throwing: backendError)
+                            } else {
+                                print("❌ BackendService: Invalid tRPC response structure")
+                                continuation.resume(throwing: BackendError.invalidResponse)
+                            }
+                        } catch {
+                            print("❌ BackendService: Failed to decode tRPC response: \(error)")
+                            if let responseString = String(data: data, encoding: .utf8) {
+                                print("📦 Response data: \(responseString.prefix(500))")
+                            }
+                            continuation.resume(throwing: BackendError.decodingError)
                         }
                     case .failure(let error):
                         print("❌ Backend request failed: \(error)")
@@ -2917,6 +3044,128 @@ class BackendService: ObservableObject {
         return (response.success, response.message)
     }
     
+    // MARK: - Referral Rewards
+    
+    /// Model for a referral reward
+    struct ReferralRewardItem: Codable, Identifiable {
+        let id: String
+        let type: String
+        let amount: Int
+        let milestone: Int
+        let claimedAt: String?
+        let expiresAt: String?
+        let createdAt: String
+        
+        var isClaimable: Bool {
+            claimedAt == nil
+        }
+        
+        var rewardDescription: String {
+            switch type {
+            case "STREAK_FREEZE":
+                return "Streak Freeze x\(amount)"
+            case "PREMIUM_WEEK":
+                return "Premium Week"
+            case "PREMIUM_MONTH":
+                return "Premium Month"
+            case "BADGE":
+                return "Special Badge"
+            case "VIP_STATUS":
+                return "VIP Ambassador Status"
+            default:
+                return type
+            }
+        }
+        
+        var rewardIcon: String {
+            switch type {
+            case "STREAK_FREEZE":
+                return "snowflake"
+            case "PREMIUM_WEEK", "PREMIUM_MONTH":
+                return "star.fill"
+            case "BADGE":
+                return "medal.fill"
+            case "VIP_STATUS":
+                return "crown.fill"
+            default:
+                return "gift.fill"
+            }
+        }
+    }
+    
+    /// Response model for getting referral rewards
+    struct ReferralRewardsResponse: Codable {
+        let rewards: [ReferralRewardItem]
+        let unclaimedCount: Int
+    }
+    
+    /// Get the current user's referral rewards
+    func getReferralRewards() async throws -> ReferralRewardsResponse {
+        print("🎁 BackendService: Getting referral rewards")
+        
+        struct EmptyInput: Codable {}
+        
+        let response: ReferralRewardsResponse = try await performTRPCQuery(
+            procedure: "referrals.getMyRewards",
+            input: EmptyInput()
+        )
+        
+        print("✅ BackendService: Got \(response.rewards.count) rewards (\(response.unclaimedCount) unclaimed)")
+        return response
+    }
+    
+    /// Claim a referral reward
+    func claimReferralReward(_ rewardId: String) async throws -> (success: Bool, message: String, rewardType: String?, amount: Int?) {
+        print("🎁 BackendService: Claiming reward: \(rewardId)")
+        
+        struct ClaimRewardInput: Codable {
+            let rewardId: String
+        }
+        
+        struct ClaimRewardResponse: Codable {
+            let success: Bool
+            let message: String
+            let rewardType: String?
+            let amount: Int?
+        }
+        
+        let response: ClaimRewardResponse = try await performTRPCMutation(
+            procedure: "referrals.claimReward",
+            input: ClaimRewardInput(rewardId: rewardId)
+        )
+        
+        print("✅ BackendService: Claim result: \(response.message)")
+        return (response.success, response.message, response.rewardType, response.amount)
+    }
+    
+    /// Model for reward tier info
+    struct RewardTier: Codable {
+        let milestone: Int
+        let type: String
+        let amount: Int
+        let description: String
+    }
+    
+    /// Response model for reward tiers
+    struct RewardTiersResponse: Codable {
+        let tiers: [RewardTier]
+    }
+    
+    /// Get available reward tiers
+    func getRewardTiers() async throws -> RewardTiersResponse {
+        print("📊 BackendService: Getting reward tiers")
+        
+        struct EmptyInput: Codable {}
+        
+        let response: RewardTiersResponse = try await performTRPCQuery(
+            procedure: "referrals.getRewardTiers",
+            input: EmptyInput()
+        )
+        
+        print("✅ BackendService: Got \(response.tiers.count) reward tiers")
+        return response
+    }
+    
     // MARK: - Contacts Sync
     
     /// Response model for finding users by phone hashes
@@ -3021,8 +3270,20 @@ class BackendService: ObservableObject {
         let urlString = "\(baseURL)/trpc/posts.getFriendsPosts?input=\(encodedInput)"
         print("🌐 BackendService: Calling friends feed URL: \(urlString)")
         
-        // Get auth headers using the standard method (includes both Authorization and x-clerk-user-id)
-        let authHeaders = await getAuthHeaders()
+        // Try to fetch with current auth headers, retry with fresh token on 401
+        return try await fetchFriendsFeedWithRetry(urlString: urlString, retryCount: 0)
+    }
+    
+    /// Internal helper to fetch friends feed with automatic retry on 401
+    private func fetchFriendsFeedWithRetry(urlString: String, retryCount: Int) async throws -> FriendsFeedResponse {
+        // Get auth headers (fresh if this is a retry)
+        let authHeaders: [String: String]
+        if retryCount > 0 {
+            print("🔄 BackendService: Retrying friends feed with fresh token (attempt \(retryCount + 1))")
+            authHeaders = await getFreshAuthHeaders()
+        } else {
+            authHeaders = await getAuthHeaders()
+        }
         
         // Check if we have proper authentication
         guard authHeaders["Authorization"] != nil else {
@@ -3032,10 +3293,30 @@ class BackendService: ObservableObject {
         // Convert to HTTPHeaders for Alamofire
         let headers = HTTPHeaders(authHeaders.map { HTTPHeader(name: $0.key, value: $0.value) })
         
-        return try await withCheckedThrowingContinuation { continuation in
+        return try await withCheckedThrowingContinuation { [weak self] continuation in
             AF.request(urlString, method: .get, headers: headers)
-                .validate()
                 .responseData { response in
+                    // Check for 401 status code before validating
+                    if let statusCode = response.response?.statusCode, statusCode == 401 {
+                        // Token might be expired, retry once with fresh token
+                        if retryCount < 1 {
+                            print("⚠️ BackendService: Got 401 for friends feed, will retry with fresh token")
+                            Task {
+                                do {
+                                    let result = try await self?.fetchFriendsFeedWithRetry(urlString: urlString, retryCount: retryCount + 1)
+                                    if let result = result {
+                                        continuation.resume(returning: result)
+                                    } else {
+                                        continuation.resume(throwing: BackendError.trpcError("Failed to retry", 401))
+                                    }
+                                } catch {
+                                    continuation.resume(throwing: error)
+                                }
+                            }
+                            return
+                        }
+                    }
+                    
                     switch response.result {
                     case .success(let data):
                         do {
@@ -3119,8 +3400,13 @@ extension BackendService {
     }
     
     struct ToggleLikeResponse: Codable {
-        let liked: Bool
-        let totalLikes: Int
+        let success: Bool
+        let isLiked: Bool
+        let likesCount: Int
+        
+        // Computed properties for backward compatibility
+        var liked: Bool { isLiked }
+        var totalLikes: Int { likesCount }
     }
     
     struct ToggleBookmarkRequest: Codable {

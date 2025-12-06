@@ -25,9 +25,10 @@ enum APIEnvironment: String, CaseIterable, Codable {
     var baseURL: String {
         switch self {
         case .local: 
-            return "http://localhost:4000"
+            // Use 127.0.0.1 instead of localhost to avoid IPv6 resolution issues on iOS Simulator
+            return "http://127.0.0.1:4000"
         case .production: 
-            return "https://palytt-backend-production.up.railway.app"
+            return "https://palytt-backend-production-dbbd.up.railway.app"
         }
     }
     
@@ -41,8 +42,8 @@ enum APIEnvironment: String, CaseIterable, Codable {
     
     var convexURL: String {
         switch self {
-        case .local: return "https://clear-goose-685.convex.cloud" // Dev Convex deployment
-        case .production: return "https://beloved-peacock-771.convex.cloud" // Prod Convex deployment
+        case .local: return "http://127.0.0.1:3210" // Local self-hosted Convex
+        case .production: return "https://convex-backend-production-9e36.up.railway.app" // Railway self-hosted Convex
         }
     }
     

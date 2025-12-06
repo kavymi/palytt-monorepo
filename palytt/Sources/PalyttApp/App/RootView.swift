@@ -185,6 +185,14 @@ struct RootView: View {
     }
 }
 
+// MARK: - Tab Bar Layout Constants
+enum TabBarLayout {
+    /// Total height of the floating tab bar area (bar + padding + FAB consideration)
+    static let bottomInset: CGFloat = 80
+    /// Height when tab bar is hidden
+    static let collapsedInset: CGFloat = 0
+}
+
 // MARK: - Main Tab View
 struct MainTabView: View {
     @EnvironmentObject var appState: AppState
@@ -206,9 +214,14 @@ struct MainTabView: View {
     
     var body: some View {
         ZStack(alignment: .bottom) {
-            // Tab Content
+            // Tab Content with bottom safe area for floating tab bar
             tabContent
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .safeAreaInset(edge: .bottom) {
+                    // Reserve space for the floating tab bar
+                    Color.clear
+                        .frame(height: appState.isTabBarVisible ? TabBarLayout.bottomInset : TabBarLayout.collapsedInset)
+                }
             
             // Custom Tab Bar + FAB with visibility control
             if appState.isTabBarVisible {
@@ -312,11 +325,6 @@ struct CustomTabBar: View {
     @EnvironmentObject var appState: AppState
     @Environment(\.colorScheme) var colorScheme
     
-    // Pre-computed colors to avoid recalculation on every render
-    private var glassBackgroundColor: Color {
-        colorScheme == .dark ? Color.white.opacity(0.08) : Color.white.opacity(0.6)
-    }
-    
     private var borderColor: Color {
         colorScheme == .dark ? Color.white.opacity(0.15) : Color.white.opacity(0.5)
     }
@@ -347,16 +355,16 @@ struct CustomTabBar: View {
                 selectedTab: $appState.selectedTab
             )
         }
-        .frame(height: 54)
+        .frame(height: 44)
         .padding(.horizontal, 8)
-        .padding(.vertical, 8)
+        .padding(.vertical, 4)
         .background(tabBarBackground)
-        .clipShape(RoundedRectangle(cornerRadius: 27, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
         .overlay {
-            RoundedRectangle(cornerRadius: 27, style: .continuous)
+            RoundedRectangle(cornerRadius: 22, style: .continuous)
                 .strokeBorder(borderColor, lineWidth: 0.5)
         }
-        .shadow(color: Color.black.opacity(colorScheme == .dark ? 0.3 : 0.12), radius: 16, x: 0, y: 8)
+        .shadow(color: Color.black.opacity(colorScheme == .dark ? 0.25 : 0.1), radius: 12, x: 0, y: 6)
     }
     
     @ViewBuilder
@@ -367,58 +375,20 @@ struct CustomTabBar: View {
                 .fill(.clear)
                 .glassEffect(.regular.interactive())
         } else {
-            // iOS 17-25: Simplified material-based glass
-            ZStack {
-                RoundedRectangle(cornerRadius: 27, style: .continuous)
-                    .fill(.ultraThinMaterial)
-                
-                // Single gradient overlay for glass effect
-                RoundedRectangle(cornerRadius: 27, style: .continuous)
-                    .fill(
-                        LinearGradient(
-                            colors: [
-                                glassBackgroundColor,
-                                Color.clear
-                            ],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-            }
+            // iOS 17-25: Material-based glass
+            RoundedRectangle(cornerRadius: 22, style: .continuous)
+                .fill(.ultraThinMaterial)
         }
     }
 }
 
-// MARK: - Create Post Floating Action Button (iOS 26 Liquid Glass Theme)
+// MARK: - Create Post Floating Action Button (Matches Tab Bar Style)
 struct CreatePostFAB: View {
     @Environment(\.colorScheme) var colorScheme
     let action: () -> Void
     
-    // Animation state for subtle pulse effect
-    @State private var isPulsing = false
-    
-    private var borderGradient: LinearGradient {
-        LinearGradient(
-            colors: [
-                Color.white.opacity(colorScheme == .dark ? 0.4 : 0.9),
-                Color.white.opacity(colorScheme == .dark ? 0.1 : 0.3),
-                Color.white.opacity(colorScheme == .dark ? 0.2 : 0.5)
-            ],
-            startPoint: .topLeading,
-            endPoint: .bottomTrailing
-        )
-    }
-    
-    private var innerGlowColor: Color {
-        colorScheme == .dark 
-            ? Color.white.opacity(0.2) 
-            : Color.white.opacity(0.8)
-    }
-    
-    private var outerGlowColor: Color {
-        colorScheme == .dark 
-            ? Color.white.opacity(0.1) 
-            : Color.white.opacity(0.5)
+    private var borderColor: Color {
+        colorScheme == .dark ? Color.white.opacity(0.15) : Color.white.opacity(0.5)
     }
     
     var body: some View {
@@ -426,113 +396,33 @@ struct CreatePostFAB: View {
             HapticManager.shared.impact(.medium)
             action()
         }) {
-            fabContent
+            Image(systemName: "plus")
+                .font(.system(size: 20, weight: .semibold))
+                .foregroundStyle(Color.primaryBrand)
+                .frame(width: 52, height: 52)
+                .background(fabBackground)
+                .clipShape(Circle())
+                .overlay {
+                    Circle()
+                        .strokeBorder(borderColor, lineWidth: 0.5)
+                }
+                .shadow(color: Color.black.opacity(colorScheme == .dark ? 0.25 : 0.1), radius: 12, x: 0, y: 6)
         }
-        .buttonStyle(FABButtonStyle())
-        .onAppear {
-            // Start subtle pulse animation
-            withAnimation(
-                .easeInOut(duration: 2.0)
-                .repeatForever(autoreverses: true)
-            ) {
-                isPulsing = true
-            }
-        }
+        .buttonStyle(OptimizedTabButtonStyle(isSelected: false))
     }
     
     @ViewBuilder
-    private var fabContent: some View {
+    private var fabBackground: some View {
         if #available(iOS 26, *) {
-            // iOS 26: Native glass effect
-            ZStack {
-                // Subtle pulse glow behind the button
-                Circle()
-                    .fill(Color.primaryBrand.opacity(0.2))
-                    .frame(width: 70, height: 70)
-                    .blur(radius: 10)
-                    .scaleEffect(isPulsing ? 1.15 : 1.0)
-                    .opacity(isPulsing ? 0.6 : 0.3)
-                
-                // Main button content with native glass
-                Image(systemName: "plus")
-                    .font(.system(size: 26, weight: .semibold))
-                    .foregroundStyle(Color.primaryBrand)
-                    .frame(width: 56, height: 56)
-                    .glassEffect(.regular.interactive())
-                    .clipShape(Circle())
-                    .shadow(color: Color.black.opacity(0.08), radius: 1, x: 0, y: 1)
-                    .shadow(color: Color.primaryBrand.opacity(0.25), radius: 12, x: 0, y: 6)
-                    .shadow(color: Color.black.opacity(colorScheme == .dark ? 0.3 : 0.12), radius: 20, x: 0, y: 10)
-            }
+            // iOS 26: Use native glassEffect
+            Circle()
+                .fill(.clear)
+                .glassEffect(.regular.interactive())
         } else {
-            // iOS 17-25: Fallback with material
-            ZStack {
-                // Subtle pulse glow behind the button
-                Circle()
-                    .fill(Color.primaryBrand.opacity(0.2))
-                    .frame(width: 70, height: 70)
-                    .blur(radius: 10)
-                    .scaleEffect(isPulsing ? 1.15 : 1.0)
-                    .opacity(isPulsing ? 0.6 : 0.3)
-                
-                // Main button content with fallback glass
-                Image(systemName: "plus")
-                    .font(.system(size: 26, weight: .semibold))
-                    .foregroundStyle(Color.primaryBrand)
-                    .frame(width: 56, height: 56)
-                    .background {
-                        ZStack {
-                            Circle()
-                                .fill(.ultraThinMaterial)
-                            
-                            // Inner glow for depth
-                            Circle()
-                                .fill(
-                                    LinearGradient(
-                                        colors: [
-                                            innerGlowColor,
-                                            Color.clear,
-                                            outerGlowColor
-                                        ],
-                                        startPoint: .topLeading,
-                                        endPoint: .bottomTrailing
-                                    )
-                                )
-                            
-                            // Subtle radial highlight
-                            Circle()
-                                .fill(
-                                    RadialGradient(
-                                        colors: [
-                                            Color.white.opacity(colorScheme == .dark ? 0.08 : 0.2),
-                                            Color.clear
-                                        ],
-                                        center: .topLeading,
-                                        startRadius: 0,
-                                        endRadius: 40
-                                    )
-                                )
-                        }
-                    }
-                    .overlay {
-                        Circle()
-                            .strokeBorder(borderGradient, lineWidth: 1)
-                    }
-                    .shadow(color: Color.black.opacity(0.08), radius: 1, x: 0, y: 1)
-                    .shadow(color: Color.primaryBrand.opacity(0.25), radius: 12, x: 0, y: 6)
-                    .shadow(color: Color.black.opacity(colorScheme == .dark ? 0.3 : 0.12), radius: 20, x: 0, y: 10)
-            }
+            // iOS 17-25: Material-based glass
+            Circle()
+                .fill(.ultraThinMaterial)
         }
-    }
-}
-
-// MARK: - FAB Button Style
-struct FABButtonStyle: ButtonStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .scaleEffect(configuration.isPressed ? 0.9 : 1.0)
-            .opacity(configuration.isPressed ? 0.85 : 1.0)
-            .animation(.spring(response: 0.25, dampingFraction: 0.6), value: configuration.isPressed)
     }
 }
 
@@ -551,7 +441,7 @@ struct TabBarButton: View {
     
     // iOS 26 style icon colors - simplified computation
     private var iconColor: Color {
-        isSelected ? .primaryBrand : (colorScheme == .dark ? Color.white.opacity(0.5) : Color.black.opacity(0.4))
+        isSelected ? .primaryBrand : (colorScheme == .dark ? Color.white.opacity(0.6) : Color.black.opacity(0.5))
     }
     
     var body: some View {
@@ -560,31 +450,24 @@ struct TabBarButton: View {
             HapticManager.shared.impact(.light)
             selectedTab = tab
         } label: {
-            VStack(spacing: 4) {
-                ZStack {
-                    // Optimized selected state background - no blur, just opacity
-                    Circle()
-                        .fill(Color.primaryBrand.opacity(isSelected ? 0.15 : 0))
-                        .frame(width: 40, height: 40)
-                    
-                    // Icon - removed symbolEffect for performance
-                    Image(systemName: icon)
-                        .font(.system(size: 22, weight: isSelected ? .semibold : .regular))
-                        .foregroundStyle(iconColor)
-                }
+            VStack(spacing: 2) {
+                // Icon - compact size
+                Image(systemName: icon)
+                    .font(.system(size: 20, weight: isSelected ? .semibold : .regular))
+                    .foregroundStyle(iconColor)
                 
                 // Selection indicator dot - simplified
                 Circle()
                     .fill(isSelected ? Color.primaryBrand : Color.clear)
-                    .frame(width: 5, height: 5)
+                    .frame(width: 4, height: 4)
             }
-            .frame(width: 56, height: 54)
+            .frame(width: 48, height: 44)
             .contentShape(Rectangle()) // Critical: ensures entire area is tappable
             .overlay(alignment: .topTrailing) {
                 // Notification badge - moved outside ZStack
                 if showBadge {
                     TabBarNotificationBadge()
-                        .offset(x: -8, y: 4)
+                        .offset(x: -6, y: 2)
                 }
             }
         }

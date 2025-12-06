@@ -11,6 +11,7 @@
 import Foundation
 
 /// Protocol for posts service
+@MainActor
 protocol PostsServiceProtocol {
     func getPosts(page: Int, limit: Int) async throws -> [Post]
     func getPostsByUser(userId: String) async throws -> [Post]
@@ -22,6 +23,7 @@ protocol PostsServiceProtocol {
 }
 
 /// Service for managing posts
+@MainActor
 final class PostsService: PostsServiceProtocol {
     
     // MARK: - Properties

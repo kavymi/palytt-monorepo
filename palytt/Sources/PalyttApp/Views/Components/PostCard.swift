@@ -636,10 +636,13 @@ struct PostCard: View {
     }
     
     private var captionSection: some View {
-        Text(post.caption)
-            .font(.footnote)
-            .lineLimit(2)
-            .foregroundColor(.primaryText)
+        MentionText(
+            text: post.caption,
+            mentions: post.mentions,
+            font: .footnote,
+            textColor: .primaryText,
+            lineLimit: 2
+        )
     }
     
     @ViewBuilder
@@ -661,7 +664,10 @@ struct PostCard: View {
                 
                 // Recent comments
                 ForEach(recentComments.prefix(2)) { comment in
-                    RecentCommentRow(comment: comment)
+                    RecentCommentRow(comment: comment, onTap: {
+                        HapticManager.shared.impact(.light)
+                        showComments = true
+                    })
                 }
             }
             .padding(.top, 4)
@@ -682,6 +688,32 @@ struct PostCard: View {
                 }
                 .shimmer(isAnimating: .constant(true))
             }
+            .padding(.top, 4)
+        } else if currentCommentsCount == 0 && !isLoadingComments {
+            // Encourage first comment with engaging CTA
+            Button(action: {
+                HapticManager.shared.impact(.light)
+                showComments = true
+            }) {
+                HStack(spacing: 6) {
+                    Image(systemName: "bubble.left")
+                        .font(.caption)
+                        .foregroundColor(.primaryBrand)
+                    
+                    Text("Add a comment...")
+                        .font(.caption)
+                        .foregroundColor(.secondaryText)
+                    
+                    Spacer()
+                }
+                .padding(.vertical, 8)
+                .padding(.horizontal, 12)
+                .background(
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(Color.gray.opacity(0.08))
+                )
+            }
+            .buttonStyle(.plain)
             .padding(.top, 4)
         }
     }
@@ -769,34 +801,40 @@ struct PostCard: View {
 // MARK: - Recent Comment Row
 struct RecentCommentRow: View {
     let comment: Comment
+    var onTap: (() -> Void)? = nil
     
     var body: some View {
-        HStack(alignment: .top, spacing: 8) {
-            // Small avatar
-            UserAvatar(user: comment.author, size: 20)
-            
-            VStack(alignment: .leading, spacing: 2) {
-                // Comment content with username
-                Group {
-                    Text(comment.author.username)
-                        .fontWeight(.semibold)
-                        .foregroundColor(.primaryText) +
-                    Text(" ") +
-                    Text(comment.text)
-                        .foregroundColor(.primaryText)
-                }
-                .font(.caption)
-                .lineLimit(2)
-                .fixedSize(horizontal: false, vertical: true)
+        Button(action: {
+            onTap?()
+        }) {
+            HStack(alignment: .top, spacing: 8) {
+                // Small avatar
+                UserAvatar(user: comment.author, size: 20)
                 
-                // Time ago
-                Text(comment.createdAt.timeAgoDisplay())
-                    .font(.caption2)
-                    .foregroundColor(.tertiaryText)
+                VStack(alignment: .leading, spacing: 2) {
+                    // Comment content with username
+                    Group {
+                        Text(comment.author.username)
+                            .fontWeight(.semibold)
+                            .foregroundColor(.primaryText) +
+                        Text(" ") +
+                        Text(comment.text)
+                            .foregroundColor(.primaryText)
+                    }
+                    .font(.caption)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+                    
+                    // Time ago
+                    Text(comment.createdAt.timeAgoDisplay())
+                        .font(.caption2)
+                        .foregroundColor(.tertiaryText)
+                }
+                
+                Spacer()
             }
-            
-            Spacer()
         }
+        .buttonStyle(.plain)
     }
 }
 

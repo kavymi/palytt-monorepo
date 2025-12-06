@@ -526,3 +526,4 @@ class WeeklyRecapViewModel: ObservableObject {
     WeeklyRecapView()
 }
 
+
