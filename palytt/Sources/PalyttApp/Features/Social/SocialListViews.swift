@@ -263,19 +263,21 @@ class QuickFollowViewModel: ObservableObject {
         lastName: "Doe",
         username: "johndoe",
         displayName: "John Doe",
+        name: "John Doe",
         bio: "Food enthusiast and traveler",
         avatarUrl: nil,
+        profileImage: nil,
         role: "user",
         appleId: nil,
         googleId: nil,
         dietaryPreferences: nil,
-        followersCount: 150,
+        followerCount: 150,
         followingCount: 200,
         postsCount: 5,
         isVerified: false,
         isActive: true,
-        createdAt: Int(Date().timeIntervalSince1970 * 1000),
-        updatedAt: Int(Date().timeIntervalSince1970 * 1000)
+        createdAt: .timestamp(Int(Date().timeIntervalSince1970 * 1000)),
+        updatedAt: .timestamp(Int(Date().timeIntervalSince1970 * 1000))
     )
     
     VStack {

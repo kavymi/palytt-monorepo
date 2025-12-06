@@ -149,23 +149,13 @@ class CommentsViewModel: ObservableObject {
                     parentCommentId: replyTo?.id.uuidString
                 )
                 
-                // Get author info for the new comment
-                var author: User?
-                var currentUserClerkId: String?
-                
-                do {
-                    let backendAuthor = try await backendService.getUserByClerkId(
-                        clerkId: response.comment.authorClerkId
-                    )
-                    author = backendAuthor.toUser()
-                    currentUserClerkId = backendAuthor.clerkId
-                } catch {
-                    print("⚠️ Failed to get author info for new comment: \(error)")
-                }
-                
-                // Add the new comment to the list
-                let newComment = Comment.from(response.comment, author: author)
+                // The backend now returns author info in the response
+                // Comment.from() will use the embedded author data
+                let newComment = Comment.from(response.comment)
                 comments.append(newComment)
+                
+                // Get current user's clerkId for notifications
+                let currentUserClerkId = response.comment.authorClerkId
                 
                 // Send notifications
                 await sendCommentNotifications(
@@ -384,8 +374,8 @@ struct CommentsView: View {
     @StateObject private var viewModel = CommentsViewModel()
     @Environment(\.dismiss) private var dismiss
     @State private var newComment = ""
+    @State private var mentions: [Mention] = []
     @State private var isReplying: Comment? = nil
-    @State private var mentionSuggestions: [User] = []
     @FocusState private var isTextFieldFocused: Bool
 
     
@@ -395,21 +385,21 @@ struct CommentsView: View {
                 contentView
                 CommentInputView(
                     text: $newComment,
+                    mentions: $mentions,
                     isReplying: $isReplying,
                     isFocused: $isTextFieldFocused,
-                    mentionSuggestions: mentionSuggestions,
-                    onMentionSearch: { query in
-                        Task {
-                            await searchUsers(query: query)
-                        }
-                    },
-                    onMentionSelected: onMentionSelected,
                     onSend: {
                         guard !newComment.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
                         
+                        // Extract mentioned usernames from mentions array
+                        let mentionedUsernames = mentions
+                            .filter { $0.type == .user }
+                            .map { $0.text }
+                        
                         viewModel.postComment(
                             text: newComment,
-                            replyTo: isReplying
+                            replyTo: isReplying,
+                            mentionedUsernames: mentionedUsernames
                         ) { success in
                             if success {
                                 // Notify parent with updated comment count
@@ -418,6 +408,7 @@ struct CommentsView: View {
                         }
                         
                         newComment = ""
+                        mentions = []
                         isReplying = nil
                         isTextFieldFocused = false
                     }
@@ -428,9 +419,9 @@ struct CommentsView: View {
                 leading: Button("Cancel") { dismiss() },
                 trailing: Button("Done") { dismiss() }
             )
-                    .task {
-            await viewModel.loadComments(for: post)
-        }
+            .task {
+                await viewModel.loadComments(for: post)
+            }
         }
     }
     
@@ -514,33 +505,6 @@ struct CommentsView: View {
         }
     }
     
-    private func onMentionSelected(_ user: User) {
-        // Find the last @ symbol and replace partial mention with full username
-        if let atIndex = newComment.lastIndex(of: "@") {
-            let beforeMention = String(newComment[..<atIndex])
-            newComment = beforeMention + "@\(user.username) "
-        } else {
-            // Fallback: just append the mention
-            newComment += "@\(user.username) "
-        }
-        // Clear suggestions after selection
-        mentionSuggestions = []
-    }
-    
-    private func searchUsers(query: String) async {
-        guard !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-            mentionSuggestions = []
-            return
-        }
-        
-        do {
-            let users = try await BackendService.shared.searchUsers(query: query, limit: 5)
-            mentionSuggestions = users.map { $0.toUser() }
-        } catch {
-            print("⚠️ Failed to search users for mentions: \(error)")
-            mentionSuggestions = []
-        }
-    }
 }
 
 // MARK: - Post Summary View
@@ -629,11 +593,14 @@ struct CommentRow: View {
                     }
                 }
                 
-                // Comment Text
-                Text(comment.text)
-                    .font(isReply ? .caption : .subheadline)
-                    .foregroundColor(.primaryText)
-                    .fixedSize(horizontal: false, vertical: true)
+                // Comment Text with @mentions and #hashtags highlighted
+                MentionText(
+                    text: comment.text,
+                    font: isReply ? .caption : .subheadline,
+                    textColor: .primaryText,
+                    lineLimit: nil
+                )
+                .fixedSize(horizontal: false, vertical: true)
                 
                 // Actions with Reactions
                 HStack(spacing: 12) {
@@ -729,18 +696,19 @@ struct CommentRow: View {
 // MARK: - Comment Input View
 struct CommentInputView: View {
     @Binding var text: String
+    @Binding var mentions: [Mention]
     @Binding var isReplying: Comment?
     @FocusState.Binding var isFocused: Bool
-    let mentionSuggestions: [User]
-    let onMentionSearch: (String) -> Void
-    let onMentionSelected: (User) -> Void
     let onSend: () -> Void
+    
+    @StateObject private var viewModel = CommentInputViewModel()
     
     var body: some View {
         VStack(spacing: 0) {
             replyIndicatorView
             inputFieldView
         }
+        .animation(.easeInOut(duration: 0.2), value: viewModel.showSuggestions)
     }
     
     @ViewBuilder
@@ -757,6 +725,7 @@ struct CommentInputView: View {
                     HapticManager.shared.impact(.light)
                     isReplying = nil 
                     text = ""
+                    mentions = []
                 }) {
                     Image(systemName: "xmark.circle.fill")
                         .font(.caption)
@@ -772,58 +741,57 @@ struct CommentInputView: View {
     @ViewBuilder
     private var inputFieldView: some View {
         VStack(spacing: 0) {
-            mentionSuggestionsView
-            commentInputRow
-        }
-    }
-    
-    @ViewBuilder
-    private var mentionSuggestionsView: some View {
-        if !mentionSuggestions.isEmpty {
-            ScrollView(.horizontal, showsIndicators: false) {
-                LazyHStack(spacing: 12) {
-                    ForEach(mentionSuggestions) { user in
-                        Button(action: {
-                            onMentionSelected(user)
-                        }) {
-                            Text("@\(user.username)")
-                                .padding(.horizontal, 12)
-                                .padding(.vertical, 6)
-                                .background(Color.gray.opacity(0.2))
-                                .cornerRadius(8)
+            // Autocomplete suggestions for @mentions and #hashtags
+            if viewModel.showSuggestions && !viewModel.suggestions.isEmpty {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        ForEach(viewModel.suggestions) { suggestion in
+                            CommentMentionChip(suggestion: suggestion) {
+                                insertMention(suggestion)
+                            }
                         }
                     }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
                 }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 8)
+                .background(Color.cardBackground)
+                .transition(.opacity.combined(with: .move(edge: .top)))
             }
-            .background(Color.cardBackground)
-            .transition(.opacity.combined(with: .move(edge: .top)))
+            
+            commentInputRow
         }
     }
     
     @ViewBuilder
     private var commentInputRow: some View {
         HStack(spacing: 12) {
-            TextField("Add a comment...", text: $text, axis: .vertical)
-                .textFieldStyle(PlainTextFieldStyle())
-                .padding(12)
-                .background(Color.gray.opacity(0.1))
-                .cornerRadius(8)
-                .focused($isFocused)
-                .onChange(of: text) { oldValue, newValue in
-                    if newValue.contains("@") {
-                        let mentionQuery = String(newValue.split(separator: "@").last ?? "")
-                        if !mentionQuery.isEmpty {
-                            onMentionSearch(mentionQuery)
-                        }
-                    }
+            // Text field with mention/hashtag detection
+            ZStack(alignment: .leading) {
+                if text.isEmpty {
+                    Text("Add a comment... @mention or #hashtag")
+                        .font(.subheadline)
+                        .foregroundColor(.tertiaryText)
+                        .padding(.horizontal, 12)
                 }
+                
+                TextField("", text: $text, axis: .vertical)
+                    .textFieldStyle(PlainTextFieldStyle())
+                    .font(.subheadline)
+                    .lineLimit(1...4)
+                    .padding(12)
+                    .focused($isFocused)
+                    .onChange(of: text) { oldValue, newValue in
+                        handleTextChange(oldValue: oldValue, newValue: newValue)
+                    }
+            }
+            .background(Color.gray.opacity(0.1))
+            .cornerRadius(20)
             
             sendButton
         }
-        .padding()
-        .background(Color.gray.opacity(0.1))
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .background(Color.cardBackground)
     }
     
     @ViewBuilder
@@ -842,8 +810,229 @@ struct CommentInputView: View {
         .disabled(text.isEmpty)
     }
     
-    private func updateTextWithMention(_ user: User) {
-        // This will be handled by MentionTextEditor, but we can add additional logic here if needed
+    // MARK: - Private Methods
+    
+    private func handleTextChange(oldValue: String, newValue: String) {
+        let cursorPosition = newValue.count
+        
+        if let context = MentionDetector.getCurrentMentionContext(text: newValue, cursorPosition: cursorPosition) {
+            viewModel.currentContext = context
+            
+            if context.isSearchable {
+                viewModel.showSuggestions = true
+                Task {
+                    await viewModel.searchSuggestions(context: context)
+                }
+            } else {
+                viewModel.showSuggestions = false
+            }
+        } else {
+            viewModel.showSuggestions = false
+            viewModel.currentContext = nil
+        }
+        
+        // Update mentions array based on text changes
+        updateMentionsForTextChange(oldValue: oldValue, newValue: newValue)
+    }
+    
+    private func insertMention(_ suggestion: MentionSuggestion) {
+        guard let context = viewModel.currentContext else { return }
+        
+        let triggerPosition = context.triggerPosition
+        let currentPosition = text.count
+        
+        let mentionText = suggestion.type.prefix + suggestion.displayText
+        
+        let startIndex = text.index(text.startIndex, offsetBy: triggerPosition)
+        let endIndex = text.index(text.startIndex, offsetBy: min(currentPosition, text.count))
+        
+        text.replaceSubrange(startIndex..<endIndex, with: mentionText + " ")
+        
+        let newMention = Mention(
+            type: suggestion.type,
+            text: suggestion.displayText,
+            targetId: suggestion.targetId,
+            range: MentionRange(
+                start: triggerPosition,
+                end: triggerPosition + mentionText.count
+            )
+        )
+        
+        mentions.append(newMention)
+        
+        viewModel.showSuggestions = false
+        viewModel.currentContext = nil
+        viewModel.suggestions = []
+        
+        HapticManager.shared.impact(.light)
+    }
+    
+    private func updateMentionsForTextChange(oldValue: String, newValue: String) {
+        if newValue.count < oldValue.count {
+            mentions.removeAll { mention in
+                let mentionEnd = mention.range.end
+                let mentionStart = mention.range.start
+                return mentionEnd > newValue.count || mentionStart >= newValue.count
+            }
+        }
+    }
+}
+
+// MARK: - Comment Input View Model
+@MainActor
+class CommentInputViewModel: ObservableObject {
+    @Published var suggestions: [MentionSuggestion] = []
+    @Published var showSuggestions = false
+    @Published var isSearching = false
+    @Published var currentContext: MentionContext?
+    
+    private let backendService = BackendService.shared
+    private var searchTask: Task<Void, Never>?
+    
+    func searchSuggestions(context: MentionContext) async {
+        searchTask?.cancel()
+        
+        searchTask = Task {
+            isSearching = true
+            
+            try? await Task.sleep(nanoseconds: 150_000_000) // 150ms debounce
+            
+            guard !Task.isCancelled else { return }
+            
+            if context.isHashtag {
+                await searchHashtags(query: context.query)
+            } else {
+                await searchUsersAndPlaces(query: context.query)
+            }
+            
+            isSearching = false
+        }
+    }
+    
+    private func searchUsersAndPlaces(query: String) async {
+        var newSuggestions: [MentionSuggestion] = []
+        
+        // Search users
+        do {
+            let users = try await backendService.searchUsers(query: query, limit: 5)
+            let userSuggestions = users.map { user in
+                MentionSuggestion(
+                    id: user.clerkId,
+                    type: .user,
+                    displayText: user.username ?? "user",
+                    subtitle: user.displayName,
+                    avatarURL: user.avatarUrl != nil ? URL(string: user.avatarUrl!) : nil,
+                    targetId: user.clerkId
+                )
+            }
+            newSuggestions.append(contentsOf: userSuggestions)
+        } catch {
+            print("❌ CommentInput: Failed to search users: \(error)")
+        }
+        
+        // Search places
+        do {
+            let places = try await backendService.searchPlaces(query: query, latitude: nil, longitude: nil, limit: 3)
+            let placeSuggestions = places.map { place in
+                MentionSuggestion(
+                    id: place.placeId ?? UUID().uuidString,
+                    type: .place,
+                    displayText: place.name,
+                    subtitle: place.address,
+                    avatarURL: nil,
+                    targetId: place.placeId ?? UUID().uuidString
+                )
+            }
+            newSuggestions.append(contentsOf: placeSuggestions)
+        } catch {
+            print("❌ CommentInput: Failed to search places: \(error)")
+        }
+        
+        suggestions = newSuggestions
+    }
+    
+    private func searchHashtags(query: String) async {
+        // Common food-related hashtags for suggestions
+        let commonHashtags = [
+            "foodie", "foodporn", "yummy", "delicious", "tasty",
+            "breakfast", "lunch", "dinner", "brunch", "snack",
+            "coffee", "tea", "dessert", "healthy", "vegan",
+            "glutenfree", "organic", "homemade", "restaurant", "cafe",
+            "instafood", "foodlover", "foodgasm", "eeeeeats", "foodstagram"
+        ]
+        
+        let matchingHashtags = commonHashtags.filter {
+            $0.lowercased().hasPrefix(query.lowercased())
+        }
+        
+        suggestions = matchingHashtags.prefix(5).map { tag in
+            MentionSuggestion.hashtag(tag: tag)
+        }
+    }
+}
+
+// MARK: - Comment Mention Chip
+struct CommentMentionChip: View {
+    let suggestion: MentionSuggestion
+    let onTap: () -> Void
+    
+    var body: some View {
+        Button(action: onTap) {
+            HStack(spacing: 6) {
+                // Icon or avatar
+                if let avatarURL = suggestion.avatarURL {
+                    AsyncImage(url: avatarURL) { image in
+                        image
+                            .resizable()
+                            .aspectRatio(contentMode: .fill)
+                    } placeholder: {
+                        Circle()
+                            .fill(suggestion.type.color.opacity(0.2))
+                            .overlay(
+                                Image(systemName: suggestion.type.icon)
+                                    .font(.caption2)
+                                    .foregroundColor(suggestion.type.color)
+                            )
+                    }
+                    .frame(width: 24, height: 24)
+                    .clipShape(Circle())
+                } else {
+                    Circle()
+                        .fill(suggestion.type.color.opacity(0.2))
+                        .frame(width: 24, height: 24)
+                        .overlay(
+                            Image(systemName: suggestion.type.icon)
+                                .font(.caption2)
+                                .foregroundColor(suggestion.type.color)
+                        )
+                }
+                
+                VStack(alignment: .leading, spacing: 0) {
+                    Text(suggestion.type.prefix + suggestion.displayText)
+                        .font(.caption)
+                        .fontWeight(.medium)
+                        .foregroundColor(.primaryText)
+                    
+                    if let subtitle = suggestion.subtitle, !subtitle.isEmpty {
+                        Text(subtitle)
+                            .font(.caption2)
+                            .foregroundColor(.secondaryText)
+                            .lineLimit(1)
+                    }
+                }
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
+            .background(
+                Capsule()
+                    .fill(Color.gray.opacity(0.1))
+            )
+            .overlay(
+                Capsule()
+                    .stroke(suggestion.type.color.opacity(0.3), lineWidth: 1)
+            )
+        }
+        .buttonStyle(PlainButtonStyle())
     }
 }
 

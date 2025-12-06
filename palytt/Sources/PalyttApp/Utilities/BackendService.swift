@@ -485,9 +485,10 @@ class BackendService: ObservableObject {
             case author
         }
         
-        // Computed property to use authorId as authorClerkId since they're the same
+        // Computed property to get the author's Clerk ID
         var authorClerkId: String {
-            return authorId
+            // Prefer the author's clerkId if available, otherwise fall back to authorId
+            return author?.clerkId ?? authorId
         }
     }
     
@@ -1176,6 +1177,31 @@ class BackendService: ObservableObject {
         }
         let request = AddCommentRequest(postId: postId, content: content, parentCommentId: parentCommentId)
         let response: ConvexCommentResponse = try await performTRPCMutation(procedure: "comments.addComment", input: request)
+        
+        // Convert ConvexCommentAuthor to ConvexUser if available
+        var author: ConvexUser? = nil
+        if let commentAuthor = response.comment.author {
+            author = ConvexUser(
+                _id: commentAuthor._id,
+                userId: commentAuthor._id,
+                clerkId: commentAuthor.clerkId,
+                email: nil,
+                firstName: commentAuthor.name?.components(separatedBy: " ").first,
+                lastName: commentAuthor.name?.components(separatedBy: " ").dropFirst().joined(separator: " "),
+                username: commentAuthor.username,
+                displayName: commentAuthor.displayName ?? commentAuthor.name,
+                bio: nil,
+                avatarUrl: commentAuthor.avatarUrl ?? commentAuthor.profileImage,
+                followersCount: nil,
+                followingCount: nil,
+                postsCount: nil,
+                isVerified: nil,
+                isActive: nil,
+                createdAt: nil,
+                updatedAt: nil
+            )
+        }
+        
         return CommentResponse(
             comment: BackendComment(
                 id: response.comment._id ?? "",
@@ -1185,10 +1211,10 @@ class BackendService: ObservableObject {
                 parentCommentId: response.comment.parentCommentId,
                 likes: response.comment.likes,
                 isActive: response.comment.isActive,
-                createdAt: Double(response.comment.createdAt), // Use raw timestamp
-                updatedAt: Double(response.comment.updatedAt), // Use raw timestamp
-                replies: [], // New comments/replies start with no replies
-                author: nil // Will be populated by backend if available
+                createdAt: Double(response.comment.createdAt),
+                updatedAt: Double(response.comment.updatedAt),
+                replies: [],
+                author: author
             )
         )
     }
@@ -1311,6 +1337,16 @@ class BackendService: ObservableObject {
         let rating: Int?
     }
     
+    struct ConvexCommentAuthor: Codable {
+        let _id: String?
+        let clerkId: String?
+        let username: String?
+        let displayName: String?
+        let name: String?
+        let avatarUrl: String?
+        let profileImage: String?
+    }
+    
     struct ConvexComment: Codable {
         let _id: String?
         let postId: String
@@ -1321,6 +1357,7 @@ class BackendService: ObservableObject {
         let isActive: Bool
         let createdAt: Int
         let updatedAt: Int
+        let author: ConvexCommentAuthor?
     }
     
     struct ConvexCommentResponse: Codable {
@@ -1609,9 +1646,55 @@ class BackendService: ObservableObject {
         return try await performTRPCQuery(procedure: "friends.getPendingRequests", input: request)
     }
     
+    // Response wrapper for friends.getFriends endpoint
+    struct GetFriendsAPIResponse: Codable {
+        let friends: [FriendUserData]
+        let nextCursor: String?
+        
+        struct FriendUserData: Codable {
+            let id: String
+            let clerkId: String
+            let username: String?
+            let name: String?
+            let profileImage: String?
+            let bio: String?
+            let friendshipId: String
+            let friendsSince: String
+        }
+    }
+    
     func getFriends(userId: String, limit: Int = 50) async throws -> [BackendUser] {
         let request = UserLimitRequest(userId: userId, limit: limit)
-        return try await performTRPCQuery(procedure: "friends.getFriends", input: request)
+        let response: GetFriendsAPIResponse = try await performTRPCQuery(procedure: "friends.getFriends", input: request)
+        
+        // Convert FriendUserData to BackendUser
+        return response.friends.map { friend in
+            BackendUser(
+                id: friend.id,
+                userId: friend.id,
+                clerkId: friend.clerkId,
+                email: nil,
+                firstName: nil,
+                lastName: nil,
+                username: friend.username,
+                displayName: friend.name,
+                name: friend.name,
+                bio: friend.bio,
+                avatarUrl: friend.profileImage,
+                profileImage: nil,
+                role: nil,
+                appleId: nil,
+                googleId: nil,
+                dietaryPreferences: nil,
+                followerCount: 0,
+                followingCount: 0,
+                postsCount: 0,
+                isVerified: false,
+                isActive: true,
+                createdAt: nil,
+                updatedAt: nil
+            )
+        }
     }
     
     func areFriends(userId1: String, userId2: String) async throws -> AreFriendsResponse {
@@ -2193,19 +2276,21 @@ class BackendService: ObservableObject {
                     lastName: convexUser.lastName,
                     username: convexUser.username ?? "user_\((convexUser.clerkId ?? "").suffix(8))",
                     displayName: convexUser.displayName ?? convexUser.username ?? "Unknown User",
+                    name: convexUser.displayName ?? convexUser.username,
                     bio: convexUser.bio,
                     avatarUrl: convexUser.avatarUrl,
+                    profileImage: nil,
                     role: nil,
                     appleId: nil,
                     googleId: nil,
                     dietaryPreferences: nil,
-                    followersCount: convexUser.followersCount ?? 0,
+                    followerCount: convexUser.followersCount ?? 0,
                     followingCount: convexUser.followingCount ?? 0,
                     postsCount: convexUser.postsCount ?? 0,
                     isVerified: convexUser.isVerified ?? false,
                     isActive: convexUser.isActive ?? true,
-                    createdAt: convexUser.createdAt ?? 0,
-                    updatedAt: convexUser.updatedAt ?? 0
+                    createdAt: convexUser.createdAt.map { .timestamp($0) },
+                    updatedAt: convexUser.updatedAt.map { .timestamp($0) }
                 )
             }
             return backendUsers
@@ -2250,19 +2335,21 @@ class BackendService: ObservableObject {
                     lastName: convexUser.lastName,
                     username: convexUser.username ?? "user_\((convexUser.clerkId ?? "").suffix(8))",
                     displayName: convexUser.displayName ?? convexUser.username ?? "Unknown User",
+                    name: convexUser.displayName ?? convexUser.username,
                     bio: convexUser.bio,
                     avatarUrl: convexUser.avatarUrl,
+                    profileImage: nil,
                     role: nil,
                     appleId: nil,
                     googleId: nil,
                     dietaryPreferences: nil,
-                    followersCount: convexUser.followersCount ?? 0,
+                    followerCount: convexUser.followersCount ?? 0,
                     followingCount: convexUser.followingCount ?? 0,
                     postsCount: convexUser.postsCount ?? 0,
                     isVerified: convexUser.isVerified ?? false,
                     isActive: convexUser.isActive ?? true,
-                    createdAt: convexUser.createdAt ?? 0,
-                    updatedAt: convexUser.updatedAt ?? 0
+                    createdAt: convexUser.createdAt.map { .timestamp($0) },
+                    updatedAt: convexUser.updatedAt.map { .timestamp($0) }
                 )
             }
             return backendUsers
@@ -2277,6 +2364,27 @@ class BackendService: ObservableObject {
     func searchPosts(query: String, limit: Int = 20, offset: Int = 0) async throws -> [BackendPost] {
         let request = SearchRequest(query: query, limit: limit, offset: offset)
         return try await performTRPCQuery(procedure: "posts.search", input: request)
+    }
+    
+    // MARK: - Hashtag Search
+    
+    struct HashtagSearchRequest: Codable {
+        let hashtag: String
+        let limit: Int
+        let offset: Int
+    }
+    
+    /// Search posts by hashtag - searches both in tags array and caption content
+    func searchPostsByHashtag(hashtag: String, limit: Int = 20, offset: Int = 0) async throws -> [Post] {
+        // Clean the hashtag (remove # if present)
+        let cleanHashtag = hashtag.hasPrefix("#") ? String(hashtag.dropFirst()) : hashtag
+        
+        // Search using the general search with hashtag prefix
+        let searchQuery = "#\(cleanHashtag)"
+        let backendPosts = try await searchPosts(query: searchQuery, limit: limit, offset: offset)
+        
+        // Convert backend posts to Post models
+        return backendPosts.map { Post.from(backendPost: $0) }
     }
     
     // MARK: - Places Search

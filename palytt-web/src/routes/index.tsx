@@ -103,21 +103,6 @@ function HomePage() {
           </div>
         </div>
 
-        {/* Scroll indicator */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 1 }}
-          className="absolute bottom-8 left-1/2 -translate-x-1/2 hidden md:block"
-        >
-          <motion.div
-            animate={{ y: [0, 10, 0] }}
-            transition={{ duration: 1.5, repeat: Infinity }}
-            className="w-6 h-10 rounded-full border-2 border-light-text-tertiary flex items-start justify-center p-2"
-          >
-            <div className="w-1.5 h-3 bg-light-text-tertiary rounded-full" />
-          </motion.div>
-        </motion.div>
       </section>
 
       {/* Features Section */}
@@ -177,6 +162,124 @@ function HomePage() {
               delay={0.5}
             />
           </div>
+        </div>
+      </section>
+
+      {/* AI-Powered Section */}
+      <section className="py-20 md:py-32 relative overflow-hidden">
+        {/* Animated background */}
+        <div className="absolute inset-0 bg-gradient-to-br from-violet-950/90 via-coffee-dark to-fuchsia-950/80" />
+        <div className="absolute inset-0">
+          <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-violet-500/20 rounded-full blur-3xl animate-pulse" />
+          <div className="absolute bottom-1/4 right-1/4 w-80 h-80 bg-fuchsia-500/20 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-primary/10 rounded-full blur-2xl" />
+        </div>
+        
+        {/* Grid pattern overlay */}
+        <div className="absolute inset-0 opacity-10" style={{
+          backgroundImage: `linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)`,
+          backgroundSize: '50px 50px'
+        }} />
+
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="text-center mb-16"
+          >
+            <motion.div
+              initial={{ scale: 0 }}
+              whileInView={{ scale: 1 }}
+              viewport={{ once: true }}
+              transition={{ type: 'spring', bounce: 0.5 }}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 backdrop-blur-sm border border-white/20 text-violet-300 text-sm font-medium mb-6"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+              </svg>
+              Powered by AI
+            </motion.div>
+            
+            <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold text-white mb-6">
+              Your Personal{' '}
+              <span className="bg-gradient-to-r from-violet-400 via-fuchsia-400 to-primary bg-clip-text text-transparent">
+                Food Intelligence
+              </span>
+            </h2>
+            <p className="text-lg md:text-xl text-gray-300 max-w-3xl mx-auto">
+              Palytt uses advanced AI to understand your unique palate, learning from every meal 
+              to deliver recommendations that feel almost telepathic.
+            </p>
+          </motion.div>
+
+          <div className="grid md:grid-cols-3 gap-8">
+            {[
+              {
+                icon: <BrainIcon />,
+                title: 'Taste Learning',
+                description: 'Our AI builds a detailed flavor profile from your reviews, photos, and dining habits—understanding not just what you like, but why.',
+                gradient: 'from-violet-500 to-purple-600',
+              },
+              {
+                icon: <MagicIcon />,
+                title: 'Smart Discovery',
+                description: 'Get hyper-personalized dish recommendations that match your mood, dietary needs, and even the weather. No more endless scrolling.',
+                gradient: 'from-fuchsia-500 to-pink-600',
+              },
+              {
+                icon: <ChatBotIcon />,
+                title: 'AI Concierge',
+                description: 'Ask anything: "Where can I get spicy Thai near me?" or "Plan a date night downtown." Get instant, context-aware answers.',
+                gradient: 'from-primary to-orange-500',
+              },
+            ].map((item, index) => (
+              <motion.div
+                key={item.title}
+                initial={{ opacity: 0, y: 40 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: index * 0.15 }}
+                className="group relative"
+              >
+                <div className="absolute inset-0 bg-gradient-to-br opacity-0 group-hover:opacity-100 transition-opacity duration-500 rounded-3xl blur-xl -z-10"
+                  style={{ background: `linear-gradient(to bottom right, var(--tw-gradient-stops))` }}
+                />
+                <div className="relative p-8 rounded-3xl bg-white/5 backdrop-blur-sm border border-white/10 hover:border-white/20 transition-all duration-300 h-full">
+                  <motion.div
+                    whileHover={{ scale: 1.1, rotate: 5 }}
+                    className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${item.gradient} flex items-center justify-center mb-6 shadow-lg`}
+                  >
+                    {item.icon}
+                  </motion.div>
+                  <h3 className="text-xl font-semibold text-white mb-3">{item.title}</h3>
+                  <p className="text-gray-400 leading-relaxed">{item.description}</p>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+
+          {/* Stats row */}
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ delay: 0.4 }}
+            className="mt-16 grid grid-cols-3 gap-8 max-w-2xl mx-auto"
+          >
+            {[
+              { value: '95%', label: 'Recommendation Accuracy' },
+              { value: '10M+', label: 'Dishes Analyzed' },
+              { value: '<1s', label: 'Response Time' },
+            ].map((stat) => (
+              <div key={stat.label} className="text-center">
+                <div className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-violet-400 to-fuchsia-400 bg-clip-text text-transparent">
+                  {stat.value}
+                </div>
+                <div className="text-xs md:text-sm text-gray-500 mt-1">{stat.label}</div>
+              </div>
+            ))}
+          </motion.div>
         </div>
       </section>
 
@@ -305,18 +408,8 @@ function HomePage() {
 function MapIcon() {
   return (
     <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth={1.5}
-        d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
-      />
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth={1.5}
-        d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
-      />
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
     </svg>
   )
 }
@@ -324,18 +417,8 @@ function MapIcon() {
 function CameraIcon() {
   return (
     <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth={1.5}
-        d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"
-      />
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth={1.5}
-        d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"
-      />
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
     </svg>
   )
 }
@@ -343,12 +426,7 @@ function CameraIcon() {
 function UsersIcon() {
   return (
     <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth={1.5}
-        d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"
-      />
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
     </svg>
   )
 }
@@ -356,12 +434,7 @@ function UsersIcon() {
 function ChatIcon() {
   return (
     <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth={1.5}
-        d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
-      />
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
     </svg>
   )
 }
@@ -369,12 +442,7 @@ function ChatIcon() {
 function BookmarkIcon() {
   return (
     <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth={1.5}
-        d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"
-      />
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
     </svg>
   )
 }
@@ -382,12 +450,7 @@ function BookmarkIcon() {
 function SparklesIcon() {
   return (
     <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth={1.5}
-        d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"
-      />
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
     </svg>
   )
 }
@@ -399,3 +462,28 @@ function CheckIcon() {
     </svg>
   )
 }
+
+function BrainIcon() {
+  return (
+    <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+    </svg>
+  )
+}
+
+function MagicIcon() {
+  return (
+    <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
+    </svg>
+  )
+}
+
+function ChatBotIcon() {
+  return (
+    <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+    </svg>
+  )
+}
+

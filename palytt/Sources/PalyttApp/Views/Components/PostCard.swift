@@ -32,6 +32,7 @@ struct PostCard: View {
     @State private var showPostLikes: Bool = false
     @State private var recentComments: [Comment] = []
     @State private var isLoadingComments: Bool = false
+    @State private var showShopDetail: Bool = false
     
     init(post: Post, onLike: ((UUID) -> Void)? = nil, onBookmark: ((UUID) -> Void)? = nil, onBookmarkNavigate: (() -> Void)? = nil) {
         self.post = post
@@ -90,6 +91,13 @@ struct PostCard: View {
         .sheet(isPresented: $showShareSheet) {
             SharePostView(post: post)
         }
+        .sheet(isPresented: $showShopDetail) {
+            if let shop = post.shop {
+                NavigationStack {
+                    ShopDetailView(shop: shop)
+                }
+            }
+        }
     }
     
     // MARK: - View Components
@@ -118,7 +126,7 @@ struct PostCard: View {
                 if let shop = post.shop {
                     Button(action: {
                         HapticManager.shared.impact(.light)
-                        openDirections(to: shop)
+                        showShopDetail = true
                     }) {
                         HStack(spacing: 4) {
                             Image(systemName: "mappin.circle.fill")
@@ -241,7 +249,7 @@ struct PostCard: View {
                     // Prominent location badge
                     Button(action: {
                         HapticManager.shared.impact(.medium)
-                        openDirections(to: shop)
+                        showShopDetail = true
                     }) {
                         HStack(spacing: 8) {
                             // Location pin icon with circle background

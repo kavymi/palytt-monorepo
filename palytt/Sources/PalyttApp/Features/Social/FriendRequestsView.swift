@@ -315,19 +315,21 @@ class FriendRequestsViewModel: ObservableObject {
         lastName: "Smith",
         username: "janesmith",
         displayName: "Jane Smith",
+        name: "Jane Smith",
         bio: "Coffee lover and photographer",
         avatarUrl: nil,
+        profileImage: nil,
         role: "user",
         appleId: nil,
         googleId: nil,
         dietaryPreferences: nil,
-        followersCount: 89,
+        followerCount: 89,
         followingCount: 145,
         postsCount: 12,
         isVerified: false,
         isActive: true,
-        createdAt: Int(Date().timeIntervalSince1970 * 1000),
-        updatedAt: Int(Date().timeIntervalSince1970 * 1000)
+        createdAt: .timestamp(Int(Date().timeIntervalSince1970 * 1000)),
+        updatedAt: .timestamp(Int(Date().timeIntervalSince1970 * 1000))
     )
     
     VStack(spacing: 16) {

@@ -114,22 +114,75 @@ struct BackendUser: Codable {
     let lastName: String?
     let username: String?
     let displayName: String?
+    let name: String?  // Backend returns "name" instead of firstName/lastName sometimes
     let bio: String?
     let avatarUrl: String?
+    let profileImage: String?  // Backend uses profileImage, iOS uses avatarUrl
     let role: String?
     let appleId: String?
     let googleId: String?
     let dietaryPreferences: [String]?
-    let followersCount: Int
-    let followingCount: Int
-    let postsCount: Int
-    let isVerified: Bool
-    let isActive: Bool
-    let createdAt: Int
-    let updatedAt: Int
+    let followerCount: Int?  // Backend uses singular form
+    let followingCount: Int?
+    let postsCount: Int?
+    let isVerified: Bool?
+    let isActive: Bool?
+    let createdAt: CreatedAtValue?  // Can be ISO string or timestamp
+    let updatedAt: UpdatedAtValue?  // Can be ISO string or timestamp
+    
+    // Computed properties to handle different field names
+    var followersCount: Int {
+        return followerCount ?? 0
+    }
+    
+    var effectiveFollowingCount: Int {
+        return followingCount ?? 0
+    }
+    
+    var effectivePostsCount: Int {
+        return postsCount ?? 0
+    }
+    
+    var effectiveIsVerified: Bool {
+        return isVerified ?? false
+    }
+    
+    var effectiveIsActive: Bool {
+        return isActive ?? true
+    }
+    
+    // Helper to parse createdAt timestamp
+    var createdAtTimestamp: Int {
+        switch createdAt {
+        case .timestamp(let ts):
+            return ts
+        case .isoString(let str):
+            if let date = ISO8601DateFormatter().date(from: str) {
+                return Int(date.timeIntervalSince1970 * 1000)
+            }
+            return Int(Date().timeIntervalSince1970 * 1000)
+        case .none:
+            return Int(Date().timeIntervalSince1970 * 1000)
+        }
+    }
+    
+    // Helper to parse updatedAt timestamp
+    var updatedAtTimestamp: Int {
+        switch updatedAt {
+        case .timestamp(let ts):
+            return ts
+        case .isoString(let str):
+            if let date = ISO8601DateFormatter().date(from: str) {
+                return Int(date.timeIntervalSince1970 * 1000)
+            }
+            return Int(Date().timeIntervalSince1970 * 1000)
+        case .none:
+            return Int(Date().timeIntervalSince1970 * 1000)
+        }
+    }
     
     enum CodingKeys: String, CodingKey {
-        case id = "_id"
+        case id
         case userId
         case clerkId
         case email
@@ -137,13 +190,15 @@ struct BackendUser: Codable {
         case lastName
         case username
         case displayName
+        case name
         case bio
         case avatarUrl
+        case profileImage
         case role
         case appleId
         case googleId
         case dietaryPreferences
-        case followersCount
+        case followerCount
         case followingCount
         case postsCount
         case isVerified
@@ -151,10 +206,96 @@ struct BackendUser: Codable {
         case createdAt
         case updatedAt
     }
+}
+
+// Helper enum to handle both ISO string and timestamp for dates
+enum CreatedAtValue: Codable {
+    case timestamp(Int)
+    case isoString(String)
+    
+    init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        if let intValue = try? container.decode(Int.self) {
+            self = .timestamp(intValue)
+        } else if let stringValue = try? container.decode(String.self) {
+            self = .isoString(stringValue)
+        } else {
+            throw DecodingError.typeMismatch(CreatedAtValue.self, DecodingError.Context(codingPath: decoder.codingPath, debugDescription: "Expected Int or String"))
+        }
+    }
+    
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.singleValueContainer()
+        switch self {
+        case .timestamp(let value):
+            try container.encode(value)
+        case .isoString(let value):
+            try container.encode(value)
+        }
+    }
+}
+
+enum UpdatedAtValue: Codable {
+    case timestamp(Int)
+    case isoString(String)
+    
+    init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        if let intValue = try? container.decode(Int.self) {
+            self = .timestamp(intValue)
+        } else if let stringValue = try? container.decode(String.self) {
+            self = .isoString(stringValue)
+        } else {
+            throw DecodingError.typeMismatch(UpdatedAtValue.self, DecodingError.Context(codingPath: decoder.codingPath, debugDescription: "Expected Int or String"))
+        }
+    }
+    
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.singleValueContainer()
+        switch self {
+        case .timestamp(let value):
+            try container.encode(value)
+        case .isoString(let value):
+            try container.encode(value)
+        }
+    }
+}
+
+extension BackendUser {
     
     // Computed property to ensure we always have a userId
     var effectiveUserId: String {
         return userId ?? clerkId
+    }
+    
+    // Computed property to get avatar URL from either field
+    var effectiveAvatarUrl: String? {
+        return profileImage ?? avatarUrl
+    }
+    
+    // Parse name into firstName and lastName
+    var parsedFirstName: String? {
+        if let firstName = firstName, !firstName.isEmpty {
+            return firstName
+        }
+        if let name = name {
+            let parts = name.split(separator: " ")
+            return parts.first.map(String.init)
+        }
+        return nil
+    }
+    
+    var parsedLastName: String? {
+        if let lastName = lastName, !lastName.isEmpty {
+            return lastName
+        }
+        if let name = name {
+            let parts = name.split(separator: " ")
+            if parts.count > 1 {
+                return parts.dropFirst().joined(separator: " ")
+            }
+        }
+        return nil
     }
     
     func toUser() -> User {
@@ -167,24 +308,24 @@ struct BackendUser: Codable {
         let userRole = UserRole(rawValue: role ?? "user") ?? .user
         
         // Convert timestamp to Date
-        let joinedAt = Date(timeIntervalSince1970: Double(createdAt) / 1000)
+        let joinedAt = Date(timeIntervalSince1970: Double(createdAtTimestamp) / 1000)
         
         return User(
             id: UUID(uuidString: id ?? effectiveUserId) ?? UUID(),
             email: email ?? "",
-            firstName: firstName,
-            lastName: lastName,
+            firstName: parsedFirstName,
+            lastName: parsedLastName,
             username: username ?? "user_\(clerkId.prefix(8))",
-            displayName: displayName,
+            displayName: displayName ?? name,
             bio: bio,
-            avatarURL: avatarUrl != nil ? URL(string: avatarUrl!) : nil,
+            avatarURL: effectiveAvatarUrl != nil ? URL(string: effectiveAvatarUrl!) : nil,
             clerkId: clerkId,
             role: userRole,
             dietaryPreferences: preferences,
             joinedAt: joinedAt,
             followersCount: followersCount,
-            followingCount: followingCount,
-            postsCount: postsCount
+            followingCount: effectiveFollowingCount,
+            postsCount: effectivePostsCount
         )
     }
     
@@ -196,8 +337,28 @@ struct BackendUser: Codable {
         let userId = dictionary["userId"] as? String  // Can be nil for sender objects
         let email = dictionary["email"] as? String   // Can be nil for sender objects
         
+        // Parse createdAt - can be Int or String
+        let createdAtValue: CreatedAtValue?
+        if let intValue = dictionary["createdAt"] as? Int {
+            createdAtValue = .timestamp(intValue)
+        } else if let stringValue = dictionary["createdAt"] as? String {
+            createdAtValue = .isoString(stringValue)
+        } else {
+            createdAtValue = nil
+        }
+        
+        // Parse updatedAt - can be Int or String
+        let updatedAtValue: UpdatedAtValue?
+        if let intValue = dictionary["updatedAt"] as? Int {
+            updatedAtValue = .timestamp(intValue)
+        } else if let stringValue = dictionary["updatedAt"] as? String {
+            updatedAtValue = .isoString(stringValue)
+        } else {
+            updatedAtValue = nil
+        }
+        
         return BackendUser(
-            id: dictionary["_id"] as? String,
+            id: dictionary["id"] as? String ?? dictionary["_id"] as? String,
             userId: userId,
             clerkId: clerkId,
             email: email,
@@ -205,19 +366,21 @@ struct BackendUser: Codable {
             lastName: dictionary["lastName"] as? String,
             username: dictionary["username"] as? String,
             displayName: dictionary["displayName"] as? String,
+            name: dictionary["name"] as? String,
             bio: dictionary["bio"] as? String,
             avatarUrl: dictionary["avatarUrl"] as? String,
+            profileImage: dictionary["profileImage"] as? String,
             role: dictionary["role"] as? String,
             appleId: dictionary["appleId"] as? String,
             googleId: dictionary["googleId"] as? String,
             dietaryPreferences: dictionary["dietaryPreferences"] as? [String],
-            followersCount: dictionary["followersCount"] as? Int ?? 0,
-            followingCount: dictionary["followingCount"] as? Int ?? 0,
-            postsCount: dictionary["postsCount"] as? Int ?? 0,
-            isVerified: dictionary["isVerified"] as? Bool ?? false,
-            isActive: dictionary["isActive"] as? Bool ?? true,
-            createdAt: dictionary["createdAt"] as? Int ?? Int(Date().timeIntervalSince1970 * 1000),
-            updatedAt: dictionary["updatedAt"] as? Int ?? Int(Date().timeIntervalSince1970 * 1000)
+            followerCount: dictionary["followerCount"] as? Int ?? dictionary["followersCount"] as? Int,
+            followingCount: dictionary["followingCount"] as? Int,
+            postsCount: dictionary["postsCount"] as? Int,
+            isVerified: dictionary["isVerified"] as? Bool,
+            isActive: dictionary["isActive"] as? Bool,
+            createdAt: createdAtValue,
+            updatedAt: updatedAtValue
         )
     }
 }

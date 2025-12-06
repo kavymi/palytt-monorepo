@@ -1,3 +1,4 @@
+import { Link } from '@tanstack/react-router'
 import { motion } from 'framer-motion'
 import { useState } from 'react'
 
@@ -31,7 +32,13 @@ export function Navbar() {
           <div className="hidden md:flex items-center gap-8">
             <NavLink href="#features">Features</NavLink>
             <NavLink href="#how-it-works">How It Works</NavLink>
-            <a href="#early-access">
+            <Link 
+              to="/support" 
+              className="text-light-text-secondary hover:text-coffee-dark transition-colors"
+            >
+              Support
+            </Link>
+            <a href="/#early-access">
               <motion.button
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
@@ -86,8 +93,15 @@ export function Navbar() {
             <MobileNavLink href="#how-it-works" onClick={() => setIsOpen(false)}>
               How It Works
             </MobileNavLink>
+            <Link
+              to="/support"
+              onClick={() => setIsOpen(false)}
+              className="block px-4 py-2 text-light-text-secondary hover:text-coffee-dark transition-colors"
+            >
+              Support
+            </Link>
             <div className="px-4 pt-2">
-              <a href="#early-access" onClick={() => setIsOpen(false)}>
+              <a href="/#early-access" onClick={() => setIsOpen(false)}>
                 <button className="btn-primary w-full">Get Early Access</button>
               </a>
             </div>
@@ -129,4 +143,3 @@ function MobileNavLink({
     </a>
   )
 }
-

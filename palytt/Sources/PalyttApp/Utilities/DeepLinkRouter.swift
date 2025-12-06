@@ -232,15 +232,15 @@ class DeepLinkRouter: ObservableObject {
     private func navigateToHashtag(tag: String, appState: AppState) {
         print("📱 DeepLinkRouter: Navigating to hashtag: #\(tag)")
         
-        // Post notification for hashtag search
+        // Clean the tag (remove # if present)
+        let cleanTag = tag.hasPrefix("#") ? String(tag.dropFirst()) : tag
+        
+        // Post notification for hashtag navigation with the clean tag
         NotificationCenter.default.post(
             name: .navigateToHashtag,
             object: nil,
-            userInfo: ["hashtag": tag]
+            userInfo: ["hashtag": cleanTag]
         )
-        
-        // Switch to explore tab for search
-        appState.selectedTab = .explore
     }
     
     private func navigateToPost(postId: String, appState: AppState) {

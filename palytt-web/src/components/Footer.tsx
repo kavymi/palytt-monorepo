@@ -75,11 +75,6 @@ export function Footer() {
                 </Link>
               </li>
               <li>
-                <Link to="/support" className="text-gray-400 hover:text-white transition-colors">
-                  Support
-                </Link>
-              </li>
-              <li>
                 <a href="mailto:kavyrattana@gmail.com" className="text-gray-400 hover:text-white transition-colors">
                   Contact Us
                 </a>
@@ -135,3 +130,4 @@ function SocialLink({
     </motion.a>
   )
 }
+

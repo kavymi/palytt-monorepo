@@ -285,5 +285,50 @@ export default defineSchema({
     .index("by_total", ["totalReferrals"])
     .index("by_weekly", ["weeklyReferrals"])
     .index("by_monthly", ["monthlyReferrals"]),
+
+  // ============================================
+  // SHARED POSTS (Post-only messaging)
+  // ============================================
+  
+  /**
+   * Real-time post sharing between friends
+   * - Users can only share posts, no free-form text messaging
+   * - Enables "share post with friend" feature
+   * - Real-time delivery via Convex subscriptions
+   */
+  sharedPosts: defineTable({
+    // Sender (Clerk ID)
+    senderClerkId: v.string(),
+    
+    // Sender display info (cached for UI)
+    senderName: v.optional(v.string()),
+    senderProfileImage: v.optional(v.string()),
+    
+    // Recipient (Clerk ID)
+    recipientClerkId: v.string(),
+    
+    // PostgreSQL post ID
+    postId: v.string(),
+    
+    // Cached post data for quick display without extra lookups
+    postPreview: v.object({
+      title: v.optional(v.string()),
+      imageUrl: v.optional(v.string()),
+      shopName: v.optional(v.string()),
+      authorName: v.optional(v.string()),
+      authorClerkId: v.optional(v.string()),
+    }),
+    
+    // Read status
+    isRead: v.boolean(),
+    
+    // Timestamp
+    createdAt: v.number(),
+  })
+    .index("by_sender", ["senderClerkId"])
+    .index("by_recipient", ["recipientClerkId"])
+    .index("by_conversation", ["senderClerkId", "recipientClerkId"])
+    .index("by_recipient_unread", ["recipientClerkId", "isRead"])
+    .index("by_created_at", ["createdAt"]),
 });
 

@@ -184,28 +184,36 @@ class HomeViewModel: ObservableObject {
     }
     
     /// Handle feed type changes with appropriate data loading strategy
+    /// Note: This is called from the Combine subscriber, so we don't call it directly from switchFeedType
     private func handleFeedTypeChange(_ feedType: FeedType) {
+        // Only fetch if the feed is empty - don't block on isLoading to allow tab switching
         switch feedType {
         case .friends:
-            if posts.isEmpty && !isLoading {
+            if posts.isEmpty {
                 fetchPosts()
             }
         case .forYou:
-            if forYouPosts.isEmpty && !isLoading {
+            if forYouPosts.isEmpty {
                 fetchForYouPosts()
             }
         }
     }
     
-    /// Switch feed type and load data if needed
+    /// Switch feed type immediately and load data if needed
+    /// This is the primary entry point for tab switching - must be responsive
     func switchFeedType(to feedType: FeedType) {
+        // Allow switching even to the same feed type for responsiveness
+        // The actual data loading will be handled by handleFeedTypeChange
         guard selectedFeedType != feedType else { return }
         
+        // Update the published property immediately for instant UI response
         selectedFeedType = feedType
+        
+        // Notify the Combine subscriber which will handle data loading
         feedTypeSubject.send(feedType)
         
-        // Trigger data load if needed
-        handleFeedTypeChange(feedType)
+        // Note: We don't call handleFeedTypeChange directly here anymore
+        // The Combine subscriber will call it, avoiding double-triggering
     }
     
     /// Perform scroll-triggered loading with enhanced logic

@@ -441,6 +441,9 @@ struct DetailsStepView: View {
                     #endif
                 }
                 
+                // Tags Section
+                TagsInputSection(viewModel: viewModel)
+                
                 // Location Section with Free-Form Text and Autocomplete
                 VStack(alignment: .leading, spacing: 12) {
                     HStack {
@@ -712,6 +715,27 @@ struct ReviewStepView: View {
                                 }
                             }
                         }
+                        
+                        // Tags
+                        if !viewModel.menuItems.isEmpty || !viewModel.mentions.filter({ $0.type == .hashtag }).isEmpty {
+                            let allTags = viewModel.getAllTags()
+                            if !allTags.isEmpty {
+                                ScrollView(.horizontal, showsIndicators: false) {
+                                    HStack(spacing: 6) {
+                                        ForEach(allTags, id: \.self) { tag in
+                                            Text("#\(tag)")
+                                                .font(.caption2)
+                                                .fontWeight(.medium)
+                                                .foregroundColor(.primaryBrand)
+                                                .padding(.horizontal, 8)
+                                                .padding(.vertical, 4)
+                                                .background(Color.primaryBrand.opacity(0.15))
+                                                .cornerRadius(12)
+                                        }
+                                    }
+                                }
+                            }
+                        }
                     }
                     .padding()
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -724,6 +748,159 @@ struct ReviewStepView: View {
             }
             .padding()
         }
+    }
+}
+
+// MARK: - Tags Input Section
+struct TagsInputSection: View {
+    @ObservedObject var viewModel: CreatePostViewModel
+    @State private var newTag = ""
+    @FocusState private var isTagFieldFocused: Bool
+    
+    // Suggested tags based on food category
+    private var suggestedTags: [String] {
+        var tags: [String] = []
+        
+        if let category = viewModel.selectedFoodCategory {
+            switch category {
+            case .coffee:
+                tags = ["coffee", "coffeelover", "morningcoffee", "latte", "espresso"]
+            case .dessert:
+                tags = ["dessert", "sweets", "foodporn", "yummy", "icecream"]
+            case .streetFood:
+                tags = ["streetfood", "foodie", "localfood", "asianfood", "snacks"]
+            case .fastFood:
+                tags = ["fastfood", "quickbite", "burgers", "fries", "comfortfood"]
+            case .healthy:
+                tags = ["healthy", "cleaneating", "salad", "organic", "fitfood"]
+            case .asian:
+                tags = ["asianfood", "sushi", "ramen", "korean", "thai"]
+            case .italian:
+                tags = ["italian", "pasta", "pizza", "mediterranen", "risotto"]
+            case .mexican:
+                tags = ["mexican", "tacos", "burrito", "guacamole", "spicy"]
+            case .indian:
+                tags = ["indian", "curry", "naan", "spices", "biryani"]
+            case .american:
+                tags = ["american", "bbq", "burgers", "steakhouse", "diner"]
+            case .vegetarian:
+                tags = ["vegetarian", "veggie", "plantbased", "meatless", "veggielove"]
+            case .vegan:
+                tags = ["vegan", "plantbased", "crueltyfree", "veganfood", "wholesome"]
+            }
+        }
+        
+        // Filter out tags that are already added
+        return tags.filter { !viewModel.menuItems.contains($0) }
+    }
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Text("Tags")
+                    .font(.headline)
+                    .foregroundColor(.primaryText)
+                
+                Text("(optional)")
+                    .font(.caption)
+                    .foregroundColor(.tertiaryText)
+            }
+            
+            // Tag input field
+            HStack {
+                Image(systemName: "number")
+                    .foregroundColor(.primaryBrand)
+                
+                TextField("Add a tag...", text: $newTag)
+                    .textFieldStyle(.plain)
+                    .focused($isTagFieldFocused)
+                    .autocapitalization(.none)
+                    .disableAutocorrection(true)
+                    .onSubmit {
+                        addTag()
+                    }
+                
+                if !newTag.isEmpty {
+                    Button(action: addTag) {
+                        Image(systemName: "plus.circle.fill")
+                            .foregroundColor(.primaryBrand)
+                    }
+                }
+            }
+            .padding()
+            .background(Color.gray.opacity(0.1))
+            .cornerRadius(16)
+            
+            // Current tags
+            if !viewModel.menuItems.isEmpty {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        ForEach(viewModel.menuItems, id: \.self) { tag in
+                            HStack(spacing: 4) {
+                                Text("#\(tag)")
+                                    .font(.caption)
+                                    .fontWeight(.medium)
+                                
+                                Button(action: {
+                                    viewModel.removeMenuItem(tag)
+                                    HapticManager.shared.impact(.light)
+                                }) {
+                                    Image(systemName: "xmark.circle.fill")
+                                        .font(.caption)
+                                }
+                            }
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 6)
+                            .background(Color.primaryBrand)
+                            .cornerRadius(16)
+                        }
+                    }
+                }
+            }
+            
+            // Suggested tags
+            if !suggestedTags.isEmpty {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Suggested")
+                        .font(.caption)
+                        .foregroundColor(.tertiaryText)
+                    
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 8) {
+                            ForEach(suggestedTags.prefix(6), id: \.self) { tag in
+                                Button(action: {
+                                    viewModel.addMenuItem(tag)
+                                    HapticManager.shared.impact(.light)
+                                }) {
+                                    Text("#\(tag)")
+                                        .font(.caption)
+                                        .fontWeight(.medium)
+                                        .foregroundColor(.primaryBrand)
+                                        .padding(.horizontal, 12)
+                                        .padding(.vertical, 6)
+                                        .background(Color.primaryBrand.opacity(0.15))
+                                        .cornerRadius(16)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    private func addTag() {
+        let tag = newTag.trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased()
+            .replacingOccurrences(of: "#", with: "")
+            .replacingOccurrences(of: " ", with: "")
+        
+        guard !tag.isEmpty else { return }
+        
+        viewModel.addMenuItem(tag)
+        newTag = ""
+        HapticManager.shared.impact(.light)
     }
 }
 
@@ -1404,6 +1581,24 @@ class CreatePostViewModel: ObservableObject {
         menuItems.removeAll { $0 == item }
     }
     
+    /// Get all tags including menu items and hashtags from mentions
+    func getAllTags() -> [String] {
+        var allTags = menuItems
+        
+        // Add hashtags from mentions
+        let hashtagsFromCaption = mentions
+            .filter { $0.type == .hashtag }
+            .map { $0.text }
+        
+        for hashtag in hashtagsFromCaption {
+            if !allTags.contains(hashtag) {
+                allTags.append(hashtag)
+            }
+        }
+        
+        return allTags
+    }
+    
     @MainActor
     func createPost(appState: AppState? = nil) async {
         isLoading = true
@@ -1434,6 +1629,19 @@ class CreatePostViewModel: ObservableObject {
             // Determine location to use - either selected location or create from free-form text
             let locationToUse: Location? = selectedLocation ?? createLocationFromFreeFormText()
             
+            // Extract hashtags from mentions and combine with menuItems
+            let hashtagsFromCaption = mentions
+                .filter { $0.type == .hashtag }
+                .map { $0.text }
+            
+            // Combine menu items with hashtags from caption (avoid duplicates)
+            var allTags = menuItems
+            for hashtag in hashtagsFromCaption {
+                if !allTags.contains(hashtag) {
+                    allTags.append(hashtag)
+                }
+            }
+            
             // Create post using the correct function parameters
             let postId = try await backendService.createPostViaConvex(
                 userId: clerkId,
@@ -1442,7 +1650,7 @@ class CreatePostViewModel: ObservableObject {
                 imageUrl: uniqueImageUrls.first,
                 imageUrls: uniqueImageUrls,
                 location: locationToUse,
-                tags: menuItems,
+                tags: allTags,
                 isPublic: true,
                 metadata: BackendService.ConvexPostMetadata(
                     category: selectedFoodCategory?.rawValue ?? "food",

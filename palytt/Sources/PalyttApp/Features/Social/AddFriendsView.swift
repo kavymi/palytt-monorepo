@@ -615,7 +615,7 @@ struct EnhancedAddFriendUserRowView: View {
                         .foregroundColor(.primaryText)
                         .lineLimit(1)
                     
-                    if user.isVerified {
+                    if user.effectiveIsVerified {
                         Image(systemName: "checkmark.seal.fill")
                             .font(.system(size: 12))
                             .foregroundColor(.primaryBrand)
@@ -721,7 +721,7 @@ struct AddFriendUserRowView: View {
                         .foregroundColor(.primaryText)
                         .lineLimit(1)
                     
-                    if user.isVerified {
+                    if user.effectiveIsVerified {
                         Image(systemName: "checkmark.seal.fill")
                             .font(.system(size: 12))
                             .foregroundColor(.primaryBrand)
@@ -874,19 +874,21 @@ class AddFriendsViewModel: ObservableObject {
                     lastName: nil,
                     username: suggestion.username,
                     displayName: suggestion.name,
+                    name: suggestion.name,
                     bio: suggestion.bio,
                     avatarUrl: suggestion.profileImage,
+                    profileImage: nil,
                     role: nil,
                     appleId: nil,
                     googleId: nil,
                     dietaryPreferences: nil,
-                    followersCount: suggestion.followerCount,
+                    followerCount: suggestion.followerCount,
                     followingCount: 0,
                     postsCount: 0,
                     isVerified: false,
                     isActive: true,
-                    createdAt: 0,
-                    updatedAt: 0
+                    createdAt: nil,
+                    updatedAt: nil
                 )
                 return EnhancedUserSuggestion(
                     user: user,
@@ -918,7 +920,7 @@ class AddFriendsViewModel: ObservableObject {
             var filteredUsers = users
             
             if filters.onlyVerified {
-                filteredUsers = filteredUsers.filter { $0.isVerified }
+                filteredUsers = filteredUsers.filter { $0.effectiveIsVerified }
             }
             
             if !filters.dietaryPreferences.isEmpty {

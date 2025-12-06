@@ -46,15 +46,19 @@ struct HomeView: View {
                     isSelected: viewModel.selectedFeedType == feedType,
                     namespace: feedTabAnimation
                 ) {
-                    withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                        viewModel.switchFeedType(to: feedType)
-                    }
+                    // Haptic feedback first for immediate user feedback
                     HapticManager.shared.impact(.light)
+                    
+                    // Switch feed type immediately - don't wrap in withAnimation
+                    // The animation is handled by matchedGeometryEffect in the tab itself
+                    viewModel.switchFeedType(to: feedType)
                 }
             }
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 8)
+        // Apply animation to the entire selector for smooth tab indicator movement
+        .animation(.spring(response: 0.3, dampingFraction: 0.7), value: viewModel.selectedFeedType)
     }
     
     @ViewBuilder
@@ -349,7 +353,9 @@ struct FeedTypeTab: View {
     let action: () -> Void
     
     var body: some View {
-        Button(action: action) {
+        Button {
+            action()
+        } label: {
             HStack(spacing: 6) {
                 Image(systemName: feedType.icon)
                     .font(.system(size: 14, weight: .semibold))
@@ -369,8 +375,19 @@ struct FeedTypeTab: View {
                         .fill(Color.appCardBackground)
                 }
             }
+            .contentShape(Capsule()) // Ensure the entire capsule area is tappable
         }
-        .buttonStyle(.plain)
+        .buttonStyle(FeedTabButtonStyle())
+    }
+}
+
+/// Custom button style for feed tabs - provides immediate visual feedback
+struct FeedTabButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.95 : 1.0)
+            .opacity(configuration.isPressed ? 0.8 : 1.0)
+            .animation(.easeOut(duration: 0.1), value: configuration.isPressed)
     }
 }
 

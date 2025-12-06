@@ -220,9 +220,10 @@ struct ProfileView: View {
         )
         
         // Daily Challenges Section (only for own profile)
-        if targetUser == nil || targetUser?.id == appState.currentUser?.id {
-            ProfileChallengesSection()
-        }
+        // TODO: Re-enable when Challenges feature is ready
+        // if targetUser == nil || targetUser?.id == appState.currentUser?.id {
+        //     ProfileChallengesSection()
+        // }
         
         // Admin Section (visible to admin users)
         if user.isAdmin {

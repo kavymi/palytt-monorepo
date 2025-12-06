@@ -116,9 +116,8 @@ struct MentionText: View {
             let range = startIndex..<endIndex
             let mentionType: MentionType = detected.isHashtag ? .hashtag : .user
             
-            // Style the mention
+            // Style the mention (no underline, just color)
             result[range].foregroundColor = mentionType.color
-            result[range].underlineStyle = .single
             
             // Add link for tapping
             if let url = URL(string: "\(mentionType.deepLinkScheme)\(detected.text)") {
@@ -146,9 +145,8 @@ struct MentionText: View {
             
             let range = startIndex..<endIndex
             
-            // Style the mention
+            // Style the mention (no underline, just color)
             result[range].foregroundColor = mention.type.color
-            result[range].underlineStyle = .single
             
             // Add link for tapping
             if let url = mention.deepLinkURL {

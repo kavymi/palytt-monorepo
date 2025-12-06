@@ -25,6 +25,9 @@
 		18B814E598841332D1B51110 /* PalyttApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C7DCFF1508D69D4ABA82A6A /* PalyttApp.swift */; };
 		1AF60673CA3C372AC3AC2A0E /* FriendsListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9DB85D98D798FDE76CD2932 /* FriendsListView.swift */; };
 		FRIENDSVIEWBLD123456789AB /* FriendsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FRIENDSVIEW123456789ABCDE /* FriendsView.swift */; };
+		SHAREDPOSTCARDBLD12345678 /* SharedPostCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = SHAREDPOSTCARDREF12345678 /* SharedPostCard.swift */; };
+		FRIENDMSGVIEWBLD12345678 /* FriendMessagesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FRIENDMSGVIEWREF12345678 /* FriendMessagesView.swift */; };
+		FRIENDMSGVMBLD1234567890 /* FriendMessagesViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = FRIENDMSGVMREF1234567890 /* FriendMessagesViewModel.swift */; };
 		20A7B81D94105D1222A92695 /* User.swift in Sources */ = {isa = PBXBuildFile; fileRef = 02C242FEA257BA231293F69D /* User.swift */; };
 		A1B2C3D4E5F6789012345678 /* Notification.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2C3D4E5F6789012345678A1 /* Notification.swift */; };
 		NOTIFBADGE123456789ABCDEF /* NotificationBadge.swift in Sources */ = {isa = PBXBuildFile; fileRef = NOTIFBADGE123456789ABCD /* NotificationBadge.swift */; };
@@ -88,6 +91,7 @@
 		IMAGEEDITORVIEWBUILD12345 /* ImageEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = IMAGEEDITORVIEW123456789A /* ImageEditorView.swift */; };
 		E9F4368B88D3EB8BE6DAD996 /* SocialListViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B7FE5076F6C6DFBE480B0D6 /* SocialListViews.swift */; };
 		EMPTYSTATE123456789ABCDEFG /* EmptyStateView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EMPTYSTATE123456789ABCDEF /* EmptyStateView.swift */; };
+		HASHTAGFEEDBLD1234567890 /* HashtagFeedView.swift in Sources */ = {isa = PBXBuildFile; fileRef = HASHTAGFEEDREF1234567890 /* HashtagFeedView.swift */; };
 		F3EEB39C3CDB3BBD5A5EADDE /* Bundle+Resources.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00B39BCA69C5CEB0A47A2061 /* Bundle+Resources.swift */; };
 		FE3830A1DE3BF5D02AA910F0 /* FriendRequestsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0D31ADE69D1778DDD8E41A93 /* FriendRequestsView.swift */; };
 		FE807D5C9DA14BA99D52CCEE /* ProfileViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C57B9E173994897A15E963C /* ProfileViewModel.swift */; };
@@ -112,6 +116,7 @@
 		UI9876543210FEDCBA654321 /* UIComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = UI1234567890ABCDEF123456 /* UIComponents.swift */; };
 		USERAVATAR123456789ABCDEF /* UserAvatar.swift in Sources */ = {isa = PBXBuildFile; fileRef = USERAVATAR123456789ABCD /* UserAvatar.swift */; };
 		WEBSOCKET123456789ABCDEF /* WebSocketManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = WEBSOCKETREF123456789AB /* WebSocketManager.swift */; };
+		SHOPDETAILBLD123456789AB /* ShopDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = SHOPDETAIL123456789ABCDEF /* ShopDetailView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -175,6 +180,9 @@
 		B3E6B84F0951D2B6BB0AE577 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		B9DB85D98D798FDE76CD2932 /* FriendsListView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = FriendsListView.swift; sourceTree = "<group>"; };
 		FRIENDSVIEW123456789ABCDE /* FriendsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = FriendsView.swift; path = Sources/PalyttApp/Features/Social/FriendsView.swift; sourceTree = SOURCE_ROOT; };
+		SHAREDPOSTCARDREF12345678 /* SharedPostCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SharedPostCard.swift; path = Sources/PalyttApp/Features/Social/SharedPostCard.swift; sourceTree = SOURCE_ROOT; };
+		FRIENDMSGVIEWREF12345678 /* FriendMessagesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = FriendMessagesView.swift; path = Sources/PalyttApp/Features/Social/FriendMessagesView.swift; sourceTree = SOURCE_ROOT; };
+		FRIENDMSGVMREF1234567890 /* FriendMessagesViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = FriendMessagesViewModel.swift; path = Sources/PalyttApp/Features/Social/FriendMessagesViewModel.swift; sourceTree = SOURCE_ROOT; };
 		BE63BBBA2E015C2000FDA1D4 /* Palytt.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Palytt.entitlements; sourceTree = "<group>"; };
 		BE7DB8B12E052B38006BCCDB /* LocationManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocationManager.swift; sourceTree = "<group>"; };
 		BE7DB8B32E052DBA006BCCDB /* BunnyNetService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BunnyNetService.swift; sourceTree = "<group>"; };
@@ -198,6 +206,7 @@
 		DDB106E9A367E653C8F44547 /* FollowersListView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = FollowersListView.swift; sourceTree = "<group>"; };
 		E72A4AA4F950E158E8B7CE7D /* HomeViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeViewModel.swift; sourceTree = "<group>"; };
 		EMPTYSTATE123456789ABCDEF /* EmptyStateView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmptyStateView.swift; sourceTree = "<group>"; };
+		HASHTAGFEEDREF1234567890 /* HashtagFeedView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HashtagFeedView.swift; sourceTree = "<group>"; };
 		FCD48A105EA06D59E5F68177 /* SaveOptionsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SaveOptionsView.swift; sourceTree = "<group>"; };
 		GROUPGATHER123456789ABCDE /* GroupGathering.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GroupGathering.swift; sourceTree = "<group>"; };
 		GROUPGATHERV12456789ABCDE /* GroupGatheringView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GroupGatheringView.swift; sourceTree = "<group>"; };
@@ -582,6 +591,7 @@
 			isa = PBXGroup;
 			children = (
 				C7B1B855B69C07B70B1FAF97 /* ExploreView.swift */,
+				HASHTAGFEEDREF1234567890 /* HashtagFeedView.swift */,
 				TRENDINGCRSLREF12345678 /* TrendingCarouselView.swift */,
 			);
 			path = Explore;
@@ -769,6 +779,7 @@
 				BE7DB8B22E052B38006BCCDB /* LocationManager.swift in Sources */,
 				9C954377F2C74687A27EF6C7 /* SignInWithAppleHelper.swift in Sources */,
 				74575DD0204B2009423E4189 /* ExploreView.swift in Sources */,
+				HASHTAGFEEDBLD1234567890 /* HashtagFeedView.swift in Sources */,
 				07B442EB32A0702A1C837371 /* HapticManager.swift in Sources */,
 				UI9876543210FEDCBA654321 /* UIComponents.swift in Sources */,
 				9051C4C518B7429A2B8A3D42 /* HomeView.swift in Sources */,
@@ -832,6 +843,9 @@
 				NOTIFBADGE123456789ABCDEF /* NotificationBadge.swift in Sources */,
 				1AF60673CA3C372AC3AC2A0E /* FriendsListView.swift in Sources */,
 				FRIENDSVIEWBLD123456789AB /* FriendsView.swift in Sources */,
+				SHAREDPOSTCARDBLD12345678 /* SharedPostCard.swift in Sources */,
+				FRIENDMSGVIEWBLD12345678 /* FriendMessagesView.swift in Sources */,
+				FRIENDMSGVMBLD1234567890 /* FriendMessagesViewModel.swift in Sources */,
 				E9F4368B88D3EB8BE6DAD996 /* SocialListViews.swift in Sources */,
 				USERAVATAR123456789ABCDEF /* UserAvatar.swift in Sources */,
 				CREATELIST123456789ABCDEF0 /* CreateListView.swift in Sources */,
@@ -844,6 +858,7 @@
 				WEBSOCKET123456789ABCDEF /* WebSocketManager.swift in Sources */,
 				MODERNVM123456789ABCDEFG /* ModernMessagesViewModel.swift in Sources */,
 				MSGCACHE123456789ABCDEFG /* MessageCacheManager.swift in Sources */,
+				SHOPDETAILBLD123456789AB /* ShopDetailView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

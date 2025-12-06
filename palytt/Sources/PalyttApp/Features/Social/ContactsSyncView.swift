@@ -351,19 +351,21 @@ struct ContactMatch: Identifiable {
             lastName: nil,
             username: user.username,
             displayName: user.name,
+            name: user.name,
             bio: user.bio,
             avatarUrl: user.profileImage,
+            profileImage: nil,
             role: nil,
             appleId: nil,
             googleId: nil,
             dietaryPreferences: nil,
-            followersCount: user.followerCount,
+            followerCount: user.followerCount,
             followingCount: user.followingCount,
             postsCount: user.postsCount,
             isVerified: user.isVerified,
             isActive: user.isActive,
-            createdAt: Int(Date().timeIntervalSince1970),
-            updatedAt: Int(Date().timeIntervalSince1970)
+            createdAt: .timestamp(Int(Date().timeIntervalSince1970 * 1000)),
+            updatedAt: .timestamp(Int(Date().timeIntervalSince1970 * 1000))
         )
     }
 }

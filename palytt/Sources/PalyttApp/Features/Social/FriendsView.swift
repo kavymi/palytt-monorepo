@@ -16,6 +16,7 @@ import Clerk
 
 struct FriendsView: View {
     @StateObject private var viewModel = FriendsViewViewModel()
+    @StateObject private var messagesViewModel = FriendMessagesViewModel()
     @EnvironmentObject var appState: AppState
     @Environment(\.dismiss) private var dismiss
     @State private var selectedTab: FriendsTab = .friends
@@ -29,12 +30,14 @@ struct FriendsView: View {
     
     enum FriendsTab: String, CaseIterable {
         case friends = "Friends"
+        case messages = "Messages"
         case requests = "Requests"
         case discover = "Discover"
         
         var icon: String {
             switch self {
             case .friends: return "person.2.fill"
+            case .messages: return "paperplane.fill"
             case .requests: return "person.badge.clock.fill"
             case .discover: return "person.badge.plus"
             }
@@ -43,6 +46,7 @@ struct FriendsView: View {
         var emptyIcon: String {
             switch self {
             case .friends: return "person.2"
+            case .messages: return "paperplane"
             case .requests: return "person.2.badge.gearshape"
             case .discover: return "magnifyingglass"
             }
@@ -51,6 +55,7 @@ struct FriendsView: View {
         var emptyTitle: String {
             switch self {
             case .friends: return "No Friends Yet"
+            case .messages: return "No Shared Posts"
             case .requests: return "No Friend Requests"
             case .discover: return "Find New Friends"
             }
@@ -59,6 +64,7 @@ struct FriendsView: View {
         var emptyMessage: String {
             switch self {
             case .friends: return "Connect with people to see them here"
+            case .messages: return "Share posts with friends to start a conversation"
             case .requests: return "When people send you friend requests, they'll appear here"
             case .discover: return "Search for users or check out suggestions"
             }
@@ -228,6 +234,17 @@ struct FriendsView: View {
                                     .background(Color.red)
                                     .clipShape(Capsule())
                             }
+                            
+                            // Badge for messages
+                            if tab == .messages && messagesViewModel.totalUnreadCount > 0 {
+                                Text("\(messagesViewModel.totalUnreadCount)")
+                                    .font(.system(size: 10, weight: .bold))
+                                    .foregroundColor(.white)
+                                    .padding(.horizontal, 6)
+                                    .padding(.vertical, 2)
+                                    .background(Color.primaryBrand)
+                                    .clipShape(Capsule())
+                            }
                         }
                         .foregroundColor(selectedTab == tab ? .primaryBrand : .secondaryText)
                         .padding(.horizontal, 16)
@@ -254,6 +271,8 @@ struct FriendsView: View {
         switch selectedTab {
         case .friends:
             friendsContent
+        case .messages:
+            messagesContent
         case .requests:
             requestsContent
         case .discover:
@@ -272,7 +291,7 @@ struct FriendsView: View {
             } else {
                 List {
                     ForEach(viewModel.friends, id: \.clerkId) { user in
-                        FriendRowView(
+                        FriendRowWithMessageButton(
                             user: user,
                             presenceStatus: viewModel.getPresenceStatus(for: user.clerkId)
                         )
@@ -293,6 +312,68 @@ struct FriendsView: View {
                     await viewModel.refreshFriends()
                 }
             }
+        }
+    }
+    
+    // MARK: - Messages Content
+    
+    private var messagesContent: some View {
+        Group {
+            if messagesViewModel.isLoadingConversations && messagesViewModel.conversations.isEmpty {
+                loadingView(message: "Loading conversations...")
+            } else if messagesViewModel.conversations.isEmpty && !messagesViewModel.isLoadingConversations {
+                emptyStateView(for: .messages)
+            } else {
+                List {
+                    ForEach(messagesViewModel.conversations) { conversation in
+                        NavigationLink(destination: destinationForConversation(conversation)) {
+                            ConversationRowView(conversation: conversation)
+                        }
+                        .listRowBackground(Color.cardBackground)
+                        .listRowSeparatorTint(Color.divider)
+                    }
+                }
+                .listStyle(PlainListStyle())
+                .refreshable {
+                    await messagesViewModel.loadConversationsList()
+                }
+            }
+        }
+    }
+    
+    @ViewBuilder
+    private func destinationForConversation(_ conversation: ConversationSummary) -> some View {
+        // Find the friend from our friends list or create a minimal BackendUser
+        if let friend = viewModel.friends.first(where: { $0.clerkId == conversation.friendClerkId }) {
+            FriendMessagesView(friend: friend)
+        } else {
+            // Create a minimal BackendUser from conversation data
+            let minimalFriend = BackendUser(
+                id: conversation.friendClerkId,
+                userId: nil,
+                clerkId: conversation.friendClerkId,
+                email: nil,
+                firstName: nil,
+                lastName: nil,
+                username: nil,
+                displayName: conversation.friendName,
+                name: conversation.friendName,
+                bio: nil,
+                avatarUrl: conversation.friendProfileImage,
+                profileImage: nil,
+                role: nil,
+                appleId: nil,
+                googleId: nil,
+                dietaryPreferences: nil,
+                followerCount: 0,
+                followingCount: 0,
+                postsCount: 0,
+                isVerified: false,
+                isActive: true,
+                createdAt: nil,
+                updatedAt: nil
+            )
+            FriendMessagesView(friend: minimalFriend)
         }
     }
     
@@ -561,6 +642,9 @@ struct FriendsView: View {
     private func loadInitialData() async {
         guard let userId = appState.currentUser?.clerkId else { return }
         await viewModel.loadInitialData(userId: userId)
+        
+        // Subscribe to unread message count
+        await messagesViewModel.subscribeToUnreadCount()
     }
     
     private func loadTabData(for tab: FriendsTab) {
@@ -570,6 +654,10 @@ struct FriendsView: View {
             case .friends:
                 if viewModel.friends.isEmpty {
                     await viewModel.loadFriends(for: userId)
+                }
+            case .messages:
+                if messagesViewModel.conversations.isEmpty {
+                    await messagesViewModel.loadConversationsList()
                 }
             case .requests:
                 if viewModel.friendRequests.isEmpty {
@@ -821,19 +909,21 @@ class FriendsViewViewModel: ObservableObject {
                     lastName: nil,
                     username: suggestion.username,
                     displayName: suggestion.name,
+                    name: suggestion.name,
                     bio: suggestion.bio,
                     avatarUrl: suggestion.profileImage,
+                    profileImage: nil,
                     role: nil,
                     appleId: nil,
                     googleId: nil,
                     dietaryPreferences: nil,
-                    followersCount: suggestion.followerCount,
+                    followerCount: suggestion.followerCount,
                     followingCount: 0,
                     postsCount: 0,
                     isVerified: false,
                     isActive: true,
-                    createdAt: 0,
-                    updatedAt: 0
+                    createdAt: nil,
+                    updatedAt: nil
                 )
                 return EnhancedUserSuggestion(
                     user: user,
@@ -867,7 +957,7 @@ class FriendsViewViewModel: ObservableObject {
             var filteredUsers = users
             
             if filters.onlyVerified {
-                filteredUsers = filteredUsers.filter { $0.isVerified }
+                filteredUsers = filteredUsers.filter { $0.effectiveIsVerified }
             }
             
             if !filters.dietaryPreferences.isEmpty {
@@ -1012,6 +1102,165 @@ struct FriendsSearchFiltersView: View {
                 }
             }
         }
+    }
+}
+
+// MARK: - Friend Row with Message Button
+
+struct FriendRowWithMessageButton: View {
+    let user: BackendUser
+    let presenceStatus: PresenceStatus
+    
+    var body: some View {
+        HStack(spacing: 12) {
+            // Avatar with presence indicator
+            ZStack(alignment: .bottomTrailing) {
+                if let avatarUrl = user.avatarUrl, let url = URL(string: avatarUrl) {
+                    KFImage(url)
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
+                        .frame(width: 50, height: 50)
+                        .clipShape(Circle())
+                } else {
+                    Circle()
+                        .fill(Color.primaryBrand.opacity(0.2))
+                        .frame(width: 50, height: 50)
+                        .overlay(
+                            Text(user.displayName?.prefix(1).uppercased() ?? "?")
+                                .font(.headline)
+                                .foregroundColor(.primaryBrand)
+                        )
+                }
+                
+                // Presence indicator
+                Circle()
+                    .fill(presenceStatus.color)
+                    .frame(width: 14, height: 14)
+                    .overlay(
+                        Circle()
+                            .stroke(Color.cardBackground, lineWidth: 2)
+                    )
+            }
+            
+            // User info
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(spacing: 4) {
+                    Text(user.displayName ?? user.username ?? "Unknown")
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+                        .foregroundColor(.primaryText)
+                    
+                    if user.effectiveIsVerified {
+                        Image(systemName: "checkmark.seal.fill")
+                            .font(.system(size: 12))
+                            .foregroundColor(.primaryBrand)
+                    }
+                }
+                
+                if let username = user.username {
+                    Text("@\(username)")
+                        .font(.caption)
+                        .foregroundColor(.secondaryText)
+                }
+            }
+            
+            Spacer()
+            
+            // Message button
+            NavigationLink(destination: FriendMessagesView(friend: user)) {
+                Image(systemName: "paperplane.fill")
+                    .font(.system(size: 16))
+                    .foregroundColor(.primaryBrand)
+                    .padding(10)
+                    .background(
+                        Circle()
+                            .fill(Color.primaryBrand.opacity(0.1))
+                    )
+            }
+            .buttonStyle(PlainButtonStyle())
+        }
+        .padding(.vertical, 4)
+    }
+}
+
+// MARK: - Conversation Row View
+
+struct ConversationRowView: View {
+    let conversation: ConversationSummary
+    
+    var body: some View {
+        HStack(spacing: 12) {
+            // Friend avatar
+            if let avatarUrl = conversation.friendProfileImage, let url = URL(string: avatarUrl) {
+                KFImage(url)
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+                    .frame(width: 50, height: 50)
+                    .clipShape(Circle())
+            } else {
+                Circle()
+                    .fill(Color.primaryBrand.opacity(0.2))
+                    .frame(width: 50, height: 50)
+                    .overlay(
+                        Text(conversation.friendName?.prefix(1).uppercased() ?? "?")
+                            .font(.headline)
+                            .foregroundColor(.primaryBrand)
+                    )
+            }
+            
+            // Conversation info
+            VStack(alignment: .leading, spacing: 4) {
+                HStack {
+                    Text(conversation.friendName ?? "Unknown")
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+                        .foregroundColor(.primaryText)
+                    
+                    Spacer()
+                    
+                    if let lastDate = conversation.lastActivityDate {
+                        Text(lastDate.timeAgoDisplay())
+                            .font(.caption2)
+                            .foregroundColor(.tertiaryText)
+                    }
+                }
+                
+                HStack {
+                    // Last post preview
+                    if let lastPost = conversation.lastPost {
+                        HStack(spacing: 4) {
+                            Image(systemName: "photo")
+                                .font(.system(size: 10))
+                                .foregroundColor(.secondaryText)
+                            
+                            Text(lastPost.postTitle ?? "Shared a post")
+                                .font(.caption)
+                                .foregroundColor(.secondaryText)
+                                .lineLimit(1)
+                        }
+                    } else {
+                        Text("No posts shared yet")
+                            .font(.caption)
+                            .foregroundColor(.tertiaryText)
+                            .italic()
+                    }
+                    
+                    Spacer()
+                    
+                    // Unread badge
+                    if conversation.unreadCount > 0 {
+                        Text("\(conversation.unreadCount)")
+                            .font(.caption2)
+                            .fontWeight(.bold)
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(Circle().fill(Color.primaryBrand))
+                    }
+                }
+            }
+        }
+        .padding(.vertical, 4)
     }
 }
 

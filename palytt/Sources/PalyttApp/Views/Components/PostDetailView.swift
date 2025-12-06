@@ -38,6 +38,7 @@ struct PostDetailView: View {
     @State private var scrollOffset: CGFloat = 0
     @State private var comments: [Comment] = []
     @State private var showReplyField: UUID? = nil
+    @State private var showingShopDetail = false
     
     var body: some View {
         NavigationStack {
@@ -452,29 +453,48 @@ struct PostDetailView: View {
     private func LocationButton() -> some View {
         Button(action: { 
             HapticManager.shared.impact(.light)
-            showingMap = true 
+            // If shop exists, show shop detail, otherwise show map
+            if post.shop != nil {
+                showingShopDetail = true
+            } else {
+                showingMap = true
+            }
         }) {
             HStack(spacing: 12) {
                 Circle()
                     .fill(Color.primaryBrand.opacity(0.15))
                     .frame(width: 40, height: 40)
                     .overlay(
-                        Image(systemName: "location.fill")
+                        Image(systemName: post.shop != nil ? "storefront.fill" : "location.fill")
                             .foregroundColor(.primaryBrand)
                             .font(.system(size: 16, weight: .semibold))
                     )
                 
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(post.location.address)
-                        .font(.subheadline)
-                        .fontWeight(.semibold)
-                        .foregroundColor(.primaryText)
-                        .lineLimit(1)
-                    
-                    Text("\(post.location.city), \(post.location.country)")
-                        .font(.caption)
-                        .foregroundColor(.secondaryText)
-                        .lineLimit(1)
+                    // Show shop name if available, otherwise show address
+                    if let shop = post.shop {
+                        Text(shop.name)
+                            .font(.subheadline)
+                            .fontWeight(.semibold)
+                            .foregroundColor(.primaryText)
+                            .lineLimit(1)
+                        
+                        Text(post.location.address)
+                            .font(.caption)
+                            .foregroundColor(.secondaryText)
+                            .lineLimit(1)
+                    } else {
+                        Text(post.location.address)
+                            .font(.subheadline)
+                            .fontWeight(.semibold)
+                            .foregroundColor(.primaryText)
+                            .lineLimit(1)
+                        
+                        Text("\(post.location.city), \(post.location.country)")
+                            .font(.caption)
+                            .foregroundColor(.secondaryText)
+                            .lineLimit(1)
+                    }
                 }
                 
                 Spacer()
@@ -494,6 +514,13 @@ struct PostDetailView: View {
                     )
             )
             .shadow(color: .black.opacity(0.05), radius: 4, x: 0, y: 2)
+        }
+        .sheet(isPresented: $showingShopDetail) {
+            if let shop = post.shop {
+                NavigationStack {
+                    ShopDetailView(shop: shop)
+                }
+            }
         }
     }
     

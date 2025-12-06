@@ -34,55 +34,142 @@ struct PalyttApp: App {
     @State private var showSplashScreen = true
     
     // Animation state for splash screen
-    @State private var logoScale: CGFloat = 0.5
-    @State private var logoOpacity: Double = 0.0
-    @State private var textOpacity: Double = 0.0
+    @State private var orbsAppeared = false
+    @State private var orbsPulsing = false
+    @State private var gradientRotation: Double = 0
+    @State private var shimmerOffset: CGFloat = -200
     
     var body: some Scene {
         WindowGroup {
             ZStack {
                 if showSplashScreen {
-                    // Embedded Splash Screen
+                    // Embedded Splash Screen - Abstract, Logo-free Design
                     ZStack {
-                        // Background with solid color
-                        Color.lightBackground
-                            .ignoresSafeArea()
+                        // Animated gradient background
+                        LinearGradient(
+                            colors: [
+                                Color.lightBackground,
+                                Color.milkTea.opacity(0.3),
+                                Color.lightBackground
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                        .ignoresSafeArea()
                         
-                        VStack(spacing: 32) {
-                            Spacer()
-                            
-                            // Logo with animation
-                            Image("palytt-logo")
-                                .resizable()
-                                .aspectRatio(contentMode: .fit)
-                                .frame(width: 140, height: 140)
-                                .scaleEffect(logoScale)
-                                .opacity(logoOpacity)
-                                .shadow(color: Color.matchaGreen.opacity(0.3), radius: 20, x: 0, y: 10)
-                                .animation(.spring(response: 0.8, dampingFraction: 0.6), value: logoScale)
-                                .animation(.easeInOut(duration: 0.6), value: logoOpacity)
-                            
-                            Spacer()
-                            
-                            // Subtle loading indicator
-                            VStack(spacing: 8) {
-                                ProgressView()
-                                    .progressViewStyle(CircularProgressViewStyle(tint: .matchaGreen))
-                                    .scaleEffect(0.8)
+                        // Floating abstract orbs
+                        GeometryReader { geometry in
+                            ZStack {
+                                // Large soft orb - top right
+                                Circle()
+                                    .fill(
+                                        RadialGradient(
+                                            colors: [
+                                                Color.oldRose.opacity(0.4),
+                                                Color.oldRose.opacity(0.1),
+                                                Color.clear
+                                            ],
+                                            center: .center,
+                                            startRadius: 0,
+                                            endRadius: 150
+                                        )
+                                    )
+                                    .frame(width: 300, height: 300)
+                                    .offset(x: geometry.size.width * 0.3, y: -geometry.size.height * 0.15)
+                                    .scaleEffect(orbsAppeared ? 1.0 : 0.3)
+                                    .scaleEffect(orbsPulsing ? 1.05 : 1.0)
+                                    .opacity(orbsAppeared ? 1.0 : 0.0)
                                 
-                                Text("Welcome to your Palytt experience!")
-                                    .font(.caption)
-                                    .foregroundColor(.appSecondaryText)
-                                    .opacity(0.7)
+                                // Medium orb - bottom left
+                                Circle()
+                                    .fill(
+                                        RadialGradient(
+                                            colors: [
+                                                Color.blueAccent.opacity(0.35),
+                                                Color.blueAccent.opacity(0.1),
+                                                Color.clear
+                                            ],
+                                            center: .center,
+                                            startRadius: 0,
+                                            endRadius: 100
+                                        )
+                                    )
+                                    .frame(width: 200, height: 200)
+                                    .offset(x: -geometry.size.width * 0.35, y: geometry.size.height * 0.25)
+                                    .scaleEffect(orbsAppeared ? 1.0 : 0.3)
+                                    .scaleEffect(orbsPulsing ? 0.95 : 1.0)
+                                    .opacity(orbsAppeared ? 1.0 : 0.0)
+                                
+                                // Small accent orb - center right
+                                Circle()
+                                    .fill(
+                                        RadialGradient(
+                                            colors: [
+                                                Color.milkTea.opacity(0.5),
+                                                Color.milkTea.opacity(0.15),
+                                                Color.clear
+                                            ],
+                                            center: .center,
+                                            startRadius: 0,
+                                            endRadius: 60
+                                        )
+                                    )
+                                    .frame(width: 120, height: 120)
+                                    .offset(x: geometry.size.width * 0.2, y: geometry.size.height * 0.15)
+                                    .scaleEffect(orbsAppeared ? 1.0 : 0.3)
+                                    .scaleEffect(orbsPulsing ? 1.08 : 1.0)
+                                    .opacity(orbsAppeared ? 1.0 : 0.0)
                             }
-                            .padding(.bottom, 60)
+                            .animation(.easeOut(duration: 0.8), value: orbsAppeared)
+                            .animation(.easeInOut(duration: 2.0).repeatForever(autoreverses: true), value: orbsPulsing)
                         }
-                        .padding(.horizontal, 40)
+                        
+                        // Content
+                        VStack(spacing: 0) {
+                            Spacer()
+                            
+                            // Elegant shimmer line
+                            Rectangle()
+                                .fill(
+                                    LinearGradient(
+                                        colors: [
+                                            Color.clear,
+                                            Color.oldRose.opacity(0.6),
+                                            Color.milkTea.opacity(0.8),
+                                            Color.oldRose.opacity(0.6),
+                                            Color.clear
+                                        ],
+                                        startPoint: .leading,
+                                        endPoint: .trailing
+                                    )
+                                )
+                                .frame(width: 120, height: 3)
+                                .cornerRadius(1.5)
+                                .offset(x: shimmerOffset)
+                                .mask(
+                                    Rectangle()
+                                        .frame(width: 120, height: 3)
+                                )
+                            
+                            Spacer()
+                                .frame(height: 100)
+                        }
                     }
                     .onAppear {
-                        logoScale = 1.0
-                        logoOpacity = 1.0
-                        textOpacity = 1.0
+                        // Trigger orb appearance
+                        withAnimation(.easeOut(duration: 0.8)) {
+                            orbsAppeared = true
+                        }
+                        
+                        // Start pulsing after initial appearance
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                            orbsPulsing = true
+                        }
+                        
+                        // Shimmer animation
+                        withAnimation(.easeInOut(duration: 1.5).repeatForever(autoreverses: false)) {
+                            shimmerOffset = 200
+                        }
                     }
                     .transition(.opacity)
                 } else if clerk.isLoaded {
@@ -93,23 +180,29 @@ struct PalyttApp: App {
                         .tint(Color.primaryBrand)
                         .transition(.opacity)
                 } else {
-                    // Loading screen while Clerk initializes
-                    VStack(spacing: 24) {
-                        Image("palytt-logo")
-                            .resizable()
-                            .aspectRatio(contentMode: .fit)
-                            .frame(width: 120, height: 120)
+                    // Loading screen while Clerk initializes - Minimal, elegant design
+                    ZStack {
+                        Color.appBackground
+                            .ignoresSafeArea()
                         
-                        ProgressView()
-                            .progressViewStyle(CircularProgressViewStyle(tint: .primaryBrand))
-                            .scaleEffect(1.2)
-                        
-                        Text("Loading...")
-                            .font(.caption)
-                            .foregroundColor(.appSecondaryText)
+                        VStack(spacing: 16) {
+                            // Subtle pulsing dot indicator
+                            HStack(spacing: 8) {
+                                ForEach(0..<3, id: \.self) { index in
+                                    Circle()
+                                        .fill(Color.oldRose)
+                                        .frame(width: 8, height: 8)
+                                        .opacity(0.3)
+                                        .animation(
+                                            .easeInOut(duration: 0.6)
+                                            .repeatForever(autoreverses: true)
+                                            .delay(Double(index) * 0.2),
+                                            value: clerk.isLoaded
+                                        )
+                                }
+                            }
+                        }
                     }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .background(Color.appBackground)
                     .transition(.opacity)
                 }
             }
@@ -383,6 +476,10 @@ final class AppState: ObservableObject {
     @Published var selectedTab: AppTab = .home
     @Published var homeViewModel = HomeViewModel()
     @Published var isTabBarVisible = true
+    
+    // Navigation state for hashtag feed
+    @Published var showHashtagFeed = false
+    @Published var selectedHashtag: String?
     
     // Theme management
     let themeManager = ThemeManager()

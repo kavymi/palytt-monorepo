@@ -197,6 +197,8 @@ enum TabBarLayout {
 struct MainTabView: View {
     @EnvironmentObject var appState: AppState
     @State private var showCreatePost = false
+    @State private var showHashtagFeed = false
+    @State private var selectedHashtag: String = ""
     
     @ViewBuilder
     private var tabContent: some View {
@@ -311,12 +313,26 @@ struct MainTabView: View {
             CreatePostView()
                 .environmentObject(appState)
         }
+        .fullScreenCover(isPresented: $showHashtagFeed) {
+            HashtagFeedView(hashtag: selectedHashtag)
+                .environmentObject(appState)
+        }
         #else
         .sheet(isPresented: $showCreatePost) {
             CreatePostView()
                 .environmentObject(appState)
         }
+        .sheet(isPresented: $showHashtagFeed) {
+            HashtagFeedView(hashtag: selectedHashtag)
+                .environmentObject(appState)
+        }
         #endif
+        .onReceive(NotificationCenter.default.publisher(for: .navigateToHashtag)) { notification in
+            if let hashtag = notification.userInfo?["hashtag"] as? String {
+                selectedHashtag = hashtag
+                showHashtagFeed = true
+            }
+        }
     }
 }
 

@@ -666,19 +666,21 @@ struct SearchResultsListView: View {
                     lastName: user.lastName,
                     username: user.username,
                     displayName: "\(user.firstName ?? "") \(user.lastName ?? "")".trimmingCharacters(in: .whitespaces),
+                    name: nil,
                     bio: user.bio,
                     avatarUrl: user.avatarURL?.absoluteString,
+                    profileImage: nil,
                     role: "user",
                     appleId: nil,
                     googleId: nil,
                     dietaryPreferences: [],
-                    followersCount: 0,
+                    followerCount: 0,
                     followingCount: 0,
                     postsCount: 0,
                     isVerified: false,
                     isActive: true,
-                    createdAt: Int(Date().timeIntervalSince1970),
-                    updatedAt: Int(Date().timeIntervalSince1970)
+                    createdAt: .timestamp(Int(Date().timeIntervalSince1970 * 1000)),
+                    updatedAt: .timestamp(Int(Date().timeIntervalSince1970 * 1000))
                 )
             },
             hasMore: true,
@@ -702,19 +704,21 @@ struct SearchResultsListView: View {
                     lastName: user.lastName,
                     username: user.username,
                     displayName: "\(user.firstName ?? "") \(user.lastName ?? "")".trimmingCharacters(in: .whitespaces),
+                    name: nil,
                     bio: user.bio,
                     avatarUrl: user.avatarURL?.absoluteString,
+                    profileImage: nil,
                     role: "user",
                     appleId: nil,
                     googleId: nil,
                     dietaryPreferences: [],
-                    followersCount: 0,
+                    followerCount: 0,
                     followingCount: 0,
                     postsCount: 0,
                     isVerified: false,
                     isActive: true,
-                    createdAt: Int(Date().timeIntervalSince1970),
-                    updatedAt: Int(Date().timeIntervalSince1970)
+                    createdAt: .timestamp(Int(Date().timeIntervalSince1970 * 1000)),
+                    updatedAt: .timestamp(Int(Date().timeIntervalSince1970 * 1000))
                 )
             }))
             Spacer()
@@ -735,19 +739,21 @@ struct SearchResultsListView: View {
                 lastName: user.lastName,
                 username: user.username,
                 displayName: "\(user.firstName ?? "") \(user.lastName ?? "")".trimmingCharacters(in: .whitespaces),
+                name: nil,
                 bio: user.bio,
                 avatarUrl: user.avatarURL?.absoluteString,
+                profileImage: nil,
                 role: "user",
                 appleId: nil,
                 googleId: nil,
                 dietaryPreferences: [],
-                followersCount: 0,
+                followerCount: 0,
                 followingCount: 0,
                 postsCount: 0,
                 isVerified: false,
                 isActive: true,
-                createdAt: Int(Date().timeIntervalSince1970),
-                updatedAt: Int(Date().timeIntervalSince1970)
+                createdAt: .timestamp(Int(Date().timeIntervalSince1970 * 1000)),
+                updatedAt: .timestamp(Int(Date().timeIntervalSince1970 * 1000))
             )
         }))
     }

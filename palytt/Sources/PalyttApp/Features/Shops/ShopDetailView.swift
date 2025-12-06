@@ -50,9 +50,7 @@ struct ShopDetailView: View {
                     }
                     
                     // Hours Section
-                    if let hours = shop.hours {
-                        EnhancedShopHoursView(hours: hours)
-                    }
+                    EnhancedShopHoursView(hours: shop.hours)
                     
                     // Enhanced Reviews Section
                     EnhancedShopReviewsView(shop: shop, reviews: viewModel.reviews)
@@ -68,23 +66,12 @@ struct ShopDetailView: View {
             ShopDirectionsView(shop: shop)
         }
         .sheet(isPresented: $showShareSheet) {
-            ShareSheet(items: [shop.name, shop.location.address ?? ""])
+            ShareSheet(activityItems: [shop.name, shop.location.address])
         }
         .task {
             await viewModel.loadShopDetails(for: shop)
         }
     }
-}
-
-// MARK: - Share Sheet
-struct ShareSheet: UIViewControllerRepresentable {
-    let items: [Any]
-    
-    func makeUIViewController(context: Context) -> UIActivityViewController {
-        UIActivityViewController(activityItems: items, applicationActivities: nil)
-    }
-    
-    func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
 }
 
 // MARK: - Enhanced Shop Header View
@@ -96,7 +83,7 @@ struct EnhancedShopHeaderView: View {
     var body: some View {
         ZStack(alignment: .bottom) {
             // Background Image
-            if let imageUrl = shop.imageUrl {
+            if let imageUrl = shop.featuredImageURL {
                 KFImage(imageUrl)
                     .resizable()
                     .aspectRatio(contentMode: .fill)
@@ -183,13 +170,13 @@ struct EnhancedShopHeaderView: View {
                     
                     // Rating and price
                     HStack(spacing: 16) {
-                        if let rating = shop.rating {
+                        if shop.rating > 0 {
                             HStack(spacing: 4) {
                                 Image(systemName: "star.fill")
                                     .foregroundColor(.warning)
                                     .font(.subheadline)
                                 
-                                Text(String(format: "%.1f", rating))
+                                Text(String(format: "%.1f", shop.rating))
                                     .font(.subheadline)
                                     .fontWeight(.semibold)
                                     .foregroundColor(.white)
@@ -203,7 +190,7 @@ struct EnhancedShopHeaderView: View {
                         }
                         
                         // Price range
-                        Text(shop.priceRange.displayText)
+                        Text(shop.priceRange.symbol)
                             .font(.subheadline)
                             .fontWeight(.medium)
                             .foregroundColor(.white.opacity(0.9))
@@ -213,7 +200,7 @@ struct EnhancedShopHeaderView: View {
                             Text("•")
                                 .foregroundColor(.white.opacity(0.5))
                             
-                            Text(shop.cuisineTypes.prefix(2).joined(separator: ", "))
+                            Text(shop.cuisineTypes.prefix(2).map { $0.rawValue }.joined(separator: ", "))
                                 .font(.subheadline)
                                 .foregroundColor(.white.opacity(0.8))
                                 .lineLimit(1)
@@ -258,12 +245,12 @@ struct ShopBasicInfoView: View {
             // Info Items
             VStack(spacing: 12) {
                 // Address
-                if let address = shop.location.address, !address.isEmpty {
+                if !shop.location.address.isEmpty {
                     InfoRow(
                         icon: "location.fill",
                         iconColor: .primaryBrand,
                         title: "Address",
-                        value: address,
+                        value: shop.location.address,
                         isLink: false
                     )
                 }
@@ -304,7 +291,7 @@ struct ShopBasicInfoView: View {
                         icon: "fork.knife",
                         iconColor: .milkTea,
                         title: "Cuisine",
-                        value: shop.cuisineTypes.joined(separator: ", "),
+                        value: shop.cuisineTypes.map { $0.rawValue }.joined(separator: ", "),
                         isLink: false
                     )
                 }
@@ -445,7 +432,7 @@ struct EnhancedShopHoursView: View {
 
 struct EnhancedHourRow: View {
     let day: String
-    let hours: BusinessHours.DayHours
+    let hours: BusinessHours.DayHours?
     let isToday: Bool
     
     var body: some View {
@@ -466,15 +453,21 @@ struct EnhancedHourRow: View {
             
             Spacer()
             
-            if hours.isClosed {
+            if let hours = hours {
+                if hours.isClosed {
+                    Text("Closed")
+                        .font(.subheadline)
+                        .foregroundColor(.error)
+                } else {
+                    Text("\(hours.open) - \(hours.close)")
+                        .font(.subheadline)
+                        .fontWeight(isToday ? .medium : .regular)
+                        .foregroundColor(isToday ? .primaryText : .secondaryText)
+                }
+            } else {
                 Text("Closed")
                     .font(.subheadline)
                     .foregroundColor(.error)
-            } else {
-                Text("\(hours.open) - \(hours.close)")
-                    .font(.subheadline)
-                    .fontWeight(isToday ? .medium : .regular)
-                    .foregroundColor(isToday ? .primaryText : .secondaryText)
             }
         }
         .padding(.vertical, 10)
@@ -542,7 +535,7 @@ struct ShopActionButtonsView: View {
                 .clipShape(RoundedRectangle(cornerRadius: 8))
             }
             
-            if let phone = shop.phone {
+            if let phone = shop.phoneNumber {
                 Button(action: {
                     if let url = URL(string: "tel:\(phone)") {
                         UIApplication.shared.open(url)
@@ -597,7 +590,7 @@ struct ShopPostsView: View {
                 LazyHStack(spacing: 12) {
                     ForEach(posts.prefix(5)) { post in
                         NavigationLink(destination: PostDetailView(post: post)) {
-                            AsyncImage(url: post.imageUrls.first) { image in
+                            AsyncImage(url: post.mediaURLs.first) { image in
                                 image
                                     .resizable()
                                     .aspectRatio(contentMode: .fill)
@@ -748,12 +741,9 @@ class ShopDetailViewModel: ObservableObject {
     
     private func loadRelatedPosts(for shop: Shop) async {
         do {
-            // Search for posts near this shop's location
+            // Search for posts mentioning this shop's name
             let backendPosts = try await backendService.searchPosts(
                 query: shop.name,
-                latitude: shop.location.latitude,
-                longitude: shop.location.longitude,
-                radius: 100, // 100 meters
                 limit: 10
             )
             
@@ -797,13 +787,15 @@ class ShopDetailViewModel: ObservableObject {
             location: Location(
                 latitude: 37.7749,
                 longitude: -122.4194,
-                address: "123 Main St, San Francisco, CA 94102"
+                address: "123 Main St, San Francisco, CA 94102",
+                city: "San Francisco",
+                country: "USA"
             ),
             phoneNumber: "+1-555-123-4567",
             website: URL(string: "https://example.com"),
             hours: BusinessHours.defaultHours,
-            cuisineTypes: ["Coffee", "Brunch"],
-            drinkTypes: ["Coffee", "Tea"],
+            cuisineTypes: [.cafe, .breakfastBrunch],
+            drinkTypes: [.coffee, .tea],
             priceRange: .moderate,
             rating: 4.5,
             reviewsCount: 128,
