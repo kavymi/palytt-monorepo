@@ -3,6 +3,7 @@ import { motion } from 'framer-motion'
 import { PhoneMockup } from '~/components/PhoneMockup'
 import { FeatureCard } from '~/components/FeatureCard'
 import { EarlyAccessForm } from '~/components/EarlyAccessForm'
+import { SEOHead, PAGE_SEO } from '~/components/SEOHead'
 
 export const Route = createFileRoute('/')({
   component: HomePage,
@@ -10,7 +11,9 @@ export const Route = createFileRoute('/')({
 
 function HomePage() {
   return (
-    <div className="overflow-hidden">
+    <>
+      <SEOHead {...PAGE_SEO.home} />
+      <div className="overflow-hidden">
       {/* Hero Section */}
       <section className="relative min-h-screen flex items-center pt-20 md:pt-0">
         {/* Background */}
@@ -400,7 +403,8 @@ function HomePage() {
           </motion.div>
         </div>
       </section>
-    </div>
+      </div>
+    </>
   )
 }
 

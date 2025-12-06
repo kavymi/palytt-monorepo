@@ -40,6 +40,15 @@ enum APIEnvironment: String, CaseIterable, Codable {
         return "\(baseURL)/health"
     }
     
+    var webSocketURL: String {
+        switch self {
+        case .local:
+            return "ws://127.0.0.1:4000"
+        case .production:
+            return "wss://palytt-backend-production-dbbd.up.railway.app"
+        }
+    }
+    
     var convexURL: String {
         switch self {
         case .local: return "http://127.0.0.1:3210" // Local self-hosted Convex
@@ -229,6 +238,10 @@ class APIConfigurationManager: ObservableObject {
     
     var currentConvexURL: String {
         return currentEnvironment.convexURL
+    }
+    
+    var currentWebSocketURL: String {
+        return currentEnvironment.webSocketURL
     }
     
     var convexDeploymentURL: String {

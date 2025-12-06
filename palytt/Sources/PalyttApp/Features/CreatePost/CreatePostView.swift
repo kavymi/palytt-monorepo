@@ -717,21 +717,18 @@ struct ReviewStepView: View {
                         }
                         
                         // Tags
-                        if !viewModel.menuItems.isEmpty || !viewModel.mentions.filter({ $0.type == .hashtag }).isEmpty {
-                            let allTags = viewModel.getAllTags()
-                            if !allTags.isEmpty {
-                                ScrollView(.horizontal, showsIndicators: false) {
-                                    HStack(spacing: 6) {
-                                        ForEach(allTags, id: \.self) { tag in
-                                            Text("#\(tag)")
-                                                .font(.caption2)
-                                                .fontWeight(.medium)
-                                                .foregroundColor(.primaryBrand)
-                                                .padding(.horizontal, 8)
-                                                .padding(.vertical, 4)
-                                                .background(Color.primaryBrand.opacity(0.15))
-                                                .cornerRadius(12)
-                                        }
+                        if !viewModel.getAllTags().isEmpty {
+                            ScrollView(.horizontal, showsIndicators: false) {
+                                HStack(spacing: 6) {
+                                    ForEach(viewModel.getAllTags(), id: \.self) { tag in
+                                        Text("#\(tag)")
+                                            .font(.caption2)
+                                            .fontWeight(.medium)
+                                            .foregroundColor(.primaryBrand)
+                                            .padding(.horizontal, 8)
+                                            .padding(.vertical, 4)
+                                            .background(Color.primaryBrand.opacity(0.15))
+                                            .cornerRadius(12)
                                     }
                                 }
                             }

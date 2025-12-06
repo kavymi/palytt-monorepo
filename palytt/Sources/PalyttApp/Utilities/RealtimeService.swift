@@ -29,7 +29,10 @@ class RealtimeService: ObservableObject {
     private var reconnectTimer: Timer?
     private var cancellables = Set<AnyCancellable>()
     
-    private let baseURL = "ws://localhost:4000"
+    private let apiConfig = APIConfigurationManager.shared
+    private var baseURL: String {
+        return apiConfig.currentWebSocketURL
+    }
     private let maxReconnectAttempts = 5
     private var reconnectAttempts = 0
     private var isIntentionalDisconnect = false

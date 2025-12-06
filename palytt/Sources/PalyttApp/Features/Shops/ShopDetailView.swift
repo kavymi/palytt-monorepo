@@ -796,6 +796,7 @@ class ShopDetailViewModel: ObservableObject {
             hours: BusinessHours.defaultHours,
             cuisineTypes: [.cafe, .breakfastBrunch],
             drinkTypes: [.coffee, .tea],
+            dessertTypes: [],
             priceRange: .moderate,
             rating: 4.5,
             reviewsCount: 128,

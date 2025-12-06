@@ -1,0 +1,30 @@
+<svg width="180" height="180" viewBox="0 0 180 180" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="iconBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#d29985"/>
+      <stop offset="100%" style="stop-color:#e3c4a8"/>
+    </linearGradient>
+  </defs>
+  
+  <!-- Background -->
+  <rect width="180" height="180" rx="40" fill="url(#iconBg)"/>
+  
+  <!-- Plate circle -->
+  <circle cx="90" cy="90" r="55" fill="none" stroke="#3b2b2b" stroke-width="4"/>
+  <circle cx="90" cy="90" r="42" fill="none" stroke="#3b2b2b" stroke-width="2" opacity="0.5"/>
+  
+  <!-- Fork and knife -->
+  <g transform="translate(60, 55)">
+    <!-- Fork -->
+    <path d="M15 0 L15 45 M8 0 L8 22 Q8 30 15 30 M22 0 L22 22 Q22 30 15 30" 
+          stroke="#3b2b2b" stroke-width="3" stroke-linecap="round" fill="none"/>
+    <!-- Knife -->
+    <path d="M45 0 L45 45 M45 0 Q57 15 45 30" 
+          stroke="#3b2b2b" stroke-width="3" stroke-linecap="round" fill="none"/>
+  </g>
+  
+  <!-- Heart -->
+  <path d="M90 115 C78 103 68 107 68 118 C68 130 90 145 90 145 C90 145 112 130 112 118 C112 107 102 103 90 115" 
+        fill="#3b2b2b" opacity="0.9"/>
+</svg>
+

@@ -1,0 +1,107 @@
+<svg width="1200" height="630" viewBox="0 0 1200 630" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background gradient -->
+  <defs>
+    <linearGradient id="bgGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#3b2b2b"/>
+      <stop offset="50%" style="stop-color:#4a3535"/>
+      <stop offset="100%" style="stop-color:#3b2b2b"/>
+    </linearGradient>
+    <linearGradient id="accentGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#d29985"/>
+      <stop offset="100%" style="stop-color:#e3c4a8"/>
+    </linearGradient>
+    <linearGradient id="textGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#d29985"/>
+      <stop offset="100%" style="stop-color:#e3c4a8"/>
+    </linearGradient>
+    <!-- Glow filter -->
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="20" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  
+  <!-- Background -->
+  <rect width="1200" height="630" fill="url(#bgGradient)"/>
+  
+  <!-- Decorative circles -->
+  <circle cx="150" cy="100" r="200" fill="#d29985" opacity="0.1"/>
+  <circle cx="1050" cy="530" r="250" fill="#e3c4a8" opacity="0.1"/>
+  <circle cx="900" cy="150" r="100" fill="#9ac8eb" opacity="0.05"/>
+  
+  <!-- Grid pattern -->
+  <pattern id="grid" width="50" height="50" patternUnits="userSpaceOnUse">
+    <path d="M 50 0 L 0 0 0 50" fill="none" stroke="rgba(255,255,255,0.03)" stroke-width="1"/>
+  </pattern>
+  <rect width="1200" height="630" fill="url(#grid)"/>
+  
+  <!-- Logo/Icon area -->
+  <g transform="translate(100, 215)">
+    <!-- Plate icon -->
+    <circle cx="100" cy="100" r="90" fill="none" stroke="url(#accentGradient)" stroke-width="4"/>
+    <circle cx="100" cy="100" r="70" fill="none" stroke="url(#accentGradient)" stroke-width="2" opacity="0.5"/>
+    
+    <!-- Fork and knife -->
+    <g transform="translate(60, 50)">
+      <!-- Fork -->
+      <path d="M20 0 L20 60 M10 0 L10 30 Q10 40 20 40 M30 0 L30 30 Q30 40 20 40" 
+            stroke="#e3c4a8" stroke-width="3" stroke-linecap="round" fill="none"/>
+      <!-- Knife -->
+      <path d="M60 0 L60 60 M60 0 Q75 20 60 40" 
+            stroke="#d29985" stroke-width="3" stroke-linecap="round" fill="none"/>
+    </g>
+    
+    <!-- Heart accent -->
+    <path d="M100 140 C85 125 70 130 70 145 C70 160 100 180 100 180 C100 180 130 160 130 145 C130 130 115 125 100 140" 
+          fill="url(#accentGradient)" opacity="0.8"/>
+  </g>
+  
+  <!-- Main text -->
+  <text x="320" y="260" font-family="Inter, system-ui, sans-serif" font-size="72" font-weight="800" fill="white">
+    Palytt
+  </text>
+  
+  <!-- Tagline -->
+  <text x="320" y="330" font-family="Inter, system-ui, sans-serif" font-size="32" font-weight="500" fill="url(#textGradient)">
+    Discover &amp; Share Amazing Food
+  </text>
+  
+  <!-- Description -->
+  <text x="320" y="400" font-family="Inter, system-ui, sans-serif" font-size="22" fill="rgba(255,255,255,0.7)">
+    AI-powered restaurant discovery • Social food sharing
+  </text>
+  <text x="320" y="435" font-family="Inter, system-ui, sans-serif" font-size="22" fill="rgba(255,255,255,0.7)">
+    Connect with food lovers • Personalized recommendations
+  </text>
+  
+  <!-- CTA Badge -->
+  <g transform="translate(320, 480)">
+    <rect x="0" y="0" width="200" height="50" rx="25" fill="url(#accentGradient)"/>
+    <text x="100" y="33" font-family="Inter, system-ui, sans-serif" font-size="18" font-weight="600" fill="#3b2b2b" text-anchor="middle">
+      Coming Soon
+    </text>
+  </g>
+  
+  <!-- iOS badge hint -->
+  <g transform="translate(540, 480)">
+    <rect x="0" y="0" width="150" height="50" rx="25" fill="rgba(255,255,255,0.1)" stroke="rgba(255,255,255,0.2)" stroke-width="1"/>
+    <text x="75" y="33" font-family="Inter, system-ui, sans-serif" font-size="16" font-weight="500" fill="rgba(255,255,255,0.8)" text-anchor="middle">
+      📱 iOS App
+    </text>
+  </g>
+  
+  <!-- Decorative food emojis as abstract shapes -->
+  <g opacity="0.15">
+    <text x="950" y="200" font-size="80">🍕</text>
+    <text x="1020" y="320" font-size="60">🍜</text>
+    <text x="880" y="400" font-size="70">🍣</text>
+    <text x="1000" y="500" font-size="50">🥗</text>
+  </g>
+  
+  <!-- Bottom accent line -->
+  <rect x="0" y="620" width="1200" height="10" fill="url(#accentGradient)"/>
+</svg>
+
