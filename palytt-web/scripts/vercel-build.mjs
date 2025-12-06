@@ -1,8 +1,11 @@
 import { execSync } from 'child_process';
-import { cpSync, mkdirSync, writeFileSync, existsSync, rmSync } from 'fs';
-import { join } from 'path';
+import { cpSync, mkdirSync, writeFileSync, existsSync, rmSync, readFileSync, readdirSync } from 'fs';
+import { join, dirname } from 'path';
+import { fileURLToPath } from 'url';
 
-const outputDir = '.vercel/output';
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const rootDir = join(__dirname, '..');
+const outputDir = join(rootDir, '.vercel/output');
 
 // Clean and create output directory
 if (existsSync(outputDir)) {
@@ -10,106 +13,53 @@ if (existsSync(outputDir)) {
 }
 mkdirSync(outputDir, { recursive: true });
 mkdirSync(join(outputDir, 'static'), { recursive: true });
-mkdirSync(join(outputDir, 'functions/index.func'), { recursive: true });
 
 // Run the vite build
 console.log('Building with Vite...');
-execSync('npm run build', { stdio: 'inherit' });
+execSync('npm run build', { stdio: 'inherit', cwd: rootDir });
 
 // Copy static assets
 console.log('Copying static assets...');
-cpSync('dist/client', join(outputDir, 'static'), { recursive: true });
+cpSync(join(rootDir, 'dist/client'), join(outputDir, 'static'), { recursive: true });
 
-// Copy server files
-console.log('Setting up serverless function...');
-cpSync('dist/server', join(outputDir, 'functions/index.func'), { recursive: true });
+// Find the main JS and CSS files
+const assetsDir = join(rootDir, 'dist/client/assets');
+const assetFiles = readdirSync(assetsDir);
+const mainJs = assetFiles.find(f => f.startsWith('main-') && f.endsWith('.js'));
+const globalsCss = assetFiles.find(f => f.startsWith('globals-') && f.endsWith('.css'));
 
-// Create an entry point wrapper for Vercel Node.js runtime
-const entryWrapper = `
-import server from './server.js';
-
-export default async function handler(req, res) {
-  // Convert Node.js request to Web Request
-  const protocol = req.headers['x-forwarded-proto'] || 'https';
-  const host = req.headers['x-forwarded-host'] || req.headers.host;
-  const url = new URL(req.url, \`\${protocol}://\${host}\`);
-  
-  const headers = new Headers();
-  for (const [key, value] of Object.entries(req.headers)) {
-    if (value) {
-      if (Array.isArray(value)) {
-        value.forEach(v => headers.append(key, v));
-      } else {
-        headers.set(key, value);
-      }
-    }
-  }
-
-  const body = ['GET', 'HEAD'].includes(req.method) ? undefined : req;
-  
-  const request = new Request(url.toString(), {
-    method: req.method,
-    headers,
-    body,
-    duplex: 'half'
-  });
-
-  try {
-    const response = await server.fetch(request);
-    
-    // Set response status
-    res.statusCode = response.status;
-    res.statusMessage = response.statusText;
-    
-    // Set response headers
-    response.headers.forEach((value, key) => {
-      res.setHeader(key, value);
-    });
-    
-    // Stream the response body
-    if (response.body) {
-      const reader = response.body.getReader();
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        res.write(value);
-      }
-    }
-    res.end();
-  } catch (error) {
-    console.error('Server error:', error);
-    res.statusCode = 500;
-    res.end('Internal Server Error');
-  }
+if (!mainJs) {
+  throw new Error('Could not find main JS bundle');
 }
-`;
 
-writeFileSync(
-  join(outputDir, 'functions/index.func/index.mjs'),
-  entryWrapper
-);
+// Create index.html for SPA
+const indexHtml = `<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Palytt - Discover & Share Amazing Food Experiences</title>
+    <meta name="description" content="Join thousands of food lovers discovering restaurants, sharing culinary experiences, and connecting with friends on Palytt." />
+    <meta property="og:title" content="Palytt - Discover & Share Amazing Food Experiences" />
+    <meta property="og:description" content="Join thousands of food lovers discovering restaurants, sharing culinary experiences, and connecting with friends on Palytt." />
+    <meta property="og:type" content="website" />
+    <meta name="theme-color" content="#d29985" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    ${globalsCss ? `<link rel="stylesheet" href="/assets/${globalsCss}" />` : ''}
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/assets/${mainJs}"></script>
+  </body>
+</html>`;
 
-// Create function config for Node.js Runtime
-writeFileSync(
-  join(outputDir, 'functions/index.func/.vc-config.json'),
-  JSON.stringify({
-    runtime: 'nodejs22.x',
-    handler: 'index.mjs',
-    launcherType: 'Nodejs',
-    shouldAddHelpers: true,
-    supportsResponseStreaming: true
-  }, null, 2)
-);
+writeFileSync(join(outputDir, 'static/index.html'), indexHtml);
+console.log('Created index.html');
 
-// Create package.json for the function
-writeFileSync(
-  join(outputDir, 'functions/index.func/package.json'),
-  JSON.stringify({
-    type: 'module'
-  }, null, 2)
-);
-
-// Create config.json
+// Create config.json for SPA routing
 writeFileSync(
   join(outputDir, 'config.json'),
   JSON.stringify({
@@ -125,10 +75,11 @@ writeFileSync(
       },
       {
         src: '/(.*)',
-        dest: '/index'
+        dest: '/index.html'
       }
     ]
   }, null, 2)
 );
 
 console.log('Vercel build output created successfully!');
+console.log('Output directory:', outputDir);
