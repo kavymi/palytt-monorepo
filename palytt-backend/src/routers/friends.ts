@@ -3,10 +3,8 @@ import { router, publicProcedure, protectedProcedure } from '../trpc.js';
 import { prisma, ensureUser } from '../db.js';
 import { createFriendRequestNotification, createFriendRequestAcceptedNotification } from '../services/notificationService.js';
 import {
-  cacheGetOrSet,
   cacheDeletePattern,
   CacheKeys,
-  CacheTTL,
 } from '../cache/cache.service.js';
 
 // Helper function to get user UUID from clerkId

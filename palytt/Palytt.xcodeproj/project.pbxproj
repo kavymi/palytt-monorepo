@@ -16,6 +16,7 @@
 		PRIVACYINFOBLD123456789 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = PRIVACYINFO123456789ABC /* PrivacyInfo.xcprivacy */; };
 		0D300B94A560C89A26CA7A9F /* appstore.png in Resources */ = {isa = PBXBuildFile; fileRef = 3433C308D7E93531DE06C1E0 /* appstore.png */; };
 		0DA9CDA866F289E5343564FD /* Colors.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5F439A1F980BED1B1C79B1E1 /* Colors.swift */; };
+		DESIGNTOKENSBUILD123456789 /* DesignTokens.swift in Sources */ = {isa = PBXBuildFile; fileRef = DESIGNTOKENSREF123456789AB /* DesignTokens.swift */; };
 		107AE5B34553630E5C3F9820 /* Alamofire in Frameworks */ = {isa = PBXBuildFile; productRef = E1B5768037714669647880E1 /* Alamofire */; };
 		118445366BD546DEBEECC45F /* BackendService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 86B8F108EA6649D1AD990C65 /* BackendService.swift */; };
 		DEEPLINKROUTERBUILD123456 /* DeepLinkRouter.swift in Sources */ = {isa = PBXBuildFile; fileRef = DEEPLINKROUTER123456789AB /* DeepLinkRouter.swift */; };
@@ -143,6 +144,7 @@
 		5B6CFF5D856CB756D51EB40F /* UserSearchView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = UserSearchView.swift; sourceTree = "<group>"; };
 		5C3F7A75D238479CE653FB13 /* palytt-logo.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "palytt-logo.png"; sourceTree = "<group>"; };
 		5F439A1F980BED1B1C79B1E1 /* Colors.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Colors.swift; sourceTree = "<group>"; };
+		DESIGNTOKENSREF123456789AB /* DesignTokens.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DesignTokens.swift; sourceTree = "<group>"; };
 		62A1676CCF71EFFD7132B9ED /* List.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = List.swift; sourceTree = "<group>"; };
 		6D2A91D2B67DA6B3E88A43FC /* .gitkeep */ = {isa = PBXFileReference; lastKnownFileType = text; path = .gitkeep; sourceTree = "<group>"; };
 		6EC11A5FAFD9A666A40D6A4F /* SavedView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SavedView.swift; sourceTree = "<group>"; };
@@ -416,6 +418,7 @@
 			isa = PBXGroup;
 			children = (
 				5F439A1F980BED1B1C79B1E1 /* Colors.swift */,
+				DESIGNTOKENSREF123456789AB /* DesignTokens.swift */,
 			);
 			path = Design;
 			sourceTree = "<group>";
@@ -770,6 +773,7 @@
 				F3EEB39C3CDB3BBD5A5EADDE /* Bundle+Resources.swift in Sources */,
 				BEA897542E064CC0003D5B56 /* Location.swift in Sources */,
 				0DA9CDA866F289E5343564FD /* Colors.swift in Sources */,
+				DESIGNTOKENSBUILD123456789 /* DesignTokens.swift in Sources */,
 				BA7F80D6E20A7A0C06510B92 /* CommentsView.swift in Sources */,
 				D1091F78B89EB42552CA5DAC /* CreatePostView.swift in Sources */,
 				MENTIONTEXTEDITORBUILD1234 /* MentionTextEditor.swift in Sources */,

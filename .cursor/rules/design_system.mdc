@@ -1,0 +1,441 @@
+---
+description: Design system guidelines for Palytt iOS app - colors, typography, spacing, components, and UI patterns
+globs: palytt/Sources/PalyttApp/**/*.swift
+alwaysApply: true
+---
+
+# Palytt Design System
+
+This document defines the design tokens, UI patterns, and component usage guidelines for the Palytt iOS app. Always use these design tokens and patterns when building new features.
+
+## Design Philosophy
+
+- **Warm & Inviting**: The app uses warm, food-inspired colors (old rose, milk tea, coffee) to create an inviting atmosphere
+- **Liquid Glass Aesthetics**: Modern glassmorphism effects with subtle blur and transparency
+- **Smooth Animations**: Spring-based animations with consistent timing for delightful interactions
+- **Accessibility First**: High contrast ratios, readable typography, and proper semantic colors
+
+## Color System
+
+### Brand Colors
+
+Use these colors from [Colors.swift](mdc:palytt/Sources/PalyttApp/Design/Colors.swift):
+
+```swift
+// ✅ DO: Use semantic color names
+Color.primaryBrand        // #d29985 - Old Rose (primary brand color)
+Color.milkTea             // #e3c4a8 - Warm accent
+Color.coffeeDark          // #3b2b2b - Dark text/backgrounds
+Color.blueAccent          // #9ac8eb - Secondary accent
+Color.lightBlueAccent     // #d4e4f2 - Light accent
+
+// ❌ DON'T: Use hardcoded hex values
+Color(hex: "#d29985")  // Use Color.primaryBrand instead
+```
+
+### Semantic Colors
+
+Always use semantic color names that adapt to light/dark mode:
+
+```swift
+// ✅ DO: Use semantic colors
+Color.primaryText         // Main text color (adapts to theme)
+Color.secondaryText       // Secondary text (adapts to theme)
+Color.tertiaryText        // Tertiary text (adapts to theme)
+Color.background          // Main background (adapts to theme)
+Color.cardBackground      // Card background (adapts to theme)
+Color.divider             // Divider lines (adapts to theme)
+Color.surface             // Surface elements (adapts to theme)
+
+// ❌ DON'T: Use hardcoded colors for text/backgrounds
+Color.black               // Use Color.primaryText instead
+Color.white               // Use Color.background or Color.cardBackground instead
+```
+
+### State Colors
+
+Use consistent state colors for feedback:
+
+```swift
+Color.success             // #10B981 - Success states
+Color.warning             // #F59E0B - Warning states
+Color.error               // #EF4444 - Error states
+Color.info                // Uses blueAccent - Info states
+```
+
+### Theme Support
+
+The app supports light, dark, and system themes via `ThemeManager`:
+
+```swift
+// ✅ DO: Use ThemeManager for theme switching
+@StateObject private var themeManager = ThemeManager()
+// Apply theme: .preferredColorScheme(themeManager.colorScheme)
+
+// ✅ DO: Use semantic colors that adapt automatically
+Color.primaryText  // Automatically adapts to light/dark mode
+```
+
+## Typography
+
+Use design tokens from [DesignTokens.swift](mdc:palytt/Sources/PalyttApp/Design/DesignTokens.swift):
+
+```swift
+// ✅ DO: Use DesignTokens typography
+Text("Title")
+    .font(DesignTokens.Typography.title(weight: .bold))
+
+Text("Body text")
+    .font(DesignTokens.Typography.body())
+
+Text("Caption")
+    .font(DesignTokens.Typography.caption(weight: .medium))
+
+// ❌ DON'T: Use hardcoded font sizes
+Text("Title")
+    .font(.system(size: 28, weight: .bold))  // Use DesignTokens instead
+```
+
+### Typography Scale
+
+- **Caption2**: 10pt - Tiny labels, metadata
+- **Caption**: 12pt - Small labels, timestamps
+- **Footnote**: 13pt - Secondary information
+- **Subheadline**: 15pt - Secondary headings
+- **Body**: 17pt - Main body text
+- **Headline**: 17pt (semibold) - Section headings
+- **Title3**: 20pt - Card titles
+- **Title2**: 22pt - Page subtitles
+- **Title**: 28pt - Page titles
+- **LargeTitle**: 34pt - Hero text
+
+## Spacing
+
+Use spacing tokens from [DesignTokens.swift](mdc:palytt/Sources/PalyttApp/Design/DesignTokens.swift):
+
+```swift
+// ✅ DO: Use spacing tokens
+VStack(spacing: DesignTokens.Spacing.md) { ... }
+.padding(DesignTokens.Spacing.lg)
+
+// Component-specific spacing
+.padding(.horizontal, DesignTokens.Spacing.Component.cardHorizontalPadding)
+.padding(.vertical, DesignTokens.Spacing.Component.cardVerticalPadding)
+
+// ❌ DON'T: Use magic numbers
+VStack(spacing: 12) { ... }  // Use DesignTokens.Spacing.md instead
+```
+
+### Spacing Scale
+
+- **xs**: 4pt - Tight spacing
+- **sm**: 8pt - Small spacing
+- **md**: 12pt - Medium spacing (most common)
+- **lg**: 16pt - Large spacing
+- **xl**: 20pt - Extra large spacing
+- **xxl**: 24pt - Section spacing
+- **xxxl**: 30pt - Major section spacing
+
+## Corner Radius
+
+Use corner radius tokens for consistent rounded corners:
+
+```swift
+// ✅ DO: Use corner radius tokens
+RoundedRectangle(cornerRadius: DesignTokens.CornerRadius.md)
+RoundedRectangle(cornerRadius: DesignTokens.CornerRadius.Component.card)
+
+// ❌ DON'T: Use arbitrary values
+RoundedRectangle(cornerRadius: 12)  // Use DesignTokens.CornerRadius.md
+```
+
+### Corner Radius Scale
+
+- **xs**: 4pt - Small badges
+- **sm**: 8pt - Small elements
+- **md**: 12pt - Buttons, inputs
+- **lg**: 16pt - Cards, images
+- **xl**: 18pt - Large images
+- **xxl**: 24pt - Cards
+- **xxxl**: 26pt - Tab bars
+
+## Shadows
+
+Use shadow tokens for consistent elevation:
+
+```swift
+// ✅ DO: Use shadow helper methods
+.cardShadow()      // For cards
+.imageShadow()     // For images
+.badgeShadow()     // For badges
+
+// Or use DesignTokens.Shadow directly
+.shadow(
+    color: DesignTokens.Shadow.cardLight.color,
+    radius: DesignTokens.Shadow.cardLight.radius,
+    x: DesignTokens.Shadow.cardLight.x,
+    y: DesignTokens.Shadow.cardLight.y
+)
+
+// ❌ DON'T: Use arbitrary shadow values
+.shadow(color: .black.opacity(0.1), radius: 10, x: 0, y: 5)
+```
+
+## Animations
+
+Use animation tokens for consistent motion:
+
+```swift
+// ✅ DO: Use animation tokens
+.animation(DesignTokens.Animation.springQuick, value: isPressed)
+.animation(DesignTokens.Animation.springSmooth, value: isVisible)
+
+// ❌ DON'T: Use arbitrary animation values
+.animation(.spring(response: 0.3, dampingFraction: 0.7))
+```
+
+### Animation Guidelines
+
+- **Quick interactions**: `springQuick` (0.3s response, 0.7 damping)
+- **Medium interactions**: `springMedium` (0.4s response, 0.6 damping)
+- **Smooth transitions**: `springSmooth` (0.5s response, 0.75 damping)
+- **Interactive gestures**: `springInteractive` (0.6s response, 0.8 damping)
+
+## Reusable Components
+
+### UserAvatar
+
+Always use `UserAvatar` for user profile images:
+
+```swift
+// ✅ DO: Use UserAvatar component
+UserAvatar(user: user, size: 44)
+UserAvatar.medium(user: user)  // Predefined sizes
+
+// With border
+UserAvatar(user: user, size: 44, showBorder: true, borderColor: .primaryBrand)
+
+// ❌ DON'T: Create custom avatar views
+AsyncImage(url: user.avatarURL) { ... }  // Use UserAvatar instead
+```
+
+**Available sizes**: xs (20), sm (24), md (40), lg (44), xl (60), xxl (80), xxxl (120)
+
+### PostCard
+
+Use `PostCard` for displaying posts in feeds:
+
+```swift
+// ✅ DO: Use PostCard component
+PostCard(
+    post: post,
+    onLike: { postId in ... },
+    onBookmark: { postId in ... }
+)
+
+// ❌ DON'T: Create custom post layouts
+VStack { ... }  // Use PostCard instead
+```
+
+### LoadingView
+
+Use appropriate loading views:
+
+```swift
+// ✅ DO: Use loading components
+LoadingView("Loading posts...")           // Full screen loading
+MiniLoadingView()                         // Inline loading
+PostCreationLoadingBar()                  // Post creation progress
+
+// ❌ DON'T: Create custom loading indicators
+ProgressView()  // Use LoadingView or MiniLoadingView instead
+```
+
+### EmptyStateView
+
+Use `EmptyStateView` for empty states:
+
+```swift
+// ✅ DO: Use EmptyStateView
+EmptyStateView(
+    icon: "camera",
+    title: "No Posts Yet",
+    message: "Share your first food experience!"
+)
+
+// ❌ DON'T: Create custom empty states
+VStack {
+    Text("No posts")
+}  // Use EmptyStateView instead
+```
+
+## Button Styles
+
+### Primary Button
+
+```swift
+// ✅ DO: Use ActionButtonStyle for primary actions
+Button("Save") { ... }
+    .buttonStyle(ActionButtonStyle(isSecondary: false))
+
+// Style:
+// - Background: Color.primaryBrand
+// - Text: White
+// - Corner radius: 12pt
+// - Padding: 20pt horizontal, 12pt vertical
+```
+
+### Secondary Button
+
+```swift
+// ✅ DO: Use ActionButtonStyle for secondary actions
+Button("Cancel") { ... }
+    .buttonStyle(ActionButtonStyle(isSecondary: true))
+
+// Style:
+// - Background: Transparent
+// - Border: Color.primaryBrand, 1.5pt
+// - Text: Color.primaryBrand
+// - Corner radius: 12pt
+```
+
+### Icon Buttons
+
+```swift
+// ✅ DO: Use consistent icon button styling
+Button(action: { ... }) {
+    Image(systemName: "heart")
+        .font(.system(size: 20))
+        .foregroundColor(.primaryText)
+        .frame(width: 36, height: 36)
+        .background(
+            Circle()
+                .fill(Color.appBackground.opacity(0.8))
+        )
+}
+.buttonStyle(.plain)
+```
+
+### Haptic Feedback
+
+Always include haptic feedback for button interactions:
+
+```swift
+// ✅ DO: Add haptic feedback
+Button(action: {
+    HapticManager.shared.impact(.light)  // or .medium, .heavy
+    // Action
+}) { ... }
+
+// Or use HapticButtonStyle
+Button("Action") { ... }
+    .buttonStyle(HapticButtonStyle(haptic: .medium))
+```
+
+## Card Design
+
+### Standard Card
+
+```swift
+// ✅ DO: Use standard card styling
+VStack { ... }
+    .padding(.horizontal, DesignTokens.Spacing.Component.cardHorizontalPadding)
+    .padding(.vertical, DesignTokens.Spacing.Component.cardVerticalPadding)
+    .background(
+        RoundedRectangle(cornerRadius: DesignTokens.CornerRadius.Component.card)
+            .fill(Color.cardBackground)
+            .cardShadow()
+    )
+```
+
+### Card Spacing
+
+- Horizontal padding: 16pt
+- Vertical padding: 14pt
+- Corner radius: 24pt
+- Shadow: Card shadow (light + subtle)
+
+## Liquid Glass Effects
+
+Use liquid glass effects for modern UI elements:
+
+```swift
+// ✅ DO: Use liquid glass modifier
+.background(
+    LiquidGlassBackground(shape: .roundedRectangle(cornerRadius: 22))
+)
+
+// Available shapes:
+// - .circle
+// - .roundedRectangle(cornerRadius: CGFloat)
+```
+
+## Badge Design
+
+### Location Badge
+
+```swift
+// ✅ DO: Use consistent badge styling
+HStack(spacing: 8) {
+    Image(systemName: "mappin.circle.fill")
+        .font(.system(size: 16, weight: .semibold))
+        .foregroundColor(.white)
+    
+    Text(shop.name)
+        .font(.system(size: 13, weight: .bold))
+        .foregroundColor(.white)
+}
+.padding(.horizontal, 12)
+.padding(.vertical, 8)
+.background(
+    Capsule()
+        .fill(.ultraThinMaterial)
+        .background(
+            Capsule()
+                .fill(Color.black.opacity(0.5))
+        )
+        .clipShape(Capsule())
+)
+.badgeShadow()
+```
+
+## Best Practices
+
+### Color Usage
+
+1. **Always use semantic colors** - Never hardcode colors for text/backgrounds
+2. **Use brand colors sparingly** - Reserve `primaryBrand` for CTAs and accents
+3. **Maintain contrast** - Ensure text is readable on backgrounds (WCAG AA minimum)
+
+### Typography
+
+1. **Use design tokens** - Never hardcode font sizes or weights
+2. **Maintain hierarchy** - Use larger, bolder fonts for important information
+3. **Limit font weights** - Stick to regular, medium, semibold, bold
+
+### Spacing
+
+1. **Use spacing tokens** - Never use magic numbers
+2. **Maintain consistency** - Use the same spacing values for similar elements
+3. **Group related content** - Use smaller spacing within groups, larger between groups
+
+### Components
+
+1. **Reuse existing components** - Check [Views/Components](mdc:palytt/Sources/PalyttApp/Views/Components) before creating new ones
+2. **Follow component patterns** - Match existing component APIs and styling
+3. **Add to design system** - If creating a reusable component, document it here
+
+### Animations
+
+1. **Use spring animations** - Prefer spring over ease for natural feel
+2. **Keep animations subtle** - Don't over-animate
+3. **Provide haptic feedback** - Use `HapticManager` for important interactions
+
+## Reference Files
+
+- **Colors**: [Colors.swift](mdc:palytt/Sources/PalyttApp/Design/Colors.swift)
+- **Design Tokens**: [DesignTokens.swift](mdc:palytt/Sources/PalyttApp/Design/DesignTokens.swift)
+- **UI Components**: [UIComponents.swift](mdc:palytt/Sources/PalyttApp/Utilities/UIComponents.swift)
+- **Reusable Views**: [Views/Components](mdc:palytt/Sources/PalyttApp/Views/Components)
+- **PostCard Example**: [PostCard.swift](mdc:palytt/Sources/PalyttApp/Views/Components/PostCard.swift)
+- **UserAvatar Example**: [UserAvatar.swift](mdc:palytt/Sources/PalyttApp/Views/Components/UserAvatar.swift)

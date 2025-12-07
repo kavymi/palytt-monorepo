@@ -67,3 +67,85 @@ Backend runs on:
 [06:41:51 UTC] INFO: Server listening at <http://127.0.0.1:4000>
 [06:41:51 UTC] INFO: Server listening at <http://192.168.1.75:4000>
 [06:41:51 UTC] INFO: Server listening at <http://192.168.64.1:4000>
+
+## Design System (CRITICAL)
+
+**Always follow the Palytt design system when building UI features.**
+
+### Design Tokens
+
+Use tokens from `palytt/Sources/PalyttApp/Design/DesignTokens.swift`:
+
+```swift
+// ✅ DO: Use design tokens
+VStack(spacing: DesignTokens.Spacing.lg) {
+    Text("Title")
+        .font(DesignTokens.Typography.title(weight: .bold))
+        .foregroundColor(.primaryText)
+}
+.padding(DesignTokens.Spacing.Component.cardHorizontalPadding)
+.background(
+    RoundedRectangle(cornerRadius: DesignTokens.CornerRadius.Component.card)
+        .fill(Color.cardBackground)
+        .cardShadow()
+)
+
+// ❌ DON'T: Use hardcoded values
+VStack(spacing: 16) {
+    Text("Title").font(.system(size: 28))
+}
+.padding(16)
+.background(Color.white)
+```
+
+### Colors
+
+**Always use semantic colors** that adapt to light/dark mode:
+
+```swift
+// ✅ DO: Use semantic colors
+Color.primaryText         // Main text (adapts to theme)
+Color.primaryBrand        // #d29985 - Brand color
+Color.cardBackground      // Card background (adapts to theme)
+Color.background          // Main background (adapts to theme)
+
+// ❌ DON'T: Hardcode colors
+Color.black               // Use Color.primaryText instead
+Color.white               // Use Color.cardBackground instead
+Color(hex: "#d29985")    // Use Color.primaryBrand instead
+```
+
+### Reusable Components
+
+**Check for existing components before creating new ones:**
+
+- `UserAvatar` - User profile images (sizes: xs, sm, md, lg, xl, xxl, xxxl)
+- `PostCard` - Post display in feeds
+- `LoadingView` / `MiniLoadingView` - Loading states
+- `EmptyStateView` - Empty states
+- Button styles: `ActionButtonStyle`, `HapticButtonStyle`
+
+```swift
+// ✅ DO: Use existing components
+UserAvatar(user: user, size: 44)
+PostCard(post: post, onLike: { ... })
+LoadingView("Loading...")
+
+// ❌ DON'T: Create custom components when reusable ones exist
+AsyncImage(url: user.avatarURL) { ... }  // Use UserAvatar instead
+```
+
+### Design Patterns
+
+1. **Cards**: Padding 16pt horizontal, 14pt vertical, corner radius 24pt, card shadow
+2. **Buttons**: Include haptic feedback with `HapticManager.shared.impact(.medium)`
+3. **Animations**: Use `DesignTokens.Animation.springQuick` or `springSmooth`
+4. **Spacing**: Use `DesignTokens.Spacing` (xs, sm, md, lg, xl, xxl)
+5. **Typography**: Use `DesignTokens.Typography` methods for font sizes
+
+### Reference Files
+
+- **Design System Rules**: `.cursor/rules/design_system.mdc` - Complete guidelines
+- **Colors**: `palytt/Sources/PalyttApp/Design/Colors.swift`
+- **Design Tokens**: `palytt/Sources/PalyttApp/Design/DesignTokens.swift`
+- **Components**: `palytt/Sources/PalyttApp/Views/Components/`

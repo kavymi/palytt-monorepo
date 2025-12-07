@@ -7,14 +7,14 @@
 //  Copyright © 2025 Palytt Inc. All rights reserved.
 //
 
-import Redis from 'ioredis';
+import Redis, { RedisOptions } from 'ioredis';
 
 // Environment configuration
 const REDIS_URL = process.env.REDIS_URL || 'redis://localhost:6379';
 const isProduction = process.env.NODE_ENV === 'production';
 
 // Connection options
-const redisOptions: Redis.RedisOptions = {
+const redisOptions: RedisOptions = {
   maxRetriesPerRequest: 3,
   retryStrategy: (times: number) => {
     if (times > 10) {

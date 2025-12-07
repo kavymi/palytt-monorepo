@@ -5,13 +5,22 @@ import { createPostLikeNotification } from '../services/notificationService.js';
 import {
   cacheGet,
   cacheSet,
-  cacheGetOrSet,
   CacheKeys,
   CacheTTL,
   invalidatePostCache,
   invalidateFeedCaches,
-  broadcastPostInvalidation,
 } from '../cache/cache.service.js';
+import {
+  CreatePostInputSchema,
+  CreatePostResponseSchema,
+  PostResponseSchema,
+  PostListResponseSchema,
+  LikeResponseSchema,
+  BookmarkResponseSchema,
+  PostLikesResponseSchema,
+  PaginationInputSchema,
+  UuidParamSchema,
+} from '../schemas/index.js';
 
 // Helper function to get user UUID from clerkId
 async function getUserIdFromClerkId(clerkId: string): Promise<string> {
@@ -76,31 +85,8 @@ export const postsRouter = router({
    * Create a new post
    */
   create: protectedProcedure
-    .input(
-      z.object({
-        shopName: z.string(),
-        foodItem: z.string(),
-        description: z.string().optional(),
-        rating: z.number().min(1).max(5),
-        imageUrl: z.string().url().optional(),
-        imageUrls: z.array(z.string().url()),
-        tags: z.array(z.string()),
-        location: z.object({
-          latitude: z.number(),
-          longitude: z.number(),
-          address: z.string(),
-          name: z.string().optional(),
-        }).optional(),
-        isPublic: z.boolean().default(true),
-        mentions: z.array(z.object({
-          type: z.string(),
-          text: z.string(),
-          targetId: z.string(),
-          start: z.number(),
-          end: z.number(),
-        })).optional(),
-      })
-    )
+    .input(CreatePostInputSchema)
+    .output(CreatePostResponseSchema)
     .mutation(async ({ input, ctx }) => {
       const { user } = ctx;
       
@@ -225,12 +211,8 @@ export const postsRouter = router({
    * Get all posts (with pagination)
    */
   list: publicProcedure
-    .input(
-      z.object({
-        page: z.number().int().positive().default(1),
-        limit: z.number().int().positive().max(100).default(20),
-      })
-    )
+    .input(PaginationInputSchema)
+    .output(PostListResponseSchema)
     .query(async ({ input, ctx }) => {
       const skip = (input.page - 1) * input.limit;
       
@@ -319,7 +301,8 @@ export const postsRouter = router({
    * Get a single post by ID
    */
   getById: publicProcedure
-    .input(z.object({ id: z.string().uuid() }))
+    .input(UuidParamSchema)
+    .output(PostResponseSchema)
     .query(async ({ input, ctx }) => {
       // Try to get from cache first (for public data)
       const cacheKey = `${CacheKeys.POST}${input.id}`;
@@ -407,6 +390,7 @@ export const postsRouter = router({
    */
   toggleLike: protectedProcedure
     .input(z.object({ postId: z.string().uuid() }))
+    .output(LikeResponseSchema)
     .mutation(async ({ input, ctx }) => {
       const dbUser = await ensureUser(ctx.user.clerkId, ctx.user.clerkId + '@clerk.local');
       
@@ -623,6 +607,7 @@ export const postsRouter = router({
    */
   toggleBookmark: protectedProcedure
     .input(z.object({ postId: z.string().uuid() }))
+    .output(BookmarkResponseSchema)
     .mutation(async ({ input, ctx }) => {
       const dbUser = await ensureUser(ctx.user.clerkId, ctx.user.clerkId + '@clerk.local');
       

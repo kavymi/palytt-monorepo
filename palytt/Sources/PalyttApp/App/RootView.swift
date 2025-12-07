@@ -51,81 +51,98 @@ struct LiquidGlassBackground: View {
         colorScheme == .dark ? 0.2 : 0.06
     }
     
+    private var innerGlowGradient: LinearGradient {
+        LinearGradient(
+            colors: [
+                Color.white.opacity(glowOpacity),
+                Color.white.opacity(glowOpacity * 0.3),
+                Color.clear
+            ],
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
+    }
+    
+    private var depthGradient: RadialGradient {
+        RadialGradient(
+            colors: [
+                Color.white.opacity(colorScheme == .dark ? 0.03 : 0.08),
+                Color.clear
+            ],
+            center: .topLeading,
+            startRadius: 0,
+            endRadius: 200
+        )
+    }
+    
+    private var borderGradient: LinearGradient {
+        LinearGradient(
+            colors: [
+                Color.white.opacity(borderTopOpacity),
+                Color.white.opacity(borderBottomOpacity)
+            ],
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
+    }
+    
     var body: some View {
-        ZStack {
-            // Layer 1: Base blur material
-            baseShape
-                .fill(.ultraThinMaterial)
-            
-            // Layer 2: Inner glow/highlight (light refraction simulation)
-            baseShape
-                .fill(
-                    LinearGradient(
-                        colors: [
-                            Color.white.opacity(glowOpacity),
-                            Color.white.opacity(glowOpacity * 0.3),
-                            Color.clear
-                        ],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
-            
-            // Layer 3: Subtle color tint for depth
-            baseShape
-                .fill(
-                    RadialGradient(
-                        colors: [
-                            Color.white.opacity(colorScheme == .dark ? 0.03 : 0.08),
-                            Color.clear
-                        ],
-                        center: .topLeading,
-                        startRadius: 0,
-                        endRadius: 200
-                    )
-                )
+        Group {
+            switch shape {
+            case .roundedRectangle(let cornerRadius):
+                roundedRectangleContent(cornerRadius: cornerRadius)
+            case .capsule:
+                capsuleContent
+            case .circle:
+                circleContent
+            }
         }
-        // Layer 4: Gradient border stroke
-        .overlay {
-            strokeShape
-                .strokeBorder(
-                    LinearGradient(
-                        colors: [
-                            Color.white.opacity(borderTopOpacity),
-                            Color.white.opacity(borderBottomOpacity)
-                        ],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    ),
-                    lineWidth: 0.5
-                )
-        }
-        // Layer 5: Layered shadows for depth
         .shadow(color: Color.black.opacity(nearShadowOpacity), radius: 8, x: 0, y: 4)
         .shadow(color: Color.black.opacity(farShadowOpacity), radius: 20, x: 0, y: 10)
     }
     
-    @ViewBuilder
-    private var baseShape: some Shape {
-        switch shape {
-        case .roundedRectangle(let cornerRadius):
+    private func roundedRectangleContent(cornerRadius: CGFloat) -> some View {
+        ZStack {
             RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-        case .capsule:
-            Capsule()
-        case .circle:
-            Circle()
+                .fill(.ultraThinMaterial)
+            RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                .fill(innerGlowGradient)
+            RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                .fill(depthGradient)
+        }
+        .overlay {
+            RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                .strokeBorder(borderGradient, lineWidth: 0.5)
         }
     }
     
-    @ViewBuilder
-    private var strokeShape: some InsettableShape {
-        switch shape {
-        case .roundedRectangle(let cornerRadius):
-            RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-        case .capsule:
+    private var capsuleContent: some View {
+        ZStack {
             Capsule()
-        case .circle:
+                .fill(.ultraThinMaterial)
+            Capsule()
+                .fill(innerGlowGradient)
+            Capsule()
+                .fill(depthGradient)
+        }
+        .overlay {
+            Capsule()
+                .strokeBorder(borderGradient, lineWidth: 0.5)
+        }
+    }
+    
+    private var circleContent: some View {
+        ZStack {
             Circle()
+                .fill(.ultraThinMaterial)
+            Circle()
+                .fill(innerGlowGradient)
+            Circle()
+                .fill(depthGradient)
+        }
+        .overlay {
+            Circle()
+                .strokeBorder(borderGradient, lineWidth: 0.5)
         }
     }
 }

@@ -2,7 +2,6 @@ import { z } from 'zod';
 import { router, publicProcedure, protectedProcedure } from '../trpc.js';
 import { prisma } from '../db.js';
 import {
-  cacheGet,
   cacheSet,
   cacheGetOrSet,
   CacheKeys,
@@ -10,52 +9,20 @@ import {
   invalidateUserCache,
   invalidateUserCacheByClerkId,
 } from '../cache/cache.service.js';
-
-// User model schemas
-const UserSchema = z.object({
-  id: z.string().uuid(),
-  email: z.string().email(),
-  username: z.string().min(1).max(50).nullable(),
-  name: z.string().min(1).max(200).nullable(),
-  bio: z.string().max(500).nullable(),
-  profileImage: z.string().url().nullable(),
-  website: z.string().url().nullable(),
-  clerkId: z.string().min(1),
-  followerCount: z.number().int().default(0),
-  followingCount: z.number().int().default(0),
-  postsCount: z.number().int().default(0),
-  createdAt: z.string(),
-  updatedAt: z.string(),
-});
-
-const CreateUserSchema = z.object({
-  email: z.string().email(),
-  username: z.string().min(1).max(50).nullable().optional(),
-  name: z.string().min(1).max(200).nullable().optional(),
-  bio: z.string().max(500).nullable().optional(),
-  profileImage: z.string().url().nullable().optional(),
-  website: z.string().url().nullable().optional(),
-  clerkId: z.string().min(1),
-  // iOS app may send these additional fields - accept but ignore
-  firstName: z.string().nullable().optional(),
-  lastName: z.string().nullable().optional(),
-  avatarUrl: z.string().nullable().optional(),
-  appleId: z.string().nullable().optional(),
-  googleId: z.string().nullable().optional(),
-});
-
-const UpdateUserSchema = z.object({
-  username: z.string().min(1).max(50).nullable().optional(),
-  name: z.string().min(1).max(200).nullable().optional(),
-  bio: z.string().max(500).nullable().optional(),
-  profileImage: z.string().url().nullable().optional(),
-  website: z.string().url().nullable().optional(),
-  // iOS app may send these additional fields
-  firstName: z.string().nullable().optional(),
-  lastName: z.string().nullable().optional(),
-  avatarUrl: z.string().nullable().optional(),
-  dietaryPreferences: z.array(z.string()).optional(),
-});
+import {
+  UserSchema,
+  CreateUserSchema,
+  UpdateUserSchema,
+  UserResponseSchema,
+  UserListResponseSchema,
+  UserStatsResponseSchema,
+  StreakInfoResponseSchema,
+  PhoneHashSearchResponseSchema,
+  UserSearchResponseSchema,
+  ClerkIdParamSchema,
+  UuidParamSchema,
+  PaginationInputSchema,
+} from '../schemas/index.js';
 
 export const usersRouter = router({
   /**
@@ -63,6 +30,7 @@ export const usersRouter = router({
    */
   create: publicProcedure
     .input(CreateUserSchema)
+    .output(UserResponseSchema)
     .mutation(async ({ input }) => {
       const newUser = await prisma.user.create({
         data: {
@@ -90,7 +58,8 @@ export const usersRouter = router({
    * Get user by ID
    */
   getById: publicProcedure
-    .input(z.object({ id: z.string().uuid() }))
+    .input(UuidParamSchema)
+    .output(UserSchema)
     .query(async ({ input }) => {
       const cacheKey = `${CacheKeys.USER_PROFILE}${input.id}`;
       
@@ -119,7 +88,8 @@ export const usersRouter = router({
    * Get user by Clerk ID
    */
   getByClerkId: publicProcedure
-    .input(z.object({ clerkId: z.string().min(1) }))
+    .input(ClerkIdParamSchema)
+    .output(UserSchema)
     .query(async ({ input }) => {
       const cacheKey = `${CacheKeys.USER_BY_CLERK}${input.clerkId}`;
       
@@ -159,6 +129,7 @@ export const usersRouter = router({
       id: z.string().uuid(),
       data: UpdateUserSchema,
     }))
+    .output(UserResponseSchema)
     .mutation(async ({ input }) => {
       const updatedUser = await prisma.user.update({
         where: { id: input.id },
@@ -186,6 +157,7 @@ export const usersRouter = router({
       clerkId: z.string().min(1),
       data: UpdateUserSchema,
     }))
+    .output(UserResponseSchema)
     .mutation(async ({ input }) => {
       // Map iOS field names to backend field names
       // iOS sends: firstName, lastName, avatarUrl
@@ -229,6 +201,7 @@ export const usersRouter = router({
    */
   upsert: publicProcedure
     .input(CreateUserSchema)
+    .output(UserResponseSchema.extend({ created: z.boolean().optional() }))
     .mutation(async ({ input }) => {
       // Map iOS field names to backend field names
       // iOS sends: firstName, lastName, avatarUrl
@@ -276,11 +249,10 @@ export const usersRouter = router({
    * List all users (with pagination)
    */
   list: publicProcedure
-    .input(z.object({
-      page: z.number().int().positive().default(1),
-      limit: z.number().int().positive().max(100).default(10),
+    .input(PaginationInputSchema.extend({
       search: z.string().optional(),
     }))
+    .output(UserListResponseSchema)
     .query(async ({ input }) => {
       const skip = (input.page - 1) * input.limit;
       
@@ -323,7 +295,8 @@ export const usersRouter = router({
    * Get user statistics
    */
   getStats: publicProcedure
-    .input(z.object({ clerkId: z.string().min(1) }))
+    .input(ClerkIdParamSchema)
+    .output(UserStatsResponseSchema)
     .query(async ({ input }) => {
       const user = await prisma.user.findUnique({
         where: { clerkId: input.clerkId },
@@ -357,7 +330,8 @@ export const usersRouter = router({
    * Get user's posting streak information
    */
   getStreakInfo: publicProcedure
-    .input(z.object({ clerkId: z.string().min(1) }))
+    .input(ClerkIdParamSchema)
+    .output(StreakInfoResponseSchema)
     .query(async ({ input }) => {
       const user = await prisma.user.findUnique({
         where: { clerkId: input.clerkId },
@@ -416,6 +390,7 @@ export const usersRouter = router({
     .input(z.object({
       phoneHashes: z.array(z.string()).max(500), // Limit to 500 hashes per request
     }))
+    .output(PhoneHashSearchResponseSchema)
     .query(async ({ input }) => {
       const { phoneHashes } = input;
       
@@ -487,6 +462,7 @@ export const usersRouter = router({
       query: z.string().min(1),
       limit: z.number().int().positive().max(20).default(10),
     }))
+    .output(UserSearchResponseSchema)
     .query(async ({ input }) => {
       const { query, limit } = input;
       
@@ -545,6 +521,7 @@ export const usersRouter = router({
       limit: z.number().int().positive().max(50).default(10),
       excludeUserId: z.string().optional(),
     }))
+    .output(UserSearchResponseSchema)
     .query(async ({ input }) => {
       const { limit, excludeUserId } = input;
       
@@ -597,6 +574,7 @@ export const usersRouter = router({
    */
   upsertByClerkId: publicProcedure
     .input(CreateUserSchema)
+    .output(UserResponseSchema.extend({ created: z.boolean().optional() }))
     .mutation(async ({ input }) => {
       // Map iOS field names to backend field names
       // iOS sends: firstName, lastName, avatarUrl
@@ -646,6 +624,10 @@ export const usersRouter = router({
    * The user can only delete their own account
    */
   deleteAccount: protectedProcedure
+    .output(z.object({
+      success: z.boolean(),
+      message: z.string(),
+    }))
     .mutation(async ({ ctx }) => {
       const { user } = ctx;
       const clerkId = user.clerkId;
@@ -764,7 +746,7 @@ export const usersRouter = router({
     }),
 });
 
-// Export types for frontend
+// Export types for frontend (re-exported from schemas for backward compatibility)
 export type User = z.infer<typeof UserSchema>;
 export type CreateUserInput = z.infer<typeof CreateUserSchema>;
 export type UpdateUserInput = z.infer<typeof UpdateUserSchema>; 

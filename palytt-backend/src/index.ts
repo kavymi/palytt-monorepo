@@ -7,6 +7,8 @@ import { createContext } from './trpc.js';
 import { appRouter } from './routers/app.js';
 import { initializeRedis, closeRedis, checkRedisHealth, redis, isRedisAvailable } from './cache/redis.js';
 import { getCacheStats, subscribeToCacheInvalidation } from './cache/cache.service.js';
+import { initializeJobProcessors } from './jobs/processors/index.js';
+import { closeAllQueues, getAllQueueStats } from './jobs/queue.service.js';
 
 const isProduction = process.env.NODE_ENV === 'production';
 const isDevelopment = !isProduction && process.env.NODE_ENV !== 'test';
@@ -101,6 +103,7 @@ await server.register(fastifyTRPCPlugin, {
 server.get('/health', async () => {
   const redisHealth = await checkRedisHealth();
   const cacheStats = await getCacheStats();
+  const queueStats = isRedisAvailable() ? await getAllQueueStats() : null;
   
   return { 
     status: redisHealth.status === 'healthy' ? 'ok' : 'degraded',
@@ -108,6 +111,7 @@ server.get('/health', async () => {
     uptime: process.uptime(),
     redis: redisHealth,
     cache: cacheStats,
+    queues: queueStats,
   };
 });
 
@@ -132,6 +136,9 @@ const start = async () => {
     // Subscribe to cache invalidation events (for multi-instance deployments)
     await subscribeToCacheInvalidation();
     
+    // Initialize background job processors
+    await initializeJobProcessors();
+    
     const port = process.env.PORT ? parseInt(process.env.PORT, 10) : 4000;
     const host = process.env.HOST || '0.0.0.0';
     
@@ -153,6 +160,7 @@ const start = async () => {
 // Handle graceful shutdown
 process.on('SIGTERM', async () => {
   console.log('SIGTERM received, shutting down gracefully...');
+  await closeAllQueues();
   await closeRedis();
   await server.close();
   process.exit(0);
@@ -160,6 +168,7 @@ process.on('SIGTERM', async () => {
 
 process.on('SIGINT', async () => {
   console.log('SIGINT received, shutting down gracefully...');
+  await closeAllQueues();
   await closeRedis();
   await server.close();
   process.exit(0);

@@ -18,8 +18,13 @@ import {
   recordPushNotificationSent,
   getNotificationPriority,
 } from './notificationRateLimiter.js';
+import { addNotificationJob, addAnalyticsJob } from '../jobs/queue.service.js';
+import { isRedisAvailable } from '../cache/redis.js';
 import type pkg from '@prisma/client';
 type NotificationType = pkg.NotificationType;
+
+// Flag to control whether to use background jobs for notifications
+const USE_BACKGROUND_JOBS = true;
 
 export interface NotificationData {
   postId?: string;
@@ -298,7 +303,7 @@ export async function createNotification(
     }
 
     // Check daily rate limit
-    if (!canSendNotification(userClerkId)) {
+    if (!await canSendNotification(userClerkId)) {
       console.log(`⏸️ Rate limited: skipping notification for ${userClerkId} (daily limit)`);
       return;
     }
@@ -326,7 +331,20 @@ export async function createNotification(
     });
 
     // Record that we sent a notification (for rate limiting)
-    recordNotificationSent(userClerkId);
+    await recordNotificationSent(userClerkId);
+    
+    // Track analytics event in background
+    if (USE_BACKGROUND_JOBS && isRedisAvailable()) {
+      addAnalyticsJob({
+        type: 'engagement',
+        userId: userClerkId,
+        eventType: 'notification_created',
+        eventData: { notificationType: type, title },
+        timestamp: Date.now(),
+      }).catch(() => {
+        // Silently ignore analytics failures
+      });
+    }
 
     console.log(`✅ Notification created for user ${userClerkId}: ${type} - ${title}`);
 
@@ -336,14 +354,33 @@ export async function createNotification(
     });
 
     // Send push notification if allowed and within rate limits
-    if (priority.shouldSendPush && canSendPushNotification(userClerkId)) {
-      sendPushForNotification(userClerkId, type, title, message, data)
-        .then(() => {
-          recordPushNotificationSent(userClerkId);
-        })
-        .catch((err) => {
-          console.warn('⚠️ Failed to send push notification (non-blocking):', err);
+    if (priority.shouldSendPush && await canSendPushNotification(userClerkId)) {
+      // Use background job if Redis is available, otherwise send directly
+      if (USE_BACKGROUND_JOBS && isRedisAvailable()) {
+        addNotificationJob({
+          type: 'push',
+          recipientClerkId: userClerkId,
+          title,
+          body: message,
+          data: {
+            type,
+            postId: data.postId || '',
+            senderId: data.senderId || '',
+          },
+        }).catch((err) => {
+          console.warn('⚠️ Failed to queue push notification, sending directly:', err);
+          sendPushForNotification(userClerkId, type, title, message, data);
         });
+        await recordPushNotificationSent(userClerkId);
+      } else {
+        sendPushForNotification(userClerkId, type, title, message, data)
+          .then(async () => {
+            await recordPushNotificationSent(userClerkId);
+          })
+          .catch((err) => {
+            console.warn('⚠️ Failed to send push notification (non-blocking):', err);
+          });
+      }
     }
 
     // Also push to Convex for real-time delivery (always - this is in-app)

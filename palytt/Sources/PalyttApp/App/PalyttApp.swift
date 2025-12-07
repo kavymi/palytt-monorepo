@@ -137,6 +137,37 @@ struct PalyttApp: App {
                         VStack(spacing: 0) {
                             Spacer()
                             
+                            // App name with elegant typography
+                            VStack(spacing: 16) {
+                                Text("palytt")
+                                    .font(.system(size: 52, weight: .light, design: .rounded))
+                                    .tracking(8)
+                                    .foregroundStyle(
+                                        LinearGradient(
+                                            colors: [
+                                                Color.oldRose,
+                                                Color.oldRose.opacity(0.8)
+                                            ],
+                                            startPoint: .leading,
+                                            endPoint: .trailing
+                                        )
+                                    )
+                                    .opacity(orbsAppeared ? 1.0 : 0.0)
+                                    .offset(y: orbsAppeared ? 0 : 20)
+                                    .animation(.easeOut(duration: 0.8).delay(0.2), value: orbsAppeared)
+                                
+                                // Tagline
+                                Text("share your palette")
+                                    .font(.system(size: 15, weight: .regular, design: .rounded))
+                                    .tracking(3)
+                                    .foregroundColor(Color.coffeeDark.opacity(0.5))
+                                    .opacity(orbsAppeared ? 1.0 : 0.0)
+                                    .offset(y: orbsAppeared ? 0 : 15)
+                                    .animation(.easeOut(duration: 0.8).delay(0.4), value: orbsAppeared)
+                            }
+                            
+                            Spacer()
+                            
                             // Elegant shimmer line
                             Rectangle()
                                 .fill(
